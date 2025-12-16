@@ -1,45 +1,72 @@
 # ActionHud
 
-**ActionHud** is a lightweight, high-performance action HUD designed for World of Warcraft Retail. It provides a compact 6x4 grid visualization of your primary action bars, optimized for quick combat decision-making.
+A lightweight, high-performance action bar HUD for World of Warcraft Retail. Displays a compact 6x4 grid of your primary action bars, designed for quick combat awareness.
 
 ## Features
 
-*   **Compact Grid Layout**: Visualizes Action Bar 1 (Slots 1-12) and Action Bar 2 (Slots 61-72) in a tight 6x4 grid.
-*   **Stance & Form Support**: Automatically updates to reflect Druid forms, Rogue stealth, and other stance-based bar swaps.
-*   **Assisted Highlight**: Fully supports the new WoW 11.x "Blue Glow" rotation assistance, mirroring the default UI's recommendations.
-*   **Proc Tracking**: Displays standard yellow "Spell Activation Overlay" glows for procs.
-*   **Combat Essentials**:
-    *   **Cooldowns**: High-visibility cooldown numbers.
-    *   **Charges**: Stack counts for charge-based abilities.
-    *   **Range & Usability**: Desaturates unusable skills and tints out-of-range targets red.
-    *   **Skyriding Ready**: Correctly tracks charges even for complex riding abilities.
+- **Compact Grid**: Shows Action Bar 1 (slots 1-12) and Action Bar 2 (slots 61-72) in a tight layout.
+- **Stance/Form Support**: Automatically updates for Druid forms, Rogue stealth, and other bar swaps.
+- **Visual Feedback**:
+  - **Yellow Glow**: Proc tracking via Spell Activation Overlay.
+  - **Blue Glow**: WoW 11.x Assisted Combat rotation recommendations.
+  - **Cooldowns**: Clear countdown numbers with configurable font size.
+  - **Charges**: Stack counts for charge-based abilities.
+  - **Usability**: Desaturates unusable skills; tints out-of-range abilities red.
+
+## How to Use
+
+ActionHud mirrors your Action Bars 1 and 2. Set them up correctly so the HUD displays what you want:
+
+### Step 1: Configure Your Action Bars
+1. Open **Edit Mode** (`Esc` → `Edit Mode`).
+2. Select **Action Bar 1** and set:
+   - **Orientation**: Horizontal
+   - **Buttons**: 12
+   - **Wrap**: After 6 buttons
+3. Select **Action Bar 2** and use the same settings.
+4. **Stack them**: Position Bar 1 directly above Bar 2 (this creates a 6×4 grid).
+
+### Step 2: Place Your Abilities
+- Put the abilities you want on the HUD in **Action Bar 1** (top 2 rows) and **Action Bar 2** (bottom 2 rows).
+- ActionHud will automatically display whatever is on these bars.
+
+### Step 3: Position the HUD
+1. Open ActionHud settings (`Esc` → `Options` → `AddOns` → `ActionHud`).
+2. Uncheck **Lock Frame** (a green overlay appears).
+3. Drag the HUD to your preferred screen position.
+4. Re-check **Lock Frame** to lock it in place.
+
+> **Tip**: You can hide the default Action Bars 1 and 2 in Edit Mode once you've confirmed ActionHud is showing everything correctly.
 
 ## Configuration
 
-ActionHud provides a native Blizzard Settings panel for customization.
+Open via: `Esc` → `Options` → `AddOns` → `ActionHud`
 
-*   **Open Settings**: `Esc` -> `Options` -> `AddOns` -> `ActionHud`.
-*   **Unlock Frame**: Toggle "Lock frame" to drag the HUD anywhere on screen (shows a green overlay when unlocked).
-*   **Customization**:
-    *   **Icon Width/Height**: precise sizing (10-30px).
-    *   **Font Sizes**: Adjust cooldown and stack count text.
-    *   **Opacity**: Control background visibility.
+| Setting | Description |
+|---------|-------------|
+| Lock Frame | Toggle to drag/position the HUD (green overlay when unlocked). |
+| Icon Width/Height | Adjust icon dimensions (10-30px). |
+| Cooldown Font Size | Size of cooldown countdown text (6-16px). |
+| Stack Count Font Size | Size of charge/stack numbers (6-16px). |
+| Background Opacity | Visibility of empty slot backgrounds (0-100%). |
+| Proc Glow Opacity | Brightness of yellow proc border (0-100%). |
+| Assist Glow Opacity | Brightness of blue recommendation border (0-100%). |
 
 ## Commands
 
-*   `/actionhud` - Prints a detailed debug dump of the current button states to the chat/error frame (useful for troubleshooting missing glows or wrong spells).
+- `/actionhud` — Prints a debug dump of button states to the error frame.
 
 ## Installation
 
-1.  Place the `ActionHud` folder into your `World of Warcraft/Interfact/AddOns/` directory.
-2.  Reload the game.
+1. Place the `ActionHud` folder in `World of Warcraft/_retail_/Interface/AddOns/`.
+2. Reload the game or restart the client.
 
 ## Performance
 
-ActionHud is designed with a "zero-overhead" philosophy:
-*   **Event-Driven**: No expensive `OnUpdate` polling loops during combat.
-*   **Reusable Frames**: All buttons are created once on load and updated only when necessary.
-*   **Memory Efficient**: Minimal closures and table churn.
+- **Event-Driven**: No `OnUpdate` polling; reacts only to game events.
+- **Static Frames**: All 24 buttons are created once at load, never during combat.
+- **Minimal Memory**: Reuses textures and frames; avoids table churn.
 
 ---
-*Created for the Agents of the Future.*
+
+*MIT License • Created for WoW 11.x (The War Within)*

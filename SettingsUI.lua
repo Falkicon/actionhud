@@ -27,6 +27,11 @@ local function Clamp(n, minV, maxV)
 	return n
 end
 
+local function Round(num, decimals)
+    local mult = 10^(decimals or 0)
+    return math.floor(num * mult + 0.5) / mult
+end
+
 local function ApplyIfReady(methodName, ...)
 	if ActionHudFrame and ActionHudFrame[methodName] then
 		local ok = pcall(ActionHudFrame[methodName], ActionHudFrame, ...)
@@ -185,31 +190,89 @@ local function RegisterSettings()
 		Settings.CreateSlider(category, setting, options, "Font size for stack counts (bottom right).")
 	end
 
-    -- Opacity / Alpha
+    -- Opacity / Alpha (Stored as 0.0-1.0, Displayed as 0-100)
 	do
 		local name = "Background Opacity"
 		local variable = "ActionHud_Alpha"
 		local defaultValue = 0.0
-		local minValue, maxValue, step = 0, 1, 0.1
+		local minValue, maxValue, step = 0, 100, 5
 
 		local function GetValue()
-			return GetProfile().opacity or defaultValue -- Using 'opacity' in DB
+            local val = GetProfile().opacity or defaultValue
+			return math.floor(val * 100 + 0.5)
 		end
 
 		local function SetValue(value)
-			value = Clamp(tonumber(value) or defaultValue, minValue, maxValue)
-			GetProfile().opacity = value
+			value = Clamp(tonumber(value) or 0, minValue, maxValue)
+            -- Save as float 0.0 - 1.0
+			GetProfile().opacity = value / 100
 			ApplyIfReady("UpdateOpacity")
 		end
 
-		local setting = Settings.RegisterProxySetting(category, variable, type(defaultValue), name, defaultValue, GetValue, SetValue)
+		local setting = Settings.RegisterProxySetting(category, variable, type(defaultValue), name, defaultValue * 100, GetValue, SetValue)
 		setting:SetValueChangedCallback(OnSettingChanged)
 
 		local options = Settings.CreateSliderOptions(minValue, maxValue, step)
 		if options and options.SetLabelFormatter then
              options:SetLabelFormatter(MinimalSliderWithSteppersMixin.Label.Right)
         end
-		Settings.CreateSlider(category, setting, options, "Opacity of the empty button background.")
+		Settings.CreateSlider(category, setting, options, "Opacity of the empty button background (0-100%).")
+	end
+    
+    -- Proc Glow Opacity
+	do
+		local name = "Proc Glow Opacity (Yellow)"
+		local variable = "ActionHud_ProcGlowAlpha"
+		local defaultValue = 1.0
+		local minValue, maxValue, step = 0, 100, 5
+
+		local function GetValue()
+            local val = GetProfile().procGlowAlpha or defaultValue
+			return math.floor(val * 100 + 0.5)
+		end
+
+		local function SetValue(value)
+			value = Clamp(tonumber(value) or 100, minValue, maxValue)
+			GetProfile().procGlowAlpha = value / 100
+			ApplyIfReady("UpdateLayout")
+		end
+
+		local setting = Settings.RegisterProxySetting(category, variable, type(defaultValue), name, defaultValue * 100, GetValue, SetValue)
+		setting:SetValueChangedCallback(OnSettingChanged)
+
+		local options = Settings.CreateSliderOptions(minValue, maxValue, step)
+		if options and options.SetLabelFormatter then
+             options:SetLabelFormatter(MinimalSliderWithSteppersMixin.Label.Right)
+        end
+		Settings.CreateSlider(category, setting, options, "Opacity of the 1px Yellow Proc border (0-100%).")
+	end
+
+    -- Assist Glow Opacity
+	do
+		local name = "Assist Glow Opacity (Blue)"
+		local variable = "ActionHud_AssistGlowAlpha"
+		local defaultValue = 1.0
+		local minValue, maxValue, step = 0, 100, 5
+
+		local function GetValue()
+            local val = GetProfile().assistGlowAlpha or defaultValue
+			return math.floor(val * 100 + 0.5)
+		end
+
+		local function SetValue(value)
+			value = Clamp(tonumber(value) or 100, minValue, maxValue)
+			GetProfile().assistGlowAlpha = value / 100
+			ApplyIfReady("UpdateLayout")
+		end
+
+		local setting = Settings.RegisterProxySetting(category, variable, type(defaultValue), name, defaultValue * 100, GetValue, SetValue)
+		setting:SetValueChangedCallback(OnSettingChanged)
+
+		local options = Settings.CreateSliderOptions(minValue, maxValue, step)
+		if options and options.SetLabelFormatter then
+             options:SetLabelFormatter(MinimalSliderWithSteppersMixin.Label.Right)
+        end
+		Settings.CreateSlider(category, setting, options, "Opacity of the 2px Blue Assisted Highlight border (0-100%).")
 	end
 
 

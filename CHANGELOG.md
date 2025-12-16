@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.1.0] - 2025-12-16
+
+### Added
+- **Glow Opacity Settings**: Dedicated sliders for Proc Glow (Yellow) and Assist Glow (Blue) opacity (0-100%).
+- **How to Use Guide**: Detailed setup instructions in README.
+
+### Changed
+- **Visual Polish**: Refined Glows to coexist. Proc Glow is now 1px (Outer/Top), Assist Glow is 2px (Inner/Bottom).
+- **Settings Clarity**: Opacity sliders now display as clean 0-100% integers.
+- **Cooldown Logic**: "Gold Spark" removed for GCD and short lockouts (<1.5s) to reduce visual noise; retained for real cooldowns and charge refills.
+- **Documentation**: Complete rewrite of AGENTS.md and README.md for accuracy.
+
 ## [1.0.0] - 2025-12-16
 
 ### Added

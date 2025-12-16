@@ -26,6 +26,8 @@ local function UpdateConfigCache()
     CFG.locked = p.locked
     if CFG.locked == nil then CFG.locked = false end
     CFG.opacity = p.opacity or 0.0
+    CFG.procGlowAlpha = p.procGlowAlpha or 1.0
+    CFG.assistGlowAlpha = p.assistGlowAlpha or 1.0
     CFG.cooldownFontSize = p.cooldownFontSize or 6
     CFG.countFontSize = p.countFontSize or 6
 end
@@ -109,9 +111,18 @@ local function UpdateLayout(self)
         
         -- Update Glow Size if it exists (yellow proc)
         if btn.glow then 
-             -- Glow is square usually? No, should follow button shape 1.7x
-             btn.glow:SetSize(CFG.iconWidth * 1.7, CFG.iconHeight * 1.7)
-             btn.glow:SetPoint("CENTER", btn, "CENTER", 0, 0)
+             -- Yellow Glow is now a Backdrop Frame following Button Size
+             -- We need to ensure backdrop size/edge scales if we wanted 2px visual
+             btn.glow:SetBackdrop({
+                edgeFile = "Interface\\Buttons\\WHITE8x8",
+                edgeSize = 1, -- Target 1px wide
+             })
+             btn.glow:SetBackdropBorderColor(1, 1, 0, CFG.procGlowAlpha)
+        end
+        
+        -- Update Assist Glow Alpha if it exists
+        if btn.assistGlow then
+             btn.assistGlow:SetBackdropBorderColor(0, 0.8, 1, CFG.assistGlowAlpha)
         end
         
         -- Refresh Fonts
@@ -257,16 +268,28 @@ for i, actionID in ipairs(CFG.slots) do
     btn.count:SetPoint("BOTTOMRIGHT", 0, 0)
     btn.count:SetFont("Fonts\\FRIZQT__.TTF", cfgInitial.countFontSize or 10, "OUTLINE") -- Use Hardcoded Font Path if global missing
     btn.count:SetJustifyH("RIGHT")
-    btn.glow = btn:CreateTexture(nil, "OVERLAY")
-    -- Correct size for the Yellow Proc border (ActionButton-Border has padding)
-    -- We can set it to 1.7x like our other logic, or rely on scaling if SetTexture works differently
-    -- Let's set it explicitly to be sure.
-    -- btn.glow:SetAllPoints() <-- This was causing the "Tiny Box" issue if texture has padding
-    btn.glow:SetSize(cfgInitial.iconWidth * 1.7, cfgInitial.iconHeight * 1.7)
-    btn.glow:SetPoint("CENTER", btn, "CENTER", 0, 0)
-    btn.glow:SetTexture("Interface\\Buttons\\UI-ActionButton-Border")
-    btn.glow:SetBlendMode("ADD")
-    btn.glow:SetVertexColor(1, 1, 0, 1) -- Yellow glow
+
+    
+    -- Proc Glow (Yellow) - Outer Narrow Border
+    -- We use a dedicated frame to ensure z-order and crisp lines (no fuzzy texture padding)
+    btn.glow = CreateFrame("Frame", nil, btn, "BackdropTemplate")
+    btn.glow:SetAllPoints()
+    btn.glow:SetBackdrop({
+        edgeFile = "Interface\\Buttons\\WHITE8x8",
+        edgeSize = 1, 
+                      -- Let's enable border scaling.
+    })
+    btn.glow:SetBackdropBorderColor(1, 1, 0, 1) -- Bright Yellow
+    -- We want Proc Glow to be OUTSIDE or INSIDE? "Above it". 
+    -- If Blue (Assist) is 4px, let's make that one thicker.
+    -- Let's try: Blue = Thick Inner, Yellow = Thin Outer? Or vice-versa.
+    -- User: "Suggested (Blue) glow goes to 4px wide... Proc glow is above it at 2px wide"
+    -- This implies stacking.
+    
+    -- Make Yellow Glow Frame slightly larger? Or inset?
+    -- If we keep them same size, they overlap.
+    -- Let's make Yellow Glow standard 1px/2px on the very edge.
+    btn.glow:SetFrameLevel(btn:GetFrameLevel() + 12) -- Topmost
     btn.glow:Hide()
     
     btn.baseSlot = actionID -- Store the visual slot (e.g. 1)
@@ -350,6 +373,20 @@ local function UpdateCooldown(btn)
     local start, duration = GetActionCooldown(btn.actionID)
     -- If standard cooldown is active (e.g. GCD or full CD), show it
     if start and duration and start > 0 and duration > 0 then
+        -- Check if it is the Global Cooldown
+        local gcdInfo = C_Spell.GetSpellCooldown(61304) -- Standard GCD spell
+        if gcdInfo and gcdInfo.startTime == start and gcdInfo.duration == duration then
+             btn.cd:SetDrawEdge(false) -- No swipe edge for GCD
+        else
+             -- Check for short shared lockouts (Skyriding buffer is ~0.5s - 1.0s) which should NOT have a spark
+             if duration <= 1.5 then
+                 -- This is likely a shared lockout buffer or GCD variant
+                 btn.cd:SetDrawEdge(false)
+             else
+                 btn.cd:SetDrawEdge(true) -- Show swipe edge for real CDs (>1.5s)
+             end
+        end
+        
         btn.cd:SetCooldown(start, duration)
         btn.cd:Show()
     else
@@ -358,6 +395,7 @@ local function UpdateCooldown(btn)
             local chargeInfo = C_Spell.GetSpellCharges(btn.spellID)
             if chargeInfo and chargeInfo.cooldownStartTime > 0 and (GetTime() < chargeInfo.cooldownStartTime + chargeInfo.cooldownDuration) then
                 -- Only show if actual recharge is happening
+                btn.cd:SetDrawEdge(true) -- User confirmed they want the spark for charges refilling
                 btn.cd:SetCooldown(chargeInfo.cooldownStartTime, chargeInfo.cooldownDuration)
                 btn.cd:Show()
                 return -- Exit early
@@ -476,7 +514,8 @@ local function OnEvent(self, event, arg1)
          RefreshAll()
     elseif event == "ACTIONBAR_SLOT_CHANGED" then
         for _, btn in ipairs(buttons) do
-            if btn.baseSlot == arg1 or arg1 == 0 then
+            -- Check baseSlot (static) OR actionID (dynamic/paged)
+            if btn.baseSlot == arg1 or btn.actionID == arg1 or arg1 == 0 then
                 UpdateAction(btn)
                 UpdateCooldown(btn)
                 UpdateState(btn)
@@ -523,16 +562,17 @@ if AssistedCombatManager then
         for _, btn in ipairs(buttons) do
             if btn.actionID == targetActionID then
                 if not btn.assistGlow then
-                    -- Create Simple Blue Border Frame
+                    -- Create Simple Blue Border Frame (Assisted Highlight)
                     -- Note: btn.assistGlow is created once per session on first need
                     btn.assistGlow = CreateFrame("Frame", nil, btn, "BackdropTemplate")
                     btn.assistGlow:SetAllPoints()
                     btn.assistGlow:SetBackdrop({
                         edgeFile = "Interface\\Buttons\\WHITE8x8",
-                        edgeSize = 1, 
+                        edgeSize = 2, -- 2px Wide
                     })
-                    btn.assistGlow:SetBackdropBorderColor(0, 0.8, 1, 1) -- Cyan/Blue
-                    btn.assistGlow:SetFrameLevel(btn:GetFrameLevel() + 10) 
+                    btn.assistGlow:SetBackdropBorderColor(0, 0.8, 1, CFG.assistGlowAlpha or 1) -- Cyan/Blue
+                    -- Lower than Yellow (Proc) but above base
+                    btn.assistGlow:SetFrameLevel(btn:GetFrameLevel() + 5) 
                     btn.assistGlow:Hide()
                 end
                 
