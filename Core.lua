@@ -70,10 +70,11 @@ function ActionHud:OnEnable()
 end
 
 function ActionHud:SlashHandler(msg)
-    if not msg or msg == "" then
-        LibStub("AceConfigDialog-3.0"):Open("ActionHud")
+    -- Open the main options panel to the ActionHud category
+    if Settings and Settings.OpenToCategory then
+        Settings.OpenToCategory("ActionHud")
     else
-        LibStub("AceConfigCmd-3.0"):HandleCommand("actionhud", "ActionHud", msg)
+        InterfaceOptionsFrame_OpenToCategory("ActionHud")
     end
 end
 
