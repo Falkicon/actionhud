@@ -12,6 +12,8 @@ A lightweight, high-performance action bar HUD for World of Warcraft Retail. Dis
   - **Cooldowns**: Clear countdown numbers with configurable font size.
   - **Charges**: Stack counts for charge-based abilities.
   - **Usability**: Desaturates unusable skills; tints out-of-range abilities red.
+- **Resource Bars**: Optional compact bars for Health and Power (Mana/Energy/Rage) attached to the HUD.
+- **Profiles**: Support for character-specific settings and profile sharing via AceDB.
 
 ## How to Use
 
@@ -40,7 +42,19 @@ ActionHud mirrors your Action Bars 1 and 2. Set them up correctly so the HUD dis
 
 ## Configuration
 
-Open via: `Esc` → `Options` → `AddOns` → `ActionHud`
+## Configuration
+
+Open the enhanced settings panel via slash command:
+- `/ah`
+- `/actionhud`
+
+You can also find it in `Esc` → `Options` → `AddOns` → `ActionHud`.
+
+### Settings Sections
+- **General**: Lock frame, Opacity, and Icon Dimensions.
+- **Resource Bars**: Enable/Disable Health & Power bars, adjust size/position.
+- **Fonts**: Customize fonts and sizes for cooldowns and stack counts (LibSharedMedia support).
+- **Profiles**: Create, Copy, Delete, or Reset profiles for different characters.
 
 | Setting | Description |
 |---------|-------------|
@@ -54,7 +68,9 @@ Open via: `Esc` → `Options` → `AddOns` → `ActionHud`
 
 ## Commands
 
-- `/actionhud` — Prints a debug dump of button states to the error frame.
+
+- `/ah` or `/actionhud` — Opens the configuration dialog.
+- `/ah debug` — Prints debug info if enabled.
 
 ## Installation
 

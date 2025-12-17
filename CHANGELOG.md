@@ -2,17 +2,27 @@
 
 All notable changes to this project will be documented in this file.
 
-## [1.1.0] - 2025-12-16
+## [2.0.0] - 2025-12-16
+
+### Major Rewrite: Ace3 Integration
+- **Framework**: Migrated to AceAddon-3.0, AceDB-3.0, and AceConfig-3.0 for robust architecture.
+- **Profiles**: Added full Profile support (AceDB). Settings are now saved per-profile and can be copied/reset.
+- **Libs**: Proper library management via `embeds.xml`. Fixed dependencies blocking other addons (CallbackHandler issue resolved).
 
 ### Added
-- **Glow Opacity Settings**: Dedicated sliders for Proc Glow (Yellow) and Assist Glow (Blue) opacity (0-100%).
-- **How to Use Guide**: Detailed setup instructions in README.
+- **Resource Bars**: New module displaying Health and Power (Energy/Mana/Rage) bars attached to the HUD. Configurable position, size, and coloring.
+- **SharedMedia**: Added LibSharedMedia support for proper font selection.
+- **Automation**: Created `ADDON_DEV` environment with Git managed libraries and auto-updater script.
 
 ### Changed
-- **Visual Polish**: Refined Glows to coexist. Proc Glow is now 1px (Outer/Top), Assist Glow is 2px (Inner/Bottom).
-- **Settings Clarity**: Opacity sliders now display as clean 0-100% integers.
-- **Cooldown Logic**: "Gold Spark" removed for GCD and short lockouts (<1.5s) to reduce visual noise; retained for real cooldowns and charge refills.
-- **Documentation**: Complete rewrite of AGENTS.md and README.md for accuracy.
+- **Config UI**: Completely replaced custom config frame with AceConfigDialog for a native, standarized options menu.
+- **Commands**: `/ah` now opens the config window.
+- **Stability**: Fixed initialization ordering issues that prevented the HUD from showing on first load under certain conditions.
+
+### Removed
+- **Manual Library Imports**: Replaced with clean `Embeds.xml` referencing standard Ace3 libs.
+
+## [1.1.0] - 2025-12-16
 
 ## [1.0.0] - 2025-12-16
 

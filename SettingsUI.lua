@@ -1,289 +1,229 @@
-local addonName = "ActionHud"
+-- SettingsUI.lua
+-- Defines the configuration options using AceConfig-3.0
 
--- Blizzard Settings (Retail 10.0+). No external libraries.
+local addonName, ns = ...
+local ActionHud = LibStub("AceAddon-3.0"):GetAddon("ActionHud")
+local LSM = LibStub("LibSharedMedia-3.0")
 
-local function GetProfile()
-	ActionHudDB = ActionHudDB or {}
-	ActionHudDB.profile = ActionHudDB.profile or {}
+function ActionHud:SetupOptions()
+    local options = {
+        name = "ActionHud",
+        handler = ActionHud,
+        type = 'group',
+        args = {
+            general = {
+                name = "General",
+                type = "group",
+                order = 1,
+                args = {
+                    locked = {
+                        name = "Lock Frame",
+                        desc = "Lock the HUD in place.",
+                        type = "toggle",
+                        order = 1,
+                        get = function(info) return self.db.profile.locked end,
+                        set = function(info, val) 
+                            self.db.profile.locked = val
+                            self:UpdateLockState()
+                        end,
+                    },
+                    iconDimensions = {
+                        name = "Dimensions",
+                        type = "header",
+                        order = 10,
+                    },
+                    iconWidth = {
+                        name = "Icon Width",
+                        desc = "Width of the action icons.",
+                        type = "range",
+                        min = 10, max = 50, step = 1,
+                        order = 11,
+                        get = function(info) return self.db.profile.iconWidth end,
+                        set = function(info, val)
+                            self.db.profile.iconWidth = val
+                            self:UpdateLayout()
+                        end,
+                    },
+                    iconHeight = {
+                        name = "Icon Height",
+                        desc = "Height of the action icons.",
+                        type = "range",
+                        min = 10, max = 50, step = 1,
+                        order = 12,
+                        get = function(info) return self.db.profile.iconHeight end,
+                        set = function(info, val)
+                            self.db.profile.iconHeight = val
+                            self:UpdateLayout()
+                        end,
+                    },
+                    visuals = {
+                        name = "Visuals & Opacity",
+                        type = "header",
+                        order = 20,
+                    },
+                    opacity = {
+                        name = "Background Opacity",
+                        desc = "Opacity of empty slots.",
+                        type = "range",
+                        min = 0, max = 1, step = 0.05,
+                        isPercent = true,
+                        order = 21,
+                        get = function(info) return self.db.profile.opacity end,
+                        set = function(info, val)
+                            self.db.profile.opacity = val
+                            self:UpdateOpacity()
+                        end,
+                    },
+                    procGlowAlpha = {
+                        name = "Proc Glow Opacity (Yellow)",
+                        type = "range",
+                        min = 0, max = 1, step = 0.05,
+                        isPercent = true,
+                        order = 22,
+                        get = function(info) return self.db.profile.procGlowAlpha end,
+                        set = function(info, val)
+                            self.db.profile.procGlowAlpha = val
+                            self:UpdateLayout() -- Glow alpha is applied during layout/update usually, or distinct function
+                        end,
+                    },
+                    assistGlowAlpha = {
+                        name = "Assist Glow Opacity (Blue)",
+                        type = "range",
+                        min = 0, max = 1, step = 0.05,
+                        isPercent = true,
+                        order = 23,
+                        get = function(info) return self.db.profile.assistGlowAlpha end,
+                        set = function(info, val)
+                            self.db.profile.assistGlowAlpha = val
+                            self:UpdateLayout()
+                        end,
+                    },
+                    fonts = {
+                        name = "Fonts",
+                        type = "header",
+                        order = 30,
+                    },
+                    cooldownFontSize = {
+                        name = "Cooldown Font Size",
+                        type = "range",
+                        min = 6, max = 24, step = 1,
+                        order = 31,
+                        get = function(info) return self.db.profile.cooldownFontSize end,
+                        set = function(info, val)
+                            self.db.profile.cooldownFontSize = val
+                            self:UpdateLayout()
+                        end,
+                    },
+                    countFontSize = {
+                        name = "Stack Count Font Size",
+                        type = "range",
+                        min = 6, max = 24, step = 1,
+                        order = 32,
+                        get = function(info) return self.db.profile.countFontSize end,
+                        set = function(info, val)
+                            self.db.profile.countFontSize = val
+                            self:UpdateLayout()
+                        end,
+                    },
+                },
+            },
+            resources = {
+                name = "Resource Bars",
+                type = "group",
+                order = 2,
+                args = {
+                    enable = {
+                        name = "Enable",
+                        type = "toggle",
+                        order = 1,
+                        get = function(info) return self.db.profile.resEnabled end,
+                        set = function(info, val)
+                            self.db.profile.resEnabled = val
+                            self:UpdateLayout()
+                        end,
+                    },
+                    showTarget = {
+                        name = "Show Target Stats",
+                        desc = "Split bars to show target health/power.",
+                        type = "toggle",
+                        order = 2,
+                        get = function(info) return self.db.profile.resShowTarget end,
+                        set = function(info, val)
+                            self.db.profile.resShowTarget = val
+                            self:UpdateLayout()
+                        end,
+                    },
+                    position = {
+                        name = "Position",
+                        type = "select",
+                        values = { ["TOP"] = "Top", ["BOTTOM"] = "Bottom" },
+                        order = 3,
+                        get = function(info) return self.db.profile.resPosition end,
+                        set = function(info, val)
+                            self.db.profile.resPosition = val
+                            self:UpdateLayout()
+                        end,
+                    },
+                    layout = {
+                        name = "Layout Dimensions",
+                        type = "header",
+                        order = 10,
+                    },
+                    healthHeight = {
+                        name = "Health Bar Height",
+                        type = "range",
+                        min = 1, max = 30, step = 1,
+                        order = 11,
+                        get = function(info) return self.db.profile.resHealthHeight end,
+                        set = function(info, val)
+                            self.db.profile.resHealthHeight = val
+                            self:UpdateLayout()
+                        end,
+                    },
+                    powerHeight = {
+                        name = "Power Bar Height",
+                        type = "range",
+                        min = 1, max = 30, step = 1,
+                        order = 12,
+                        get = function(info) return self.db.profile.resPowerHeight end,
+                        set = function(info, val)
+                            self.db.profile.resPowerHeight = val
+                            self:UpdateLayout()
+                        end,
+                    },
+                    offset = {
+                        name = "Gap from HUD",
+                        type = "range",
+                        min = 0, max = 50, step = 1,
+                        order = 13,
+                        get = function(info) return self.db.profile.resOffset end,
+                        set = function(info, val)
+                            self.db.profile.resOffset = val
+                            self:UpdateLayout()
+                        end,
+                    },
+                    spacing = {
+                        name = "Bar Spacing",
+                        type = "range",
+                        min = 0, max = 10, step = 1,
+                        order = 14,
+                        get = function(info) return self.db.profile.resSpacing end,
+                        set = function(info, val)
+                            self.db.profile.resSpacing = val
+                            self:UpdateLayout()
+                        end,
+                    },
+                },
+            },
+        },
+    }
     
-    local p = ActionHudDB.profile
+    -- Register Options
+    LibStub("AceConfig-3.0"):RegisterOptionsTable("ActionHud", options)
+    self.optionsFrame = LibStub("AceConfigDialog-3.0"):AddToBlizOptions("ActionHud", "ActionHud")
     
-    -- Defaults (mirrored from Core.lua for initial setup)
-    if p.iconWidth == nil then p.iconWidth = 20 end
-    if p.iconHeight == nil then p.iconHeight = 15 end
-    if p.cooldownFontSize == nil then p.cooldownFontSize = 6 end
-    if p.countFontSize == nil then p.countFontSize = 6 end
-    if p.opacity == nil then p.opacity = 0.0 end
-    
-    if p.padding == nil then p.padding = 0 end
-    if p.locked == nil then p.locked = false end
-    
-    return p
+    -- Profiles
+    local profiles = LibStub("AceDBOptions-3.0"):GetOptionsTable(self.db)
+    LibStub("AceConfig-3.0"):RegisterOptionsTable("ActionHud_Profiles", profiles)
+    LibStub("AceConfigDialog-3.0"):AddToBlizOptions("ActionHud_Profiles", "Profiles", "ActionHud")
 end
-
-local function Clamp(n, minV, maxV)
-	if n < minV then return minV end
-	if n > maxV then return maxV end
-	return n
-end
-
-local function Round(num, decimals)
-    local mult = 10^(decimals or 0)
-    return math.floor(num * mult + 0.5) / mult
-end
-
-local function ApplyIfReady(methodName, ...)
-	if ActionHudFrame and ActionHudFrame[methodName] then
-		local ok = pcall(ActionHudFrame[methodName], ActionHudFrame, ...)
-		return ok
-	end
-    -- Fallback for simple re-layout if method absent
-    if ActionHudFrame and ActionHudFrame.UpdateLayout then
-         ActionHudFrame:UpdateLayout()
-    end
-	return false
-end
-
-local function RegisterSettings()
-	if not (Settings and Settings.RegisterVerticalLayoutCategory and Settings.RegisterAddOnCategory) then
-		return
-	end
-
-	local category = Settings.RegisterVerticalLayoutCategory("ActionHud")
-
-	local function OnSettingChanged(_, _)
-		-- Placeholder hook
-	end
-
-	-- ============================================================
-	-- General Settings
-	-- ============================================================
-
-	-- Lock frame
-	do
-		local name = "Lock frame"
-		local variable = "ActionHud_Locked"
-		local defaultValue = false
-
-		local function GetValue()
-			return GetProfile().locked
-		end
-
-		local function SetValue(value)
-			GetProfile().locked = value and true or false
-            ApplyIfReady("UpdateLockState")
-		end
-
-		local setting = Settings.RegisterProxySetting(category, variable, type(defaultValue), name, defaultValue, GetValue, SetValue)
-		setting:SetValueChangedCallback(OnSettingChanged)
-		Settings.CreateCheckbox(category, setting, "Prevents dragging the ActionHud HUD.")
-	end
-
-	-- Icon Width
-	do
-		local name = "Icon Width"
-		local variable = "ActionHud_IconWidth"
-		local defaultValue = 20
-		local minValue, maxValue, step = 10, 30, 1
-
-		local function GetValue()
-			return GetProfile().iconWidth or defaultValue
-		end
-
-		local function SetValue(value)
-			value = Clamp(tonumber(value) or defaultValue, minValue, maxValue)
-			GetProfile().iconWidth = value
-			ApplyIfReady("UpdateLayout")
-		end
-
-		local setting = Settings.RegisterProxySetting(category, variable, type(defaultValue), name, defaultValue, GetValue, SetValue)
-		setting:SetValueChangedCallback(OnSettingChanged)
-
-		local options = Settings.CreateSliderOptions(minValue, maxValue, step)
-		if options and options.SetLabelFormatter and MinimalSliderWithSteppersMixin and MinimalSliderWithSteppersMixin.Label and MinimalSliderWithSteppersMixin.Label.Right then
-			options:SetLabelFormatter(MinimalSliderWithSteppersMixin.Label.Right)
-		end
-
-		Settings.CreateSlider(category, setting, options, "Width of the action icons.")
-	end
-
-	-- Icon Height
-	do
-		local name = "Icon Height"
-		local variable = "ActionHud_IconHeight"
-		local defaultValue = 15
-		local minValue, maxValue, step = 10, 30, 1
-
-		local function GetValue()
-			return GetProfile().iconHeight or defaultValue
-		end
-
-		local function SetValue(value)
-			value = Clamp(tonumber(value) or defaultValue, minValue, maxValue)
-			GetProfile().iconHeight = value
-			ApplyIfReady("UpdateLayout")
-		end
-
-		local setting = Settings.RegisterProxySetting(category, variable, type(defaultValue), name, defaultValue, GetValue, SetValue)
-		setting:SetValueChangedCallback(OnSettingChanged)
-
-		local options = Settings.CreateSliderOptions(minValue, maxValue, step)
-		if options and options.SetLabelFormatter and MinimalSliderWithSteppersMixin and MinimalSliderWithSteppersMixin.Label and MinimalSliderWithSteppersMixin.Label.Right then
-			options:SetLabelFormatter(MinimalSliderWithSteppersMixin.Label.Right)
-		end
-
-		Settings.CreateSlider(category, setting, options, "Height of the action icons (crop top/bottom if smaller than width).")
-	end
-    
-    -- Cooldown Font Size
-	do
-		local name = "Cooldown Font Size"
-		local variable = "ActionHud_CDFontSize"
-		local defaultValue = 6
-		local minValue, maxValue, step = 6, 16, 1
-
-		local function GetValue()
-			return GetProfile().cooldownFontSize or defaultValue
-		end
-
-		local function SetValue(value)
-			value = Clamp(tonumber(value) or defaultValue, minValue, maxValue)
-			GetProfile().cooldownFontSize = value
-            -- Force layout update or full refresh usually required for font propagation in some cases
-			ApplyIfReady("UpdateLayout") 
-		end
-
-		local setting = Settings.RegisterProxySetting(category, variable, type(defaultValue), name, defaultValue, GetValue, SetValue)
-		setting:SetValueChangedCallback(OnSettingChanged)
-
-		local options = Settings.CreateSliderOptions(minValue, maxValue, step)
-		if options and options.SetLabelFormatter then
-             options:SetLabelFormatter(MinimalSliderWithSteppersMixin.Label.Right)
-        end
-		Settings.CreateSlider(category, setting, options, "Font size for cooldown numbers.")
-	end
-
-    -- Stack Count Font Size
-	do
-		local name = "Stack Count Font Size"
-		local variable = "ActionHud_CountFontSize"
-		local defaultValue = 6
-		local minValue, maxValue, step = 6, 16, 1
-
-		local function GetValue()
-			return GetProfile().countFontSize or defaultValue
-		end
-
-		local function SetValue(value)
-			value = Clamp(tonumber(value) or defaultValue, minValue, maxValue)
-			GetProfile().countFontSize = value
-			ApplyIfReady("UpdateLayout")
-		end
-
-		local setting = Settings.RegisterProxySetting(category, variable, type(defaultValue), name, defaultValue, GetValue, SetValue)
-		setting:SetValueChangedCallback(OnSettingChanged)
-
-		local options = Settings.CreateSliderOptions(minValue, maxValue, step)
-		if options and options.SetLabelFormatter then
-             options:SetLabelFormatter(MinimalSliderWithSteppersMixin.Label.Right)
-        end
-		Settings.CreateSlider(category, setting, options, "Font size for stack counts (bottom right).")
-	end
-
-    -- Opacity / Alpha (Stored as 0.0-1.0, Displayed as 0-100)
-	do
-		local name = "Background Opacity"
-		local variable = "ActionHud_Alpha"
-		local defaultValue = 0.0
-		local minValue, maxValue, step = 0, 100, 5
-
-		local function GetValue()
-            local val = GetProfile().opacity or defaultValue
-			return math.floor(val * 100 + 0.5)
-		end
-
-		local function SetValue(value)
-			value = Clamp(tonumber(value) or 0, minValue, maxValue)
-            -- Save as float 0.0 - 1.0
-			GetProfile().opacity = value / 100
-			ApplyIfReady("UpdateOpacity")
-		end
-
-		local setting = Settings.RegisterProxySetting(category, variable, type(defaultValue), name, defaultValue * 100, GetValue, SetValue)
-		setting:SetValueChangedCallback(OnSettingChanged)
-
-		local options = Settings.CreateSliderOptions(minValue, maxValue, step)
-		if options and options.SetLabelFormatter then
-             options:SetLabelFormatter(MinimalSliderWithSteppersMixin.Label.Right)
-        end
-		Settings.CreateSlider(category, setting, options, "Opacity of the empty button background (0-100%).")
-	end
-    
-    -- Proc Glow Opacity
-	do
-		local name = "Proc Glow Opacity (Yellow)"
-		local variable = "ActionHud_ProcGlowAlpha"
-		local defaultValue = 1.0
-		local minValue, maxValue, step = 0, 100, 5
-
-		local function GetValue()
-            local val = GetProfile().procGlowAlpha or defaultValue
-			return math.floor(val * 100 + 0.5)
-		end
-
-		local function SetValue(value)
-			value = Clamp(tonumber(value) or 100, minValue, maxValue)
-			GetProfile().procGlowAlpha = value / 100
-			ApplyIfReady("UpdateLayout")
-		end
-
-		local setting = Settings.RegisterProxySetting(category, variable, type(defaultValue), name, defaultValue * 100, GetValue, SetValue)
-		setting:SetValueChangedCallback(OnSettingChanged)
-
-		local options = Settings.CreateSliderOptions(minValue, maxValue, step)
-		if options and options.SetLabelFormatter then
-             options:SetLabelFormatter(MinimalSliderWithSteppersMixin.Label.Right)
-        end
-		Settings.CreateSlider(category, setting, options, "Opacity of the 1px Yellow Proc border (0-100%).")
-	end
-
-    -- Assist Glow Opacity
-	do
-		local name = "Assist Glow Opacity (Blue)"
-		local variable = "ActionHud_AssistGlowAlpha"
-		local defaultValue = 1.0
-		local minValue, maxValue, step = 0, 100, 5
-
-		local function GetValue()
-            local val = GetProfile().assistGlowAlpha or defaultValue
-			return math.floor(val * 100 + 0.5)
-		end
-
-		local function SetValue(value)
-			value = Clamp(tonumber(value) or 100, minValue, maxValue)
-			GetProfile().assistGlowAlpha = value / 100
-			ApplyIfReady("UpdateLayout")
-		end
-
-		local setting = Settings.RegisterProxySetting(category, variable, type(defaultValue), name, defaultValue * 100, GetValue, SetValue)
-		setting:SetValueChangedCallback(OnSettingChanged)
-
-		local options = Settings.CreateSliderOptions(minValue, maxValue, step)
-		if options and options.SetLabelFormatter then
-             options:SetLabelFormatter(MinimalSliderWithSteppersMixin.Label.Right)
-        end
-		Settings.CreateSlider(category, setting, options, "Opacity of the 2px Blue Assisted Highlight border (0-100%).")
-	end
-
-
-	Settings.RegisterAddOnCategory(category)
-end
-
-local eventFrame = CreateFrame("Frame")
-eventFrame:RegisterEvent("ADDON_LOADED")
-eventFrame:SetScript("OnEvent", function(_, event, name)
-    -- Just check if name is 'ActionHud', or assume valid if core loaded
-	if event == "ADDON_LOADED" and name == "ActionHud" then
-		RegisterSettings()
-	end
-end)

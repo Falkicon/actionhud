@@ -5,5 +5,7 @@
 ## Version: 1.0
 ## SavedVariables: ActionHudDB
 
+embeds.xml
 Core.lua
+Resources.lua
 SettingsUI.lua
