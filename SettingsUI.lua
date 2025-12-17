@@ -5,6 +5,26 @@ local addonName, ns = ...
 local ActionHud = LibStub("AceAddon-3.0"):GetAddon("ActionHud")
 local LSM = LibStub("LibSharedMedia-3.0")
 
+-- Helper to open the Gameplay Enhancements settings panel
+-- Category ID 42 = "Gameplay Enhancements" (discovered via testing)
+local function OpenGameplayEnhancements()
+    if Settings and Settings.OpenToCategory then
+        Settings.OpenToCategory(42)  -- Gameplay Enhancements
+        return true
+    end
+    
+    -- Fallback: Show settings panel and click Game tab
+    if SettingsPanel then
+        SettingsPanel:Show()
+        if SettingsPanel.GameTab then
+            SettingsPanel.GameTab:Click()
+        end
+        print("|cff33ff99ActionHud:|r Navigate to |cffffcc00Gameplay Enhancements|r.")
+        return true
+    end
+    return false
+end
+
 function ActionHud:SetupOptions()
     -- ROOT: General
     local generalOptions = {
@@ -23,25 +43,31 @@ function ActionHud:SetupOptions()
                     self:UpdateLockState()
                 end,
             },
-            divider = { type = "header", name = "Info", order = 10 },
+            divider = { type = "header", name = "Info & Prerequisites", order = 10 },
             readme = {
                 type = "description",
-                name = [[|cff33ff99ActionHud 2.2.1|r
+                name = [[|cff33ff99ActionHud 2.2.2|r
 
-A minimalist HUD mirroring Action Bars 1 & 2 in a compact 6x4 grid.
+A minimalist HUD mirroring Action Bars 1 & 2 in a 6x4 grid.
 
-|cffffcc00Prerequisites for Full Functionality:|r
-• Enable |cffffffffCooldown Manager|r in Gameplay > Gameplay Enhancements.
-• Enable |cffffffffAssisted Highlight|r in Gameplay > Interface.
+|cffffcc00Required Setup:|r
+Click the button below to open WoW's Gameplay Enhancements settings.
 
-|cffffcc00Modules:|r
-• |cffffffffAction Bars|r: The main 6x4 grid.
-• |cffffffffResource Bars|r: Player/Target Health & Power.
-• |cffffffffCooldown Manager|r: Tracked native cooldowns.
-
-Configure each module using the sub-menus on the left.]],
+Enable these options:
+  - |cffffffffAssisted Highlight|r (rotation glows)
+  - |cffffffffEnable Cooldown Manager|r (tracked cooldowns)
+  
+Use |cffffffffAdvanced Cooldown Settings|r to configure which spells are tracked.
+]],
                 fontSize = "medium",
                 order = 11,
+            },
+            btnPreReq1 = {
+                name = "Open Gameplay Enhancements",
+                desc = "Opens WoW Settings directly to Gameplay Enhancements.",
+                type = "execute",
+                func = function() OpenGameplayEnhancements() end,
+                order = 12,
             },
         },
     }
@@ -166,8 +192,20 @@ Configure each module using the sub-menus on the left.]],
         type = "group",
         args = {
             reqNote = {
-                name = "|cffffcc00Requirements:|r Enable \"Cooldown Manager\" in WoW Settings > Gameplay > Gameplay Enhancements.\nConfigure tracked spells via [Advanced Cooldown Settings] in that same menu.",
+                name = [[|cffffcc00Required:|r Enable native Cooldown Manager first.
+
+Click the button below, then enable:
+  - Enable Cooldown Manager
+  
+Use |cffffffffAdvanced Cooldown Settings|r to configure tracked spells.]],
                 type = "description", order = 0,
+            },
+            btnOpen = {
+                 name = "Open Gameplay Enhancements",
+                 desc = "Opens WoW Settings directly to Gameplay Enhancements.",
+                 type = "execute",
+                 func = function() OpenGameplayEnhancements() end,
+                 order = 0.5,
             },
             enable = {
                 name = "Enable", desc = "Enable management of the native Cooldown Manager frame.", type = "toggle", order = 1,

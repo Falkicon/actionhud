@@ -50,8 +50,6 @@ To get the most out of ActionHud, enable these native WoW features in **Gameplay
 
 ## Configuration
 
-## Configuration
-
 Open the enhanced settings panel via slash command:
 - `/ah`
 - `/actionhud`
@@ -91,6 +89,21 @@ You can also find it in `Esc` → `Options` → `AddOns` → `ActionHud`.
 - **Static Frames**: All 24 buttons are created once at load, never during combat.
 - **Minimal Memory**: Reuses textures and frames; avoids table churn.
 
+## Technical Notes
+
+### WoW Settings API (11.0+)
+
+ActionHud uses `Settings.OpenToCategory(42)` to navigate directly to "Gameplay Enhancements". This category ID was discovered via `SettingsPanel:GetAllCategories()`.
+
+**To discover category IDs:**
+```lua
+for i, cat in ipairs(SettingsPanel:GetAllCategories()) do
+    print(i .. ": " .. cat:GetName() .. " (ID: " .. cat:GetID() .. ")")
+end
+```
+
+> **Note**: Category IDs may change between patches.
+
 ## Credits
 
 A special thanks to the authors of:
@@ -100,3 +113,4 @@ A special thanks to the authors of:
 ---
 
 *MIT License • Created for WoW 11.x (The War Within)*
+

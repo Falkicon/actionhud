@@ -6,6 +6,7 @@ All notable changes to this project will be documented in this file.
 ### Changed
 - **Settings UI Layout**: Overhauled settings to use the native interface options tree structure instead of tabs.
 - **Slash Command**: Updated `/ah` to open the integrated Settings panel instead of a standalone window.
+- **Direct Navigation**: "Open Gameplay Enhancements" button now navigates directly to the correct WoW settings page (ID 42).
 
 ## [2.2.1] - 2025-12-16
 ### Added
