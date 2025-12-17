@@ -207,6 +207,7 @@ Use |cffffffffAdvanced Cooldown Settings|r to configure tracked spells.]],
                  func = function() OpenGameplayEnhancements() end,
                  order = 0.5,
             },
+            divider = { type = "header", name = "", order = 0.6 },
             enable = {
                 name = "Enable", desc = "Enable management of the native Cooldown Manager frame.", type = "toggle", order = 1,
                 get = function(info) return self.db.profile.cdEnabled end,
