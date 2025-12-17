@@ -3,6 +3,14 @@
 All notable changes to this project will be documented in this file.
 
 ## [2.2.2] - 2025-12-16
+### Added
+- **Minimap Button**: Added a minimap button (LibDBIcon) with options to toggle it.
+- **DataBroker Support**: Added LDB support for integration with Titan Panel, Bazooka, etc.
+
+### Fixed
+- **Minimap Button**: Fixed Right-Click interaction functionality (workaround for LibDBIcon limitation).
+- **Settings Navigation**: Improved robustness of category detection when opening settings via Slash Command or LDB.
+
 ### Changed
 - **Settings UI Layout**: Overhauled settings to use the native interface options tree structure instead of tabs.
 - **Slash Command**: Updated `/ah` to open the integrated Settings panel instead of a standalone window.

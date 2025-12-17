@@ -35,6 +35,9 @@ local defaults = {
         cdUtilityHeight = 20,
         cdCountFontSize = 8, -- Changed to 8
         debugDiscovery = false,
+        minimap = {
+            hide = false,
+        },
     }
 }
 
@@ -43,6 +46,36 @@ function ActionHud:OnInitialize()
     self.db.RegisterCallback(self, "OnProfileChanged", "OnProfileChanged")
     self.db.RegisterCallback(self, "OnProfileCopied", "OnProfileChanged")
     self.db.RegisterCallback(self, "OnProfileReset", "OnProfileChanged")
+    
+    -- Initialize LDB & Minimap
+    local ldb = LibStub("LibDataBroker-1.1"):NewDataObject("ActionHud", {
+        type = "launcher",
+        text = "ActionHud",
+        icon = "Interface\\Icons\\Ability_DualWield",
+        OnClick = function(clickedframe, button)
+            -- print("ActionHud Debug: " .. tostring(button)) 
+            if button == "RightButton" then
+                self:SlashHandler("")
+            else
+                self.db.profile.locked = not self.db.profile.locked
+                self:UpdateLockState()
+                local status = self.db.profile.locked and "|cff00ff00Locked|r" or "|cffff0000Unlocked|r"
+                print("|cff33ff99ActionHud:|r " .. status)
+            end
+        end,
+        OnTooltipShow = function(tt)
+            tt:AddLine("ActionHud")
+            tt:AddLine("|cffeda55fLeft-Click|r to Toggle Lock")
+            tt:AddLine("|cffeda55fRight-Click|r to Open Settings")
+        end,
+    })
+    
+    self.icon = LibStub("LibDBIcon-1.0")
+    self.icon:Register("ActionHud", ldb, self.db.profile.minimap)
+    
+    -- Fix LibDBIcon click registration (Right-Click support)
+    local btn = self.icon:GetMinimapButton("ActionHud") 
+    if btn then btn:RegisterForClicks("AnyUp") end
     
     self:SetupOptions() -- In SettingsUI.lua
 end
@@ -70,9 +103,29 @@ function ActionHud:OnEnable()
 end
 
 function ActionHud:SlashHandler(msg)
-    -- Open the main options panel to the ActionHud category
+    if msg == "debug" then
+        self.db.profile.debugDiscovery = not self.db.profile.debugDiscovery
+        print("ActionHud Debug: " .. tostring(self.db.profile.debugDiscovery))
+        return
+    end
+
     if Settings and Settings.OpenToCategory then
-        Settings.OpenToCategory("ActionHud")
+        -- Try to find the category ID explicitly (most reliable in 11.0)
+        local categoryID
+        if SettingsPanel and SettingsPanel.GetAllCategories then
+             for _, cat in ipairs(SettingsPanel:GetAllCategories()) do
+                 if cat.name == "ActionHud" then
+                     categoryID = cat:GetID()
+                     break
+                 end
+             end
+        end
+        
+        if categoryID then
+             Settings.OpenToCategory(categoryID)
+        else
+             Settings.OpenToCategory("ActionHud")
+        end
     else
         InterfaceOptionsFrame_OpenToCategory("ActionHud")
     end

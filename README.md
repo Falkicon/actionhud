@@ -16,6 +16,7 @@ A lightweight, high-performance action bar HUD for World of Warcraft Retail. Dis
   - **Health & Power**: Compact bars for Player and Target.
   - **Class Resources**: Dynamic, smart bars for Combo Points, Holy Power, Chi, etc. that auto-hide when empty.
 - **Profiles**: Support for character-specific settings and profile sharing via AceDB.
+- **Integration**: Minimap button and DataBroker (LDB) support for quick access.
 
 ## How to Use
 

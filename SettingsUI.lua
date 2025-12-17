@@ -43,6 +43,21 @@ function ActionHud:SetupOptions()
                     self:UpdateLockState()
                 end,
             },
+            minimapIcon = {
+                name = "Show Minimap Icon",
+                desc = "Toggle the minimap icon.",
+                type = "toggle",
+                order = 2,
+                get = function(info) return not self.db.profile.minimap.hide end,
+                set = function(info, val)
+                    self.db.profile.minimap.hide = not val
+                    if val then
+                        self.icon:Show("ActionHud")
+                    else
+                        self.icon:Hide("ActionHud")
+                    end
+                end,
+            },
             divider = { type = "header", name = "Info & Prerequisites", order = 10 },
             readme = {
                 type = "description",
@@ -66,6 +81,7 @@ Use |cffffffffAdvanced Cooldown Settings|r to configure which spells are tracked
                 name = "Open Gameplay Enhancements",
                 desc = "Opens WoW Settings directly to Gameplay Enhancements.",
                 type = "execute",
+                width = "double",
                 func = function() OpenGameplayEnhancements() end,
                 order = 12,
             },
@@ -204,6 +220,7 @@ Use |cffffffffAdvanced Cooldown Settings|r to configure tracked spells.]],
                  name = "Open Gameplay Enhancements",
                  desc = "Opens WoW Settings directly to Gameplay Enhancements.",
                  type = "execute",
+                 width = "double",
                  func = function() OpenGameplayEnhancements() end,
                  order = 0.5,
             },
