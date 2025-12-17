@@ -42,6 +42,12 @@ ActionHud mirrors your Action Bars 1 and 2. Set them up correctly so the HUD dis
 
 > **Tip**: You can hide the default Action Bars 1 and 2 in Edit Mode once you've confirmed ActionHud is showing everything correctly.
 
+## Prerequisites
+
+To get the most out of ActionHud, enable these native WoW features in **Gameplay** → **Gameplay Enhancements**:
+- **Enable Cooldown Manager**: Required for the Cooldown Manager module to function.
+- **Assisted Highlight**: Required to see the blue glow recommendations on the HUD.
+
 ## Configuration
 
 ## Configuration

@@ -264,6 +264,11 @@ function ActionHud:SetupOptions()
                 type = "group",
                 order = 3,
                 args = {
+                    reqNote = {
+                        name = "|cffffcc00Requirements:|r Enable \"Cooldown Manager\" in WoW Settings > Gameplay > Gameplay Enhancements.\nConfigure tracked spells via [Advanced Cooldown Settings] in that same menu.",
+                        type = "description",
+                        order = 0,
+                    },
                     enable = {
                         name = "Enable",
                         desc = "Enable management of the native Cooldown Manager frame.",
