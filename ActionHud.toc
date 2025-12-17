@@ -2,7 +2,7 @@
 ## Title: ActionHud
 ## Notes: Minimalist HUD mirroring Action Bars 1 & 2
 ## Author: Antigravity
-## Version: 1.0
+## Version: 2.2.1
 ## SavedVariables: ActionHudDB
 
 embeds.xml

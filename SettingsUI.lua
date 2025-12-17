@@ -328,6 +328,18 @@ function ActionHud:SetupOptions()
                             ActionHud:GetModule("Cooldowns"):UpdateLayout()
                         end,
                     },
+                    itemGap = {
+                        name = "Icon Spacing",
+                        desc = "Space between cooldown icons.",
+                        type = "range",
+                        min = 0, max = 20, step = 1,
+                        order = 6,
+                        get = function(info) return self.db.profile.cdItemGap end,
+                        set = function(info, val)
+                            self.db.profile.cdItemGap = val
+                            ActionHud:GetModule("Cooldowns"):UpdateLayout()
+                        end,
+                    },
                     
                     headerEssential = { type="header", name="Essential Bar", order=10 },
                     essWidth = {

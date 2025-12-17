@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.2.1] - 2025-12-16
+### Added
+- **Cooldown Spacing**: Added "Icon Spacing" setting to control the gap between cooldown icons.
+- **Documentation**: Added "Prerequisites" section to README.
+
+### Changed
+- **Defaults**: Updated default Cooldown Manager Icon Size to 20x20 and spacing to 0px for a more compact look.
+- **Settings UI**: Added requirement notes for Cooldown Manager features.
+
+### Fixed
+- **Action Bars**: Fixed the Enable/Disable toggle in settings not correctly hiding/showing the grid.
+
 ## [2.2.0] - 2025-12-16
 ### Added
 - **Modular Action Bars**: Moved action bar logic to a dedicated `ActionBars` module.

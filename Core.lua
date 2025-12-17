@@ -28,10 +28,11 @@ local defaults = {
         cdSpacing = 2,
         cdReverse = false,
         cdGap = 4,
-        cdEssentialWidth = 40,
-        cdEssentialHeight = 40,
-        cdUtilityWidth = 30,
-        cdUtilityHeight = 30,
+        cdItemGap = 0,
+        cdEssentialWidth = 20,
+        cdEssentialHeight = 20,
+        cdUtilityWidth = 20,
+        cdUtilityHeight = 20,
         cdCountFontSize = 8, -- Changed to 8
         debugDiscovery = false,
     }

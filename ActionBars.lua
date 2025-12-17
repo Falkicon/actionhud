@@ -168,8 +168,16 @@ end
 -- Button Logic
 -- =========================================================================
 
-function AB:RefreshAll()
+function AB:OnDisable()
     for _, btn in ipairs(buttons) do
+        btn:Hide()
+    end
+end
+
+function AB:RefreshAll()
+    if not self:IsEnabled() then return end
+    for _, btn in ipairs(buttons) do
+        btn:Show()
         self:UpdateAction(btn)
         self:UpdateCooldown(btn)
         self:UpdateState(btn)

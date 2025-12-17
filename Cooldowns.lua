@@ -132,7 +132,7 @@ function Cooldowns:ApplyStyle(frame)
     table.sort(sorted, function(a,b) return a.x < b.x end)
     
     local count = #sorted
-    local margin = 2
+    local margin = p.cdItemGap or 2
     local totalWidth = (count * w) + ((count - 1) * margin)
     if totalWidth < 1 then totalWidth = 1 end
     
