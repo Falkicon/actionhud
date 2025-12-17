@@ -409,3 +409,7 @@ function Res:Initialize(addonObj)
     
     Res:UpdateLayout()
 end
+
+function Res:GetContainer()
+    return container
+end

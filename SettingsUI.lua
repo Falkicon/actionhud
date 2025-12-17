@@ -11,6 +11,7 @@ function ActionHud:SetupOptions()
         handler = ActionHud,
         type = 'group',
         args = {
+
             general = {
                 name = "General",
                 type = "group",
@@ -27,6 +28,24 @@ function ActionHud:SetupOptions()
                             self:UpdateLockState()
                         end,
                     },
+                },
+            },
+            actionbars = {
+                name = "Action Bars",
+                type = "group",
+                order = 2,
+                args = {
+                    enable = {
+                        name = "Enable",
+                        type = "toggle",
+                        order = 1,
+                        desc = "Enable the main Action Bar Grid.",
+                        get = function(info) return ActionHud:GetModule("ActionBars"):IsEnabled() end,
+                        set = function(info, val) 
+                            if val then ActionHud:GetModule("ActionBars"):Enable() 
+                            else ActionHud:GetModule("ActionBars"):Disable() end 
+                        end,
+                    },
                     iconDimensions = {
                         name = "Dimensions",
                         type = "header",
@@ -41,7 +60,7 @@ function ActionHud:SetupOptions()
                         get = function(info) return self.db.profile.iconWidth end,
                         set = function(info, val)
                             self.db.profile.iconWidth = val
-                            self:UpdateLayout()
+                            ActionHud:GetModule("ActionBars"):UpdateLayout()
                         end,
                     },
                     iconHeight = {
@@ -53,7 +72,7 @@ function ActionHud:SetupOptions()
                         get = function(info) return self.db.profile.iconHeight end,
                         set = function(info, val)
                             self.db.profile.iconHeight = val
-                            self:UpdateLayout()
+                            ActionHud:GetModule("ActionBars"):UpdateLayout()
                         end,
                     },
                     visuals = {
@@ -71,7 +90,7 @@ function ActionHud:SetupOptions()
                         get = function(info) return self.db.profile.opacity end,
                         set = function(info, val)
                             self.db.profile.opacity = val
-                            self:UpdateOpacity()
+                            ActionHud:GetModule("ActionBars"):UpdateOpacity()
                         end,
                     },
                     procGlowAlpha = {
@@ -83,7 +102,7 @@ function ActionHud:SetupOptions()
                         get = function(info) return self.db.profile.procGlowAlpha end,
                         set = function(info, val)
                             self.db.profile.procGlowAlpha = val
-                            self:UpdateLayout() -- Glow alpha is applied during layout/update usually, or distinct function
+                            ActionHud:GetModule("ActionBars"):UpdateLayout()
                         end,
                     },
                     assistGlowAlpha = {
@@ -95,7 +114,7 @@ function ActionHud:SetupOptions()
                         get = function(info) return self.db.profile.assistGlowAlpha end,
                         set = function(info, val)
                             self.db.profile.assistGlowAlpha = val
-                            self:UpdateLayout()
+                            ActionHud:GetModule("ActionBars"):UpdateLayout()
                         end,
                     },
                     fonts = {
@@ -111,7 +130,7 @@ function ActionHud:SetupOptions()
                         get = function(info) return self.db.profile.cooldownFontSize end,
                         set = function(info, val)
                             self.db.profile.cooldownFontSize = val
-                            self:UpdateLayout()
+                            ActionHud:GetModule("ActionBars"):UpdateLayout()
                         end,
                     },
                     countFontSize = {
@@ -122,7 +141,7 @@ function ActionHud:SetupOptions()
                         get = function(info) return self.db.profile.countFontSize end,
                         set = function(info, val)
                             self.db.profile.countFontSize = val
-                            self:UpdateLayout()
+                            ActionHud:GetModule("ActionBars"):UpdateLayout()
                         end,
                     },
                 },
@@ -237,6 +256,132 @@ function ActionHud:SetupOptions()
                             self.db.profile.resGap = val
                             self:UpdateLayout()
                         end,
+                    },
+                },
+            },
+            cooldowns = {
+                name = "Cooldown Manager",
+                type = "group",
+                order = 3,
+                args = {
+                    enable = {
+                        name = "Enable",
+                        desc = "Enable management of the native Cooldown Manager frame.",
+                        type = "toggle",
+                        order = 1,
+                        get = function(info) return self.db.profile.cdEnabled end,
+                        set = function(info, val)
+                            self.db.profile.cdEnabled = val
+                            local CD = ActionHud:GetModule("Cooldowns")
+                            if val then CD:Enable() else CD:Disable() end
+                        end,
+                    },
+                    position = {
+                        name = "Position",
+                        desc = "Attach to Top or Bottom of the HUD.",
+                        type = "select",
+                        values = {"Top", "Bottom"},
+                        order = 2,
+                        get = function(info) return self.db.profile.cdPosition == "BOTTOM" and 2 or 1 end,
+                        set = function(info, val)
+                            self.db.profile.cdPosition = (val == 2) and "BOTTOM" or "TOP"
+                            ActionHud:GetModule("Cooldowns"):UpdateLayout()
+                        end,
+                    },
+                    gap = {
+                        name = "Gap from HUD",
+                        desc = "Distance from the HUD (or Resource Bars).",
+                        type = "range",
+                        min = 0, max = 50, step = 1,
+                        order = 3,
+                        get = function(info) return self.db.profile.cdGap end,
+                        set = function(info, val)
+                            self.db.profile.cdGap = val
+                            ActionHud:GetModule("Cooldowns"):UpdateLayout()
+                        end,
+                    },
+                    spacing = {
+                        name = "Bar Spacing",
+                        desc = "Space between Essential and Utility bars.",
+                        type = "range",
+                        min = 0, max = 50, step = 1,
+                        order = 4,
+                        get = function(info) return self.db.profile.cdSpacing end,
+                        set = function(info, val)
+                            self.db.profile.cdSpacing = val
+                            ActionHud:GetModule("Cooldowns"):UpdateLayout()
+                        end,
+                    },
+                    reverse = {
+                        name = "Reverse Order",
+                        desc = "Swap the Essential and Utility bars.",
+                        type = "toggle",
+                        order = 5,
+                        get = function(info) return self.db.profile.cdReverse end,
+                        set = function(info, val)
+                            self.db.profile.cdReverse = val
+                            ActionHud:GetModule("Cooldowns"):UpdateLayout()
+                        end,
+                    },
+                    
+                    headerEssential = { type="header", name="Essential Bar", order=10 },
+                    essWidth = {
+                        name = "Width",
+                        type = "range", min = 10, max = 100, step = 1, order = 11,
+                        get = function(info) return self.db.profile.cdEssentialWidth end,
+                        set = function(info, val) 
+                            self.db.profile.cdEssentialWidth = val 
+                            ActionHud:GetModule("Cooldowns"):UpdateLayout()
+                        end,
+                    },
+                    essHeight = {
+                        name = "Height",
+                        type = "range", min = 10, max = 100, step = 1, order = 12,
+                        get = function(info) return self.db.profile.cdEssentialHeight end,
+                        set = function(info, val) 
+                            self.db.profile.cdEssentialHeight = val 
+                            ActionHud:GetModule("Cooldowns"):UpdateLayout()
+                        end,
+                    },
+                    
+                    headerUtility = { type="header", name="Utility Bar", order=20 },
+                    utilWidth = {
+                        name = "Width",
+                        type = "range", min = 10, max = 100, step = 1, order = 21,
+                        get = function(info) return self.db.profile.cdUtilityWidth end,
+                        set = function(info, val) 
+                            self.db.profile.cdUtilityWidth = val 
+                            ActionHud:GetModule("Cooldowns"):UpdateLayout()
+                        end,
+                    },
+                    utilHeight = {
+                        name = "Height",
+                        type = "range", min = 10, max = 100, step = 1, order = 22,
+                        get = function(info) return self.db.profile.cdUtilityHeight end,
+                        set = function(info, val) 
+                            self.db.profile.cdUtilityHeight = val 
+                            ActionHud:GetModule("Cooldowns"):UpdateLayout()
+                        end,
+                    },
+                    
+                    headerFont = { type="header", name="Typography", order=25 },
+                    fontSize = {
+                        name = "Stack Font Size",
+                        type = "range", min=8, max=24, step=1, order=26,
+                        get = function(info) return self.db.profile.cdCountFontSize end,
+                        set = function(info, val)
+                            self.db.profile.cdCountFontSize = val
+                            ActionHud:GetModule("Cooldowns"):UpdateLayout()
+                        end,
+                    },
+                    
+                    debug = {
+                        name = "Debug Discovery",
+                        desc = "Print widget IDs to chat to help identify frames.",
+                        type = "toggle",
+                        order = 30,
+                        get = function(info) return self.db.profile.debugDiscovery end,
+                        set = function(info, val) self.db.profile.debugDiscovery = val end,
                     },
                 },
             },

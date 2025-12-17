@@ -85,6 +85,12 @@ You can also find it in `Esc` → `Options` → `AddOns` → `ActionHud`.
 - **Static Frames**: All 24 buttons are created once at load, never during combat.
 - **Minimal Memory**: Reuses textures and frames; avoids table churn.
 
+## Credits
+
+A special thanks to the authors of:
+- **Cooldown Manager Tweaks**: For logic references related to styling native cooldown frames.
+- **Addon Bars Enhanced**: For inspiration and implementation details on hijacking native frames.
+
 ---
 
 *MIT License • Created for WoW 11.x (The War Within)*

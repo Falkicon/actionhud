@@ -7,5 +7,7 @@
 
 embeds.xml
 Core.lua
+ActionBars.lua
 Resources.lua
 SettingsUI.lua
+Cooldowns.lua

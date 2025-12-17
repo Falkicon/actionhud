@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.2.0] - 2025-12-16
+### Added
+- **Modular Action Bars**: Moved action bar logic to a dedicated `ActionBars` module.
+- **Cooldown Fonts**: Added "Stack Font Size" setting to Cooldown Manager for styling charge counts.
+- **Credits**: Added credits to README for referenced works.
+
+### Changed
+- **Settings UI**: Restructured settings into "General", "Action Bars", and "Cooldowns" tabs.
+- **Cooldown Visuals**: Implemented aggressive hiding of native borders/shadows and Aspect Ratio cropping for non-square icons.
+- **Defaults**: Updated default font sizes and gap settings.
+
+### Fixed
+- **Cooldown Layout**: Fixed sizing issues for Essential/Utility bars and resolved icon stretching.
+- **Charge Counts**: Fixed unstyled charge numbers on deeply nested frames (e.g., Bear Form).
+
 ## [2.1.0] - 2025-12-16
 
 ### Added
