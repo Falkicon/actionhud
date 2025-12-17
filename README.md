@@ -12,7 +12,9 @@ A lightweight, high-performance action bar HUD for World of Warcraft Retail. Dis
   - **Cooldowns**: Clear countdown numbers with configurable font size.
   - **Charges**: Stack counts for charge-based abilities.
   - **Usability**: Desaturates unusable skills; tints out-of-range abilities red.
-- **Resource Bars**: Optional compact bars for Health and Power (Mana/Energy/Rage) attached to the HUD.
+- **Resource Bars**:
+  - **Health & Power**: Compact bars for Player and Target.
+  - **Class Resources**: Dynamic, smart bars for Combo Points, Holy Power, Chi, etc. that auto-hide when empty.
 - **Profiles**: Support for character-specific settings and profile sharing via AceDB.
 
 ## How to Use

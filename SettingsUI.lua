@@ -157,6 +157,7 @@ function ActionHud:SetupOptions()
                         name = "Position",
                         type = "select",
                         values = { ["TOP"] = "Top", ["BOTTOM"] = "Bottom" },
+                        sorting = { "TOP", "BOTTOM" }, -- Try AceConfig sorting hint if supported, else just define Order
                         order = 3,
                         get = function(info) return self.db.profile.resPosition end,
                         set = function(info, val)
@@ -191,6 +192,18 @@ function ActionHud:SetupOptions()
                             self:UpdateLayout()
                         end,
                     },
+                    classHeight = {
+                        name = "Class Resource Height",
+                        desc = "Height of Combo Points, Holy Power, etc.",
+                        type = "range",
+                        min = 1, max = 20, step = 1,
+                        order = 12.5,
+                        get = function(info) return self.db.profile.resClassHeight end,
+                        set = function(info, val)
+                            self.db.profile.resClassHeight = val
+                            self:UpdateLayout()
+                        end,
+                    },
                     offset = {
                         name = "Gap from HUD",
                         type = "range",
@@ -210,6 +223,18 @@ function ActionHud:SetupOptions()
                         get = function(info) return self.db.profile.resSpacing end,
                         set = function(info, val)
                             self.db.profile.resSpacing = val
+                            self:UpdateLayout()
+                        end,
+                    },
+                    gap = {
+                        name = "Player-Target Gap",
+                        desc = "Space between player and target bars.",
+                        type = "range",
+                        min = 0, max = 50, step = 1,
+                        order = 15,
+                        get = function(info) return self.db.profile.resGap end,
+                        set = function(info, val)
+                            self.db.profile.resGap = val
                             self:UpdateLayout()
                         end,
                     },

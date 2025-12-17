@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.1.0] - 2025-12-16
+
+### Added
+- **Class Resource Bars**: Universal support for secondary power bars (Combo Points, Holy Power, Chi, Arcane Charges, Soul Shards, Essence).
+- **Smart Visibility**: Class bars only appear when you have active charges/points. They auto-hide in forms/stances that don't satisfy this (e.g., Bear Form with 0 CP).
+- **Dynamic Layout**: The gap between Player and Target HUDs now automatically expands/collapses based on Class Bar visibility to maintain symmetry.
+- **Settings**:
+    - **Class Resource Height**: Configurable height for the new bar.
+    - **Player-Target Gap**: Adjustable spacing between the two main resource clusters.
+    - **Defaults**: Updated default profile for a tighter, cleaner look 20x17 icons, 0px spacing).
+
+### Changed
+- **Visuals**: Desaturated all resource bars by ~15-25% to reduce visual prominence and "neon" effect. Custom matte pallete added for Class Resources.
+- **Positioning**: Improved "Top" vs "Bottom" logic. Class bars now anchor to the "outside" edge of the stack (Above Health if Top, Below Power if Bottom).
+- **Responsiveness**: Resource layout now updates instantly on power changes, removing previous 5-10s delay.
+
 ## [2.0.0] - 2025-12-16
 
 ### Major Rewrite: Ace3 Integration
