@@ -15,11 +15,9 @@ local Utils = ns.Utils
 -- Configuration Cache
 local RCFG = {
     enabled = true,
-    position = "TOP",
     healthHeight = 6,
     powerHeight = 6,
     classHeight = 4,
-    offset = 6,
     spacing = 1,
     gap = 5,
     showTarget = true,
@@ -302,22 +300,67 @@ function Resources:OnEvent(event, unit)
     end
 end
 
+-- Calculate the height of this module for LayoutManager
+function Resources:CalculateHeight()
+    if not RCFG.enabled then return 0 end
+    
+    local db = addon.db.profile
+    local healthHeight = db.resHealthHeight or 6
+    local powerHeight = db.resPowerHeight or 6
+    local classHeight = db.resClassHeight or 4
+    local spacing = db.resSpacing or 1
+    
+    local hasClassBar = CanShowClassPower()
+    local totalHeight = healthHeight + powerHeight + spacing
+    if hasClassBar then totalHeight = totalHeight + classHeight + spacing end
+    
+    return totalHeight
+end
+
+-- Get the width of this module for LayoutManager
+function Resources:GetLayoutWidth()
+    local p = addon.db.profile
+    local cols = 6
+    return cols * (p.iconWidth or 20)
+end
+
+-- Apply position from LayoutManager
+function Resources:ApplyLayoutPosition()
+    if not container then return end
+    if not RCFG.enabled then 
+        container:Hide()
+        return
+    end
+    
+    local LM = addon:GetModule("LayoutManager", true)
+    if not LM then return end
+    
+    local yOffset = LM:GetModulePosition("resources")
+    container:ClearAllPoints()
+    -- Center horizontally within main frame
+    container:SetPoint("TOP", main, "TOP", 0, yOffset)
+    container:Show()
+    
+    addon:Log(string.format("Resources positioned: yOffset=%d", yOffset), "layout")
+end
+
 function Resources:UpdateLayout()
     if not container or not addon then return end
     
     local db = addon.db.profile
     RCFG.enabled = db.resEnabled == true
-    RCFG.position = db.resPosition or "TOP"
     RCFG.healthHeight = db.resHealthHeight or 6
     RCFG.powerHeight = db.resPowerHeight or 6
     RCFG.classHeight = db.resClassHeight or 4
-    RCFG.offset = db.resOffset or 6
     RCFG.spacing = db.resSpacing or 1
     RCFG.gap = db.resGap or 5
     RCFG.showTarget = db.resShowTarget == true
     
     if not RCFG.enabled then
         container:Hide()
+        -- Report zero height to LayoutManager
+        local LM = addon:GetModule("LayoutManager", true)
+        if LM then LM:SetModuleHeight("resources", 0) end
         return
     end
     container:Show()
@@ -325,18 +368,27 @@ function Resources:UpdateLayout()
     if not main then main = _G["ActionHudFrame"] end
     if not main then return end
     
-    local hudWidth = main:GetWidth()
+    -- Get width from LayoutManager or ActionBars
+    local LM = addon:GetModule("LayoutManager", true)
+    local hudWidth = 120  -- fallback
+    if LM then
+        local AB = addon:GetModule("ActionBars", true)
+        if AB and AB.GetLayoutWidth then
+            hudWidth = AB:GetLayoutWidth()
+        end
+    else
+        hudWidth = main:GetWidth()
+    end
+    
     local hasClassBar, _, _ = CanShowClassPower()
     local totalHeight = RCFG.healthHeight + RCFG.powerHeight + RCFG.spacing
     if hasClassBar then totalHeight = totalHeight + RCFG.classHeight + RCFG.spacing end
     
-    container:SetSize(hudWidth, totalHeight) 
-    container:ClearAllPoints()
+    container:SetSize(hudWidth, totalHeight)
     
-    if RCFG.position == "TOP" then
-         container:SetPoint("BOTTOM", main, "TOP", 0, RCFG.offset)
-    else
-         container:SetPoint("TOP", main, "BOTTOM", 0, -RCFG.offset)
+    -- Report height to LayoutManager
+    if LM then
+        LM:SetModuleHeight("resources", totalHeight)
     end
     
     local useSplit = false
@@ -383,35 +435,17 @@ function Resources:UpdateLayout()
     FillWidth(targetHealth, targetGroup)
     FillWidth(targetPower, targetGroup)
     
-    if RCFG.position == "TOP" then
-        playerPower:SetPoint("BOTTOM", playerGroup, "BOTTOM", 0, 0)
-        playerHealth:SetPoint("BOTTOM", playerPower, "TOP", 0, RCFG.spacing)
-        targetPower:SetPoint("BOTTOM", targetGroup, "BOTTOM", 0, 0)
-        targetHealth:SetPoint("BOTTOM", targetPower, "TOP", 0, RCFG.spacing)
-        if hasClassBar then
-            playerClassBar:Show()
-            playerClassBar:SetPoint("BOTTOM", playerHealth, "TOP", 0, RCFG.spacing)
-            UpdateClassPower()
-        else
-            playerClassBar:Hide()
-        end
+    -- Layout bars from top to bottom within container
+    playerHealth:SetPoint("TOP", playerGroup, "TOP", 0, 0)
+    playerPower:SetPoint("TOP", playerHealth, "BOTTOM", 0, -RCFG.spacing)
+    targetHealth:SetPoint("TOP", targetGroup, "TOP", 0, 0)
+    targetPower:SetPoint("TOP", targetHealth, "BOTTOM", 0, -RCFG.spacing)
+    if hasClassBar then
+        playerClassBar:Show()
+        playerClassBar:SetPoint("TOP", playerPower, "BOTTOM", 0, -RCFG.spacing)
+        UpdateClassPower()
     else
-        playerHealth:SetPoint("TOP", playerGroup, "TOP", 0, 0)
-        playerPower:SetPoint("TOP", playerHealth, "BOTTOM", 0, -RCFG.spacing)
-        targetHealth:SetPoint("TOP", targetGroup, "TOP", 0, 0)
-        targetPower:SetPoint("TOP", targetHealth, "BOTTOM", 0, -RCFG.spacing)
-        if hasClassBar then
-            playerClassBar:Show()
-            playerClassBar:SetPoint("TOP", playerPower, "BOTTOM", 0, -RCFG.spacing)
-            UpdateClassPower()
-        else
-            playerClassBar:Hide()
-        end
-    end
-
-    for _, moduleName in ipairs({"Cooldowns", "TrackedBars", "TrackedBuffs"}) do
-        local m = addon:GetModule(moduleName, true)
-        if m and m.UpdateLayout then m:UpdateLayout() end
+        playerClassBar:Hide()
     end
 end
 

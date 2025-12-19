@@ -36,6 +36,50 @@ function TrackedBuffs:OnDisable()
     end
 end
 
+-- Calculate the height of this module for LayoutManager
+function TrackedBuffs:CalculateHeight()
+    local p = self.db.profile
+    if not p.buffsEnabled then return 0 end
+    
+    local blizzEnabled = Manager:IsBlizzardCooldownViewerEnabled()
+    if not blizzEnabled then return 0 end
+    
+    return p.buffsHeight or 28
+end
+
+-- Get the width of this module for LayoutManager
+function TrackedBuffs:GetLayoutWidth()
+    local p = addon.db.profile
+    local cols = 6
+    return cols * (p.iconWidth or 20)
+end
+
+-- Apply position from LayoutManager
+function TrackedBuffs:ApplyLayoutPosition()
+    local container = Manager:GetContainer("buffs")
+    if not container then return end
+    
+    local p = self.db.profile
+    if not p.buffsEnabled then 
+        container:Hide()
+        return
+    end
+    
+    local main = _G["ActionHudFrame"]
+    if not main then return end
+    
+    local LM = addon:GetModule("LayoutManager", true)
+    if not LM then return end
+    
+    local yOffset = LM:GetModulePosition("trackedBuffs")
+    container:ClearAllPoints()
+    -- Center horizontally within main frame
+    container:SetPoint("TOP", main, "TOP", 0, yOffset)
+    container:Show()
+    
+    addon:Log(string.format("TrackedBuffs positioned: yOffset=%d", yOffset), "layout")
+end
+
 function TrackedBuffs:UpdateLayout()
     local main = _G["ActionHudFrame"]
     if not main then return end
@@ -45,13 +89,11 @@ function TrackedBuffs:UpdateLayout()
     
     local blizzEnabled = Manager:IsBlizzardCooldownViewerEnabled()
     
-    container:ClearAllPoints()
-    local resFrame = _G["ActionHudResources"]
-    local resPos = p.resPosition or "TOP"
-    if resFrame and resFrame:IsShown() and resPos == "TOP" then
-        container:SetPoint("BOTTOM", resFrame, "TOP", 0, p.buffsGap)
-    else
-        container:SetPoint("BOTTOM", main, "TOP", 0, p.buffsGap)
+    -- Report height to LayoutManager
+    local LM = addon:GetModule("LayoutManager", true)
+    local height = self:CalculateHeight()
+    if LM then
+        LM:SetModuleHeight("trackedBuffs", height)
     end
     
     if p.buffsEnabled and blizzEnabled then

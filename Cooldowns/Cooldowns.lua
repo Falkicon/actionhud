@@ -89,6 +89,83 @@ function Cooldowns:OnThrottledUpdate()
     end
 end
 
+-- Cache for calculated height
+local cachedHeight = 0
+
+-- Calculate the height of this module for LayoutManager
+function Cooldowns:CalculateHeight()
+    local p = self.db.profile
+    if not p.cdEnabled then return 0 end
+    
+    local blizzEnabled = Manager:IsBlizzardCooldownViewerEnabled()
+    if not blizzEnabled then return 0 end
+    
+    local essentialCat = GetEssentialCategory()
+    local utilityCat = GetUtilityCategory()
+    
+    local totalHeight = 0
+    local spacing = p.cdSpacing
+    local rowCount = 0
+    
+    -- Count rows and their heights
+    if essentialCat then
+        local cooldownIDs = Manager:GetCooldownIDsForCategory(essentialCat, "Essential")
+        if cooldownIDs and #cooldownIDs > 0 then
+            totalHeight = totalHeight + p.cdEssentialHeight
+            rowCount = rowCount + 1
+        end
+    end
+    
+    if utilityCat then
+        local cooldownIDs = Manager:GetCooldownIDsForCategory(utilityCat, "Utility")
+        if cooldownIDs and #cooldownIDs > 0 then
+            totalHeight = totalHeight + p.cdUtilityHeight
+            rowCount = rowCount + 1
+        end
+    end
+    
+    -- Add spacing between rows
+    if rowCount > 1 then
+        totalHeight = totalHeight + (spacing * (rowCount - 1))
+    end
+    
+    cachedHeight = totalHeight
+    return totalHeight
+end
+
+-- Get the width of this module for LayoutManager
+function Cooldowns:GetLayoutWidth()
+    local p = addon.db.profile
+    local cols = 6
+    return cols * (p.iconWidth or 20)
+end
+
+-- Apply position from LayoutManager
+function Cooldowns:ApplyLayoutPosition()
+    local container = Manager:GetContainer("cd")
+    if not container then return end
+    
+    local p = self.db.profile
+    if not p.cdEnabled then 
+        container:Hide()
+        return
+    end
+    
+    local main = _G["ActionHudFrame"]
+    if not main then return end
+    
+    local LM = addon:GetModule("LayoutManager", true)
+    if not LM then return end
+    
+    local yOffset = LM:GetModulePosition("cooldowns")
+    container:ClearAllPoints()
+    -- Center horizontally within main frame
+    container:SetPoint("TOP", main, "TOP", 0, yOffset)
+    container:Show()
+    
+    addon:Log(string.format("Cooldowns positioned: yOffset=%d", yOffset), "layout")
+end
+
 function Cooldowns:UpdateLayout()
     local main = _G["ActionHudFrame"]
     if not main then return end
@@ -98,24 +175,11 @@ function Cooldowns:UpdateLayout()
     
     local blizzEnabled = Manager:IsBlizzardCooldownViewerEnabled()
     
-    -- Positioning
-    local anchorFrame = main
-    local Res = addon:GetModule("Resources", true)
-    if Res and Res.GetContainer then
-        local resContainer = Res:GetContainer()
-        if resContainer and resContainer:IsShown() then
-            if addon.db.profile.resPosition == p.cdPosition then
-                anchorFrame = resContainer
-            end
-        end
-    end
-    
-    container:ClearAllPoints()
-    local gap = p.cdGap
-    if p.cdPosition == "TOP" then
-        container:SetPoint("BOTTOM", anchorFrame, "TOP", 0, gap)
-    else 
-        container:SetPoint("TOP", anchorFrame, "BOTTOM", 0, -gap)
+    -- Report height to LayoutManager
+    local LM = addon:GetModule("LayoutManager", true)
+    local height = self:CalculateHeight()
+    if LM then
+        LM:SetModuleHeight("cooldowns", height)
     end
     
     if p.cdEnabled and blizzEnabled then
@@ -196,11 +260,8 @@ function Cooldowns:RenderCooldownProxies(container, p)
             
             local centerOffset = -rowWidth / 2
             for _, proxy in ipairs(rowProxies) do
-                if p.cdPosition == "TOP" then
-                    proxy:SetPoint("BOTTOMLEFT", container, "BOTTOM", centerOffset + proxy.pendingX, proxy.pendingY)
-                else
-                    proxy:SetPoint("TOPLEFT", container, "TOP", centerOffset + proxy.pendingX, -proxy.pendingY)
-                end
+                -- Position from top of container (LayoutManager handles overall positioning)
+                proxy:SetPoint("TOPLEFT", container, "TOP", centerOffset + proxy.pendingX, -proxy.pendingY)
                 proxy.pendingX = nil
                 proxy.pendingY = nil
             end
@@ -229,7 +290,14 @@ function Cooldowns:PopulateProxy(proxy, cooldownID, cooldownInfo)
     
     local cdInfo = Utils.GetSpellCooldownSafe(spellID)
     if cdInfo and cdInfo.startTime and cdInfo.duration and cdInfo.duration > 0 then
-        if cdInfo.activeCategory == Constants.SpellCooldownConsts.GLOBAL_RECOVERY_CATEGORY then
+        -- Check if this is truly the GCD vs a real cooldown
+        -- Some spells (like Demo Shout) incorrectly report GCD category initially
+        -- but have durations >> 1.5s. Trust duration over category.
+        local GCD_THRESHOLD = 1.5
+        local isActualGCD = cdInfo.activeCategory == Constants.SpellCooldownConsts.GLOBAL_RECOVERY_CATEGORY
+                           and cdInfo.duration <= GCD_THRESHOLD
+        
+        if isActualGCD then
             CooldownFrame_Clear(proxy.cooldown)
             proxy.icon:SetDesaturated(false)
         else

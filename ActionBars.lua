@@ -13,15 +13,20 @@ local defaultSlots = {
 }
 
 local buttons = {}
+local container = nil  -- ActionBars container frame
 
 function AB:OnEnable()
-    -- Create Button Grid
+    -- Create container frame
     local parent = ActionHud.frame
     if not parent then return end
     
+    if not container then
+        container = CreateFrame("Frame", "ActionHudActionBars", parent)
+    end
+    
     -- Create Buttons if not already existing
     if #buttons == 0 then
-        self:CreateButtons(parent)
+        self:CreateButtons(container)
     end
     
     self:RegisterEvent("PLAYER_ENTERING_WORLD", "RefreshAll")
@@ -37,6 +42,40 @@ function AB:OnEnable()
     
     self:UpdateLayout()
     self:RefreshAll()
+end
+
+-- Get container frame
+function AB:GetContainer()
+    return container
+end
+
+-- Calculate the height of this module for LayoutManager
+function AB:CalculateHeight()
+    local p = ActionHud.db.profile
+    local rows = 4
+    return rows * p.iconHeight
+end
+
+-- Get the width of this module for LayoutManager
+function AB:GetLayoutWidth()
+    local p = ActionHud.db.profile
+    local cols = 6
+    return cols * p.iconWidth
+end
+
+-- Apply position from LayoutManager
+function AB:ApplyLayoutPosition()
+    if not container then return end
+    local LM = ActionHud:GetModule("LayoutManager", true)
+    if not LM then return end
+    
+    local yOffset = LM:GetModulePosition("actionBars")
+    container:ClearAllPoints()
+    -- Center horizontally within main frame
+    container:SetPoint("TOP", ActionHud.frame, "TOP", 0, yOffset)
+    container:Show()
+    
+    ActionHud:Log(string.format("ActionBars positioned: yOffset=%d", yOffset), "layout")
 end
 
 function AB:CreateButtons(parent)
@@ -100,12 +139,20 @@ end
 function AB:UpdateLayout()
     local p = ActionHud.db.profile
     local cols = 6
+    local rows = 4
     local padding = 0
     
-    local parent = ActionHud.frame
-    if not parent then return end
+    if not container then return end
     
-    parent:SetSize(cols * p.iconWidth, 4 * p.iconHeight)
+    local width = cols * p.iconWidth
+    local height = rows * p.iconHeight
+    container:SetSize(width, height)
+    
+    -- Report height to LayoutManager
+    local LM = ActionHud:GetModule("LayoutManager", true)
+    if LM then
+        LM:SetModuleHeight("actionBars", height)
+    end
     
     for i, btn in ipairs(buttons) do
         btn:SetSize(p.iconWidth, p.iconHeight)
@@ -162,6 +209,7 @@ function AB:UpdateOpacity()
 end
 
 function AB:OnDisable()
+    if container then container:Hide() end
     for _, btn in ipairs(buttons) do
         btn:Hide()
     end

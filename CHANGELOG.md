@@ -3,6 +3,41 @@
 All notable changes to this project will be documented in this file.
 
 
+## [2.5.1] - 2025-12-18
+### Fixed
+- **Cooldown Manager**: Fixed Demoralizing Shout (and similar abilities) taking 2-3 seconds to show cooldown.
+    - **Root Cause**: WoW API incorrectly reports `activeCategory = 133` (GCD category) for these spells for 1-2 seconds after cast, despite having long cooldowns.
+    - **Solution**: Changed GCD detection to check both category AND duration. Only treat as GCD if category matches AND duration ≤ 1.5 seconds.
+
+### Added
+- **Development Mode**: Added `DevMarker.lua` and `.pkgmeta` for CurseForge packaging.
+    - Debugging panel only visible in dev mode (git clones).
+    - `[DEV MODE]` indicator shown on addon load.
+- **Cooldown Manager Dump**: Extended `/ah dump` to include all cooldown categories (Essential, Utility, TrackedBuff, TrackedBar).
+
+### Technical
+- **API Documentation**: Added "GCD Category Misreporting" section to AGENTS.md documenting the API quirk and solution.
+
+## [2.5.0] - 2025-12-18
+### Added
+- **Layout Manager**: New unified layout system for arranging HUD modules.
+    - **Reorderable Stack**: All modules (Tracked Buffs, Resources, Action Bars, Cooldowns) can now be reordered in any order via the new "Layout" settings panel.
+    - **Configurable Gaps**: Set spacing between each adjacent module independently.
+    - **Migration**: Existing settings are automatically migrated to the new system on first load.
+- **Layout Settings Panel**: New "Layout" sub-panel in settings:
+    - Tracked Bars (sidecar) X/Y offset controls at top.
+    - Visual list of HUD modules with Move Up/Down buttons.
+    - Gap sliders between each module pair.
+    - Reset to Default Order button.
+
+### Changed
+- **Module Positioning**: Modules now use centralized LayoutManager instead of individual position/gap settings.
+- **Simplified Settings**: Removed redundant "Position" and "Gap from HUD" settings from Resource Bars, Cooldown Manager, and Tracked Buffs panels (now managed via Layout panel).
+
+### Technical
+- **LayoutManager.lua**: New module that coordinates vertical stacking of all HUD components.
+- **Module API**: Each module now implements `CalculateHeight()`, `GetLayoutWidth()`, and `ApplyLayoutPosition()` for integration with LayoutManager.
+
 ## [2.4.1] - 2025-12-18
 ### Fixed
 - **Proxy Pool Collision Bug**: Fixed TrackedBuffs and TrackedBars not displaying correctly after refactor.

@@ -46,16 +46,48 @@ A compact action bar HUD overlay that displays ability icons, cooldowns, and pro
 |------|---------|
 | `Core.lua` | Addon initialization, debug system, slash commands |
 | `Utils.lua` | Shared utility functions (safe API wrappers, fonts) |
+| `LayoutManager.lua` | Centralized module positioning and stack management |
 | `ActionBars.lua` | Action bar grid (6×4 button frames) |
 | `Resources.lua` | Health, Power, and Class Resource bars |
 | `Cooldowns/Manager.lua` | Centralized proxy pool, aura cache, Blizzard frame management |
 | `Cooldowns/Cooldowns.lua` | Essential/Utility cooldown icons |
-| `Cooldowns/TrackedBars.lua` | Tracked Bar proxies (status bar style) |
+| `Cooldowns/TrackedBars.lua` | Tracked Bar proxies (status bar style, sidecar positioning) |
 | `Cooldowns/TrackedBuffs.lua` | Tracked Buff proxies (icon style) |
 | `SettingsUI.lua` | Blizzard Settings API integration (no external libs) |
 | `ActionHud.toc` | Addon metadata and load order |
 
 ## Architecture
+
+### Layout System
+
+The HUD uses a centralized `LayoutManager` module that coordinates vertical stacking of all components:
+
+**Stack Model:**
+- All modules (TrackedBuffs, Resources, ActionBars, Cooldowns) are treated as "rows" in a vertical stack
+- Order is fully customizable via the Layout settings panel
+- Gaps between modules are defined independently for each adjacent pair
+- TrackedBars is a "sidecar" module with independent X/Y offset positioning
+
+**Data Structure** (in `ActionHudDB.profile.layout`):
+```lua
+{
+    stack = { "trackedBuffs", "resources", "actionBars", "cooldowns" },
+    gaps = { 10, 4, 0, 2 },  -- gaps[i] = gap AFTER stack[i]
+}
+```
+
+**Module Integration:**
+Each stackable module implements:
+- `CalculateHeight()` – Returns the module's rendered height
+- `GetLayoutWidth()` – Returns the module's width
+- `ApplyLayoutPosition()` – Positions the module based on LayoutManager's calculated Y offset
+
+**Update Flow:**
+1. `LayoutManager:TriggerLayoutUpdate()` is called
+2. LayoutManager queries each module's height via `CalculateHeight()`
+3. LayoutManager calculates cumulative Y positions
+4. LayoutManager updates main container size
+5. Each module's `ApplyLayoutPosition()` is called to position itself
 
 ### Update Functions
 
@@ -174,6 +206,16 @@ Stored in `ActionHudDB.profile`:
   xOffset = 0,          -- saved position
   yOffset = -220,       -- saved position
   locked = false,       -- draggable state
+  
+  -- Layout (managed by LayoutManager)
+  layout = {
+    stack = { "trackedBuffs", "resources", "actionBars", "cooldowns" },
+    gaps = { 10, 4, 0, 2 },
+  },
+  
+  -- TrackedBars sidecar positioning
+  tbXOffset = 100,      -- X offset from HUD center
+  tbYOffset = 0,        -- Y offset from HUD center
 }
 ```
 
@@ -200,10 +242,49 @@ WoW 12.0 (Midnight) may introduce "Secret Values" that block numeric comparisons
 - Current risk: `count > 1` comparisons may error
 - Mitigation: Use `issecretvalue()` checks or Boolean states if needed
 
+## Performance Learnings
+
+### File Structure Impact
+
+Breaking large `.lua` files into smaller modules (e.g., extracting `LayoutManager.lua` from a monolithic file) significantly improved Tracked Bars display latency from ~10 seconds to instant. Likely causes:
+
+- **Incremental parsing**: Smaller files parse/execute incrementally vs. waiting for one large file
+- **Module initialization timing**: AceAddon modules fire `OnEnable` independently
+- **Reduced scope complexity**: Fewer locals per file = faster compilation
+- **TOC load order**: Critical frames can display while later files still load
+
+### API Quirks: GCD Category Misreporting
+
+Some abilities report incorrect `activeCategory` from `C_Spell.GetSpellCooldown()` for 1-2 seconds after cast:
+
+**Example: Demoralizing Shout (spellID 1160)**
+- Has a 45-second cooldown
+- Initially returns `activeCategory = 133` (GCD category) despite 45s duration
+- After ~1-2 seconds, switches to `activeCategory = nil`
+
+**Solution:** Don't trust `activeCategory` alone. Check duration threshold:
+
+```lua
+local GCD_THRESHOLD = 1.5
+local isActualGCD = cdInfo.activeCategory == Constants.SpellCooldownConsts.GLOBAL_RECOVERY_CATEGORY
+                   and cdInfo.duration <= GCD_THRESHOLD
+```
+
+This ensures abilities with real cooldowns (>1.5s) are displayed immediately, regardless of the reported category.
+
+### Ability-Specific Delays (Tracked Buffs/Bars)
+
+Some abilities may have slight delays for their associated **buff tracking** (not cooldown display). Causes:
+
+- Buff spell ID differs from the cast spell ID
+- `linkedSpellIDs` needing resolution from the DataProvider
+- Abilities that apply debuffs to enemies rather than buffs to player
+
 ## Agent Guidelines
 
 1. Maintain separation between `Core.lua` (logic) and `SettingsUI.lua` (config)
 2. Test stance/form bar swaps (Druid, Rogue) when modifying slot logic
+3. Prefer smaller, focused modules over large monolithic files for better load performance
 
 ## Documentation Requirements
 

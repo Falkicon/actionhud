@@ -432,9 +432,11 @@ function Manager:FindPotentialTargets()
 end
 
 function Manager:DumpTrackedBuffInfo()
-    print("|cff33ff99ActionHud:|r Dumping Tracked Buff/Bar Info...")
+    print("|cff33ff99ActionHud:|r Dumping Cooldown Manager Info...")
     
     local categories = {
+        { name = "Essential", cat = Enum.CooldownViewerCategory and Enum.CooldownViewerCategory.Essential },
+        { name = "Utility", cat = Enum.CooldownViewerCategory and Enum.CooldownViewerCategory.Utility },
         { name = "TrackedBuff", cat = Enum.CooldownViewerCategory and Enum.CooldownViewerCategory.TrackedBuff },
         { name = "TrackedBar", cat = Enum.CooldownViewerCategory and Enum.CooldownViewerCategory.TrackedBar },
     }

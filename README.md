@@ -22,6 +22,7 @@ A lightweight, high-performance action bar HUD for World of Warcraft Retail. Dis
 - **Resource Bars**:
   - **Health & Power** – Compact bars for Player and Target
   - **Class Resources** – Dynamic bars for Combo Points, Holy Power, Chi, etc. that auto-hide when empty
+- **Layout Manager** – Fully customizable module ordering with configurable gaps between each component
 - **Profiles** – Support for character-specific settings and profile sharing via AceDB
 - **Integration** – Minimap button and DataBroker (LDB) support for quick access
 
@@ -82,9 +83,13 @@ Open the settings panel via slash command or `Esc` → `Options` → `AddOns` �
 
 ### Settings Sections
 
-- **General** – Lock frame, Opacity, and Icon Dimensions
-- **Resource Bars** – Enable/Disable Health & Power bars, adjust size/position
-- **Fonts** – Customize fonts and sizes for cooldowns and stack counts (LibSharedMedia support)
+- **General** – Lock frame, Minimap icon, and prerequisites info
+- **Action Bars** – Icon dimensions, opacity, and font sizes
+- **Resource Bars** – Enable/Disable Health & Power bars, adjust sizes
+- **Cooldown Manager** – Essential/Utility bar settings and typography
+- **Tracked Bars** – Sidecar positioning and display options
+- **Tracked Buffs** – Buff icon settings and visibility
+- **Layout** – Reorder modules and set gaps between them
 - **Profiles** – Create, Copy, Delete, or Reset profiles for different characters
 
 | Setting | Description |
@@ -109,6 +114,7 @@ Open the settings panel via slash command or `Esc` → `Options` → `AddOns` �
 | `ActionHud.toc` | Addon manifest |
 | `Core.lua` | Addon initialization, debug system, slash commands |
 | `Utils.lua` | Shared utility functions (safe API wrappers) |
+| `LayoutManager.lua` | Centralized module positioning and stack management |
 | `ActionBars.lua` | Action bar grid (6×4 button frames) |
 | `Resources.lua` | Health, Power, and Class Resource bars |
 | `Cooldowns/` | Modular Cooldown Manager system |

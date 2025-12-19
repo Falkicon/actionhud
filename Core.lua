@@ -2,6 +2,10 @@ local addonName, ns = ...
 local ActionHud = LibStub("AceAddon-3.0"):NewAddon("ActionHud", "AceEvent-3.0", "AceConsole-3.0")
 _G.ActionHud = ActionHud -- Global for debugging
 
+-- Development mode detection (set by DevMarker.lua which is excluded from CurseForge packages)
+local IS_DEV_MODE = ns.IS_DEV_MODE or false
+ns.IS_DEV_MODE = IS_DEV_MODE  -- Ensure it's available to other modules
+
 local defaults = {
     profile = {
         locked = false,
@@ -70,7 +74,12 @@ local defaults = {
         debugEvents = false,
         debugShowBlizzardFrames = false,
         debugProxy = false,
+        debugLayout = false,
         debugContainers = false,
+        
+        -- Layout (managed by LayoutManager)
+        -- layout = { stack = {...}, gaps = {...} }
+        -- Initialized by LayoutManager:EnsureLayoutData() or migration
     }
 }
 
@@ -79,6 +88,9 @@ function ActionHud:OnInitialize()
     self.db.RegisterCallback(self, "OnProfileChanged", "OnProfileChanged")
     self.db.RegisterCallback(self, "OnProfileCopied", "OnProfileChanged")
     self.db.RegisterCallback(self, "OnProfileReset", "OnProfileChanged")
+    
+    -- Migrate old position settings to new layout system
+    self:MigrateLayoutSettings()
     
     -- Register with Addon Compartment (Blizzard's dropdown menu)
     if AddonCompartmentFrame and AddonCompartmentFrame.RegisterAddon then
@@ -93,12 +105,79 @@ function ActionHud:OnInitialize()
     self:SetupOptions() -- In SettingsUI.lua
 end
 
+-- Migrate old position/gap settings to new unified layout system
+function ActionHud:MigrateLayoutSettings()
+    local p = self.db.profile
+    
+    -- If layout already exists, no migration needed
+    if p.layout then return end
+    
+    -- Build new stack based on old position settings
+    local topModules = {}
+    local bottomModules = {}
+    
+    -- TrackedBuffs was always on top in old system
+    table.insert(topModules, { id = "trackedBuffs", gap = p.buffsGap or 25 })
+    
+    -- Resources
+    if p.resPosition == "TOP" or p.resPosition == nil then
+        table.insert(topModules, { id = "resources", gap = p.resOffset or 1 })
+    else
+        table.insert(bottomModules, { id = "resources", gap = p.resOffset or 1 })
+    end
+    
+    -- Cooldowns
+    if p.cdPosition == "TOP" then
+        table.insert(topModules, { id = "cooldowns", gap = p.cdGap or 4 })
+    else
+        table.insert(bottomModules, { id = "cooldowns", gap = p.cdGap or 4 })
+    end
+    
+    -- Build final stack: top modules (reversed so furthest is first), actionBars, bottom modules
+    local stack = {}
+    local gaps = {}
+    
+    -- Top modules: reverse order so furthest from center is at top of list
+    for i = #topModules, 1, -1 do
+        table.insert(stack, topModules[i].id)
+        table.insert(gaps, topModules[i].gap)
+    end
+    
+    -- ActionBars in the middle
+    table.insert(stack, "actionBars")
+    table.insert(gaps, 0)
+    
+    -- Bottom modules (closest to center first)
+    for _, mod in ipairs(bottomModules) do
+        table.insert(stack, mod.id)
+        table.insert(gaps, mod.gap)
+    end
+    
+    -- Store the new layout
+    p.layout = {
+        stack = stack,
+        gaps = gaps,
+    }
+    
+    self:Print("Layout migrated from legacy settings.")
+end
+
 function ActionHud:OnProfileChanged()
     self:UpdateLockState()
-    -- Notify modules
-    for name, module in self:IterateModules() do
-        if module.UpdateLayout then module:UpdateLayout() end
-        if module.RefreshAll then module:RefreshAll() end
+    
+    -- Migrate layout if needed for new profile
+    self:MigrateLayoutSettings()
+    
+    -- Trigger LayoutManager to recalculate positions
+    local LM = self:GetModule("LayoutManager", true)
+    if LM then
+        LM:TriggerLayoutUpdate()
+    else
+        -- Fallback: notify modules directly
+        for name, module in self:IterateModules() do
+            if module.UpdateLayout then module:UpdateLayout() end
+            if module.RefreshAll then module:RefreshAll() end
+        end
     end
 end
 
@@ -108,6 +187,10 @@ function ActionHud:OnEnable()
     
     self:RegisterChatCommand("actionhud", "SlashHandler")
     self:RegisterChatCommand("ah", "SlashHandler")
+    
+    if IS_DEV_MODE then
+        self:Print("|cff00ff00[DEV MODE]|r Running from git clone")
+    end
 end
 
 -- Debug message buffer for clipboard export
@@ -127,6 +210,7 @@ function ActionHud:Log(msg, debugType)
     elseif debugType == "frames" and p.debugFrames then enabled = true
     elseif debugType == "events" and p.debugEvents then enabled = true
     elseif debugType == "proxy" and p.debugProxy then enabled = true
+    elseif debugType == "layout" and p.debugLayout then enabled = true
     elseif debugType == "debug" and p.debugDiscovery then enabled = true  -- General debug piggybacks on discovery
     elseif not debugType then enabled = true -- General logs
     end
@@ -318,9 +402,18 @@ function ActionHud:ApplySettings()
     self.frame:Show()
     self:UpdateLockState()
     
-    -- Trigger Modules
-    for name, module in self:IterateModules() do
-        if module.UpdateLayout then module:UpdateLayout() end
+    -- Use LayoutManager to coordinate module positioning
+    local LM = self:GetModule("LayoutManager", true)
+    if LM then
+        -- Delay slightly to ensure all modules are initialized
+        C_Timer.After(0.1, function()
+            LM:TriggerLayoutUpdate()
+        end)
+    else
+        -- Fallback: trigger modules directly
+        for name, module in self:IterateModules() do
+            if module.UpdateLayout then module:UpdateLayout() end
+        end
     end
 end
 

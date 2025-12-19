@@ -83,7 +83,7 @@ function ActionHud:SetupOptions()
             divider = { type = "header", name = "Info & Prerequisites", order = 10 },
             readme = {
                 type = "description",
-                name = [[|cff33ff99ActionHud 2.3.1|r
+                name = [[|cff33ff99ActionHud 2.5.0|r
 
 A minimalist HUD mirroring Action Bars 1 & 2 in a 6x4 grid.
 
@@ -184,11 +184,6 @@ Use |cffffffffAdvanced Cooldown Settings|r to configure which spells are tracked
                 get = function(info) return self.db.profile.resShowTarget end,
                 set = function(info, val) self.db.profile.resShowTarget = val; self:UpdateLayout() end,
             },
-            position = {
-                name = "Position", type = "select", values = { ["TOP"] = "Top", ["BOTTOM"] = "Bottom" }, sorting = { "TOP", "BOTTOM" }, order = 3,
-                get = function(info) return self.db.profile.resPosition end,
-                set = function(info, val) self.db.profile.resPosition = val; self:UpdateLayout() end,
-            },
             layout = { name = "Layout Dimensions", type = "header", order = 10 },
             healthHeight = {
                 name = "Health Bar Height", type = "range", min = 1, max = 30, step = 1, order = 11,
@@ -204,11 +199,6 @@ Use |cffffffffAdvanced Cooldown Settings|r to configure which spells are tracked
                 name = "Class Resource Height", desc = "Height of Combo Points, Holy Power, etc.", type = "range", min = 1, max = 20, step = 1, order = 12.5,
                 get = function(info) return self.db.profile.resClassHeight end,
                 set = function(info, val) self.db.profile.resClassHeight = val; self:UpdateLayout() end,
-            },
-            offset = {
-                name = "Gap from HUD", type = "range", min = 0, max = 50, step = 1, order = 13,
-                get = function(info) return self.db.profile.resOffset end,
-                set = function(info, val) self.db.profile.resOffset = val; self:UpdateLayout() end,
             },
             spacing = {
                 name = "Bar Spacing", type = "range", min = 0, max = 10, step = 1, order = 14,
@@ -262,18 +252,6 @@ All ActionHud cooldown features are unavailable until enabled.]]
                     self.db.profile.cdEnabled = val
                     ActionHud:GetModule("Cooldowns"):UpdateLayout()
                 end,
-            },
-            position = {
-                name = "Position", desc = "Attach to Top or Bottom of the HUD.", type = "select", values = {"Top", "Bottom"}, order = 2,
-                disabled = function() return not IsBlizzardCooldownViewerEnabled() end,
-                get = function(info) return self.db.profile.cdPosition == "BOTTOM" and 2 or 1 end,
-                set = function(info, val) self.db.profile.cdPosition = (val == 2) and "BOTTOM" or "TOP"; ActionHud:GetModule("Cooldowns"):UpdateLayout() end,
-            },
-            gap = {
-                name = "Gap from HUD", desc = "Distance from the HUD (or Resource Bars).", type = "range", min = 0, max = 50, step = 1, order = 3,
-                disabled = function() return not IsBlizzardCooldownViewerEnabled() end,
-                get = function(info) return self.db.profile.cdGap end,
-                set = function(info, val) self.db.profile.cdGap = val; ActionHud:GetModule("Cooldowns"):UpdateLayout() end,
             },
             spacing = {
                 name = "Bar Spacing", desc = "Space between Essential and Utility bars.", type = "range", min = 0, max = 50, step = 1, order = 4,
@@ -361,18 +339,9 @@ Enable it in Gameplay Enhancements to use Tracked Bars.]]
                 get = function(info) return self.db.profile.tbEnabled end,
                 set = function(info, val) self.db.profile.tbEnabled = val; ActionHud:GetModule("TrackedBars"):UpdateLayout() end,
             },
-            offsets = { name = "Positioning", type = "header", order = 10 },
-            tbXOffset = {
-                name = "X Offset (Sidecar)", desc = "Horizontal offset from center of HUD.", type = "range", min = -500, max = 500, step = 1, order = 11,
-                disabled = function() return not IsBlizzardCooldownViewerEnabled() end,
-                get = function(info) return self.db.profile.tbXOffset end,
-                set = function(info, val) self.db.profile.tbXOffset = val; ActionHud:GetModule("TrackedBars"):UpdateLayout() end,
-            },
-            tbYOffset = {
-                name = "Y Offset", desc = "Vertical offset from center of HUD.", type = "range", min = -500, max = 500, step = 1, order = 12,
-                disabled = function() return not IsBlizzardCooldownViewerEnabled() end,
-                get = function(info) return self.db.profile.tbYOffset end,
-                set = function(info, val) self.db.profile.tbYOffset = val; ActionHud:GetModule("TrackedBars"):UpdateLayout() end,
+            positionNote = {
+                type = "description", order = 9,
+                name = "|cffaaaaaa(Position settings moved to Layout tab)|r",
             },
             visuals = { name = "Dimensions & Spacing", type = "header", order = 20 },
             tbWidth = {
@@ -448,13 +417,6 @@ Enable it in Gameplay Enhancements to use Tracked Buffs.]]
                 get = function(info) return self.db.profile.buffsEnabled end,
                 set = function(info, val) self.db.profile.buffsEnabled = val; ActionHud:GetModule("TrackedBuffs"):UpdateLayout() end,
             },
-            offsets = { name = "Positioning", type = "header", order = 10 },
-            buffsGap = {
-                name = "Gap from HUD", desc = "Distance above the personal health/power bars.", type = "range", min = 0, max = 200, step = 1, order = 11,
-                disabled = function() return not IsBlizzardCooldownViewerEnabled() end,
-                get = function(info) return self.db.profile.buffsGap end,
-                set = function(info, val) self.db.profile.buffsGap = val; ActionHud:GetModule("TrackedBuffs"):UpdateLayout() end,
-            },
             visuals = { name = "Dimensions & Spacing", type = "header", order = 20 },
             buffsWidth = {
                 name = "Icon Width", type = "range", min = 10, max = 100, step = 1, order = 21,
@@ -505,6 +467,144 @@ Enable it in Gameplay Enhancements to use Tracked Buffs.]]
         },
     }
 
+    -- SUB: Layout
+    -- Helper to get LayoutManager
+    local function GetLayoutManager()
+        return ActionHud:GetModule("LayoutManager", true)
+    end
+    
+    -- Helper to trigger layout update
+    local function TriggerLayoutUpdate()
+        local LM = GetLayoutManager()
+        if LM then LM:TriggerLayoutUpdate() end
+    end
+    
+    -- Build dynamic layout options based on current stack order
+    local function BuildLayoutArgs()
+        local args = {}
+        local LM = GetLayoutManager()
+        if not LM then return args end
+        
+        -- Tracked Bars (Sidecar) Section
+        args.sidecarHeader = { type = "header", name = "Tracked Bars (Sidecar)", order = 1 }
+        args.sidecarDesc = {
+            type = "description", order = 2,
+            name = "Tracked Bars use independent X/Y positioning relative to the HUD center.\n ",
+        }
+        args.tbXOffset = {
+            name = "X Offset", desc = "Horizontal offset from center of HUD.", 
+            type = "range", min = -500, max = 500, step = 1, order = 3,
+            disabled = function() return not IsBlizzardCooldownViewerEnabled() end,
+            get = function() return self.db.profile.tbXOffset end,
+            set = function(_, val) self.db.profile.tbXOffset = val; ActionHud:GetModule("TrackedBars"):UpdateLayout() end,
+        }
+        args.tbYOffset = {
+            name = "Y Offset", desc = "Vertical offset from center of HUD.", 
+            type = "range", min = -500, max = 500, step = 1, order = 4,
+            disabled = function() return not IsBlizzardCooldownViewerEnabled() end,
+            get = function() return self.db.profile.tbYOffset end,
+            set = function(_, val) self.db.profile.tbYOffset = val; ActionHud:GetModule("TrackedBars"):UpdateLayout() end,
+        }
+        
+        -- HUD Stack Section
+        args.stackHeader = { type = "header", name = "HUD Stack Order", order = 10 }
+        args.stackDesc = {
+            type = "description", order = 11,
+            name = "Arrange modules from top to bottom. Use arrows to reorder. Gap defines spacing after each module.\n ",
+        }
+        
+        local stack = LM:GetStack()
+        local gaps = LM:GetGaps()
+        local baseOrder = 20
+        
+        for i, moduleId in ipairs(stack) do
+            local moduleName = LM:GetModuleName(moduleId)
+            local orderBase = baseOrder + (i * 10)
+            
+            -- Module row header with position number
+            args["mod_" .. i .. "_header"] = {
+                type = "description", order = orderBase,
+                name = string.format("|cffffcc00%d.|r |cffffffff%s|r", i, moduleName),
+                fontSize = "medium",
+                width = "full",
+            }
+            
+            -- Move Up button
+            args["mod_" .. i .. "_up"] = {
+                name = "Up",
+                desc = "Move " .. moduleName .. " up in the stack",
+                type = "execute", order = orderBase + 1, width = 0.4,
+                disabled = function() return i == 1 end,
+                func = function()
+                    LM:MoveModule(moduleId, "up")
+                    -- Force AceConfig to rebuild the options
+                    LibStub("AceConfigRegistry-3.0"):NotifyChange("ActionHud_Layout")
+                end,
+            }
+            
+            -- Move Down button
+            args["mod_" .. i .. "_down"] = {
+                name = "Down",
+                desc = "Move " .. moduleName .. " down in the stack",
+                type = "execute", order = orderBase + 2, width = 0.4,
+                disabled = function() return i == #stack end,
+                func = function()
+                    LM:MoveModule(moduleId, "down")
+                    LibStub("AceConfigRegistry-3.0"):NotifyChange("ActionHud_Layout")
+                end,
+            }
+            
+            -- Gap slider (not shown for last module)
+            if i < #stack then
+                args["mod_" .. i .. "_gap"] = {
+                    name = "Gap After",
+                    desc = string.format("Space between %s and the next module.", moduleName),
+                    type = "range", min = 0, max = 50, step = 1, order = orderBase + 3,
+                    width = 1.0,
+                    get = function() 
+                        local g = LM:GetGaps()
+                        return g[i] or 0 
+                    end,
+                    set = function(_, val)
+                        LM:SetGap(i, val)
+                    end,
+                }
+            end
+            
+            -- Spacer line
+            args["mod_" .. i .. "_spacer"] = {
+                type = "description", order = orderBase + 5,
+                name = " ",
+                width = "full",
+            }
+        end
+        
+        -- Reset button
+        args.resetHeader = { type = "header", name = "", order = 500 }
+        args.resetBtn = {
+            name = "Reset to Default Order",
+            desc = "Restore the default module order and gap values.",
+            type = "execute", order = 501, width = "double",
+            func = function()
+                LM:ResetToDefault()
+                LibStub("AceConfigRegistry-3.0"):NotifyChange("ActionHud_Layout")
+            end,
+        }
+        
+        return args
+    end
+    
+    -- Use a function for layoutOptions so AceConfig rebuilds it each time
+    -- This makes the UI rows visually reorder when modules are moved
+    local function GetLayoutOptions()
+        return {
+            name = "Layout",
+            handler = ActionHud,
+            type = "group",
+            args = BuildLayoutArgs(),
+        }
+    end
+
     local debugOptions = {
         name = "Debugging",
         handler = ActionHud,
@@ -534,6 +634,11 @@ Enable it in Gameplay Enhancements to use Tracked Buffs.]]
                 name = "Debug Proxies", desc = "Logs detailed information about tracked buff/bar population and aura changes.", type = "toggle", order = 12.5,
                 get = function(info) return self.db.profile.debugProxy end,
                 set = function(info, val) self.db.profile.debugProxy = val end,
+            },
+            layout = {
+                name = "Debug Layout", desc = "Logs layout positioning calculations including stack order, heights, gaps, and Y offsets.", type = "toggle", order = 12.55,
+                get = function(info) return self.db.profile.debugLayout end,
+                set = function(info, val) self.db.profile.debugLayout = val end,
             },
             containers = {
                 name = "Debug Containers", desc = "Shows colored backgrounds behind the Hud containers to verify their positions.", type = "toggle", order = 12.6,
@@ -626,30 +731,40 @@ Enable it in Gameplay Enhancements to use Tracked Buffs.]]
         },
     }
     
-    -- Register
+    -- Register settings panels in logical order
+    -- 1. General settings
     LibStub("AceConfig-3.0"):RegisterOptionsTable("ActionHud", generalOptions)
     self.optionsFrame = LibStub("AceConfigDialog-3.0"):AddToBlizOptions("ActionHud", "ActionHud")
     
+    -- 2. Layout (overall HUD structure) - early so users see it
+    LibStub("AceConfig-3.0"):RegisterOptionsTable("ActionHud_Layout", GetLayoutOptions)
+    LibStub("AceConfigDialog-3.0"):AddToBlizOptions("ActionHud_Layout", "Layout", "ActionHud")
+    
+    -- 3-4. Core HUD components (inline stacked)
     LibStub("AceConfig-3.0"):RegisterOptionsTable("ActionHud_AB", abOptions)
     LibStub("AceConfigDialog-3.0"):AddToBlizOptions("ActionHud_AB", "Action Bars", "ActionHud")
     
     LibStub("AceConfig-3.0"):RegisterOptionsTable("ActionHud_Res", resOptions)
     LibStub("AceConfigDialog-3.0"):AddToBlizOptions("ActionHud_Res", "Resource Bars", "ActionHud")
     
+    -- 5-7. Cooldown Manager components (grouped together)
     LibStub("AceConfig-3.0"):RegisterOptionsTable("ActionHud_CD", cdOptions)
     LibStub("AceConfigDialog-3.0"):AddToBlizOptions("ActionHud_CD", "Cooldown Manager", "ActionHud")
-    
-    LibStub("AceConfig-3.0"):RegisterOptionsTable("ActionHud_TB", tbOptions)
-    LibStub("AceConfigDialog-3.0"):AddToBlizOptions("ActionHud_TB", "Tracked Bars", "ActionHud")
     
     LibStub("AceConfig-3.0"):RegisterOptionsTable("ActionHud_Buffs", buffOptions)
     LibStub("AceConfigDialog-3.0"):AddToBlizOptions("ActionHud_Buffs", "Tracked Buffs", "ActionHud")
     
-    -- Profiles
+    LibStub("AceConfig-3.0"):RegisterOptionsTable("ActionHud_TB", tbOptions)
+    LibStub("AceConfigDialog-3.0"):AddToBlizOptions("ActionHud_TB", "Tracked Bars", "ActionHud")
+    
+    -- 8-9. Meta settings
     local profiles = LibStub("AceDBOptions-3.0"):GetOptionsTable(self.db)
     LibStub("AceConfig-3.0"):RegisterOptionsTable("ActionHud_Profiles", profiles)
     LibStub("AceConfigDialog-3.0"):AddToBlizOptions("ActionHud_Profiles", "Profiles", "ActionHud")
 
-    LibStub("AceConfig-3.0"):RegisterOptionsTable("ActionHud_Debug", debugOptions)
-    LibStub("AceConfigDialog-3.0"):AddToBlizOptions("ActionHud_Debug", "Debugging", "ActionHud")
+    -- Only show Debugging panel in dev mode (DevMarker.lua excluded from CurseForge packages)
+    if ns.IS_DEV_MODE then
+        LibStub("AceConfig-3.0"):RegisterOptionsTable("ActionHud_Debug", debugOptions)
+        LibStub("AceConfigDialog-3.0"):AddToBlizOptions("ActionHud_Debug", "Debugging", "ActionHud")
+    end
 end
