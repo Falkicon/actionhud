@@ -4,8 +4,19 @@ local TrackedBuffs = addon:NewModule("TrackedBuffs", "AceEvent-3.0")
 local Manager = ns.CooldownManager
 local Utils = ns.Utils
 
+-- Local upvalues for performance
+local pairs = pairs
+local ipairs = ipairs
+local wipe = wipe
+local table_insert = table.insert
+
 local lastKnownState = {} -- [cooldownID] = boolean
 local activeProxies = {} -- [proxyKey] = proxyFrame
+
+-- Reusable tables to avoid garbage creation
+local usedKeysCache = {}
+local allProxyDataCache = {}
+local visibleProxiesCache = {}
 
 local function GetTrackedBuffCategory()
     return Enum.CooldownViewerCategory and Enum.CooldownViewerCategory.TrackedBuff
@@ -21,10 +32,8 @@ function TrackedBuffs:OnEnable()
     
     self:RegisterEvent("PLAYER_ENTERING_WORLD", "OnPlayerEnteringWorld")
 
-    -- Initial retries for Blizzard data
-    C_Timer.After(0.2, function() self:UpdateLayout() end)
+    -- Single delayed retry in case data provider wasn't ready at OnEnable
     C_Timer.After(0.5, function() self:UpdateLayout() end)
-    C_Timer.After(1.0, function() self:UpdateLayout() end)
 end
 
 function TrackedBuffs:OnDisable()
@@ -123,25 +132,26 @@ function TrackedBuffs:RenderBuffProxies(container, p)
     local hideInactive = p.buffsHideInactive
     local inactiveAlpha = p.buffsInactiveOpacity or 0.5
     
-    -- Track which proxies we use in this pass
-    local usedKeys = {}
-    local allProxyData = {} -- Store proxy + isActive for later positioning
+    -- Reuse cached tables to avoid garbage creation
+    wipe(usedKeysCache)
+    wipe(allProxyDataCache)
+    wipe(visibleProxiesCache)
     
     -- PASS 1: Get/create proxies and populate them (don't show/hide yet)
     for _, cooldownID in ipairs(cooldownIDs) do
         local info = Manager:GetCooldownInfoForID(cooldownID)
         if info and info.spellID then
-            local proxyKey = "buff_" .. cooldownID
-            usedKeys[proxyKey] = true
-            
-            local proxy = activeProxies[proxyKey]
+            -- Cache proxyKey on proxy to avoid repeated string concat
+            local proxy = activeProxies[cooldownID]
             if not proxy then
                 proxy = Manager:GetProxy(container, "buff")
-                activeProxies[proxyKey] = proxy
+                activeProxies[cooldownID] = proxy
+                proxy.proxyKey = cooldownID
             end
+            usedKeysCache[cooldownID] = true
             
             -- Mark this proxy as leased to this key
-            proxy.leasedTo = proxyKey
+            proxy.leasedTo = cooldownID
             
             proxy:SetSize(p.buffsWidth, p.buffsHeight)
             proxy.count:SetFont("Fonts\\FRIZQT__.TTF", p.buffsCountFontSize or 8, "OUTLINE")
@@ -152,33 +162,33 @@ function TrackedBuffs:RenderBuffProxies(container, p)
             
             Manager:PopulateBuffProxy(proxy, cooldownID, info, lastKnownState, ns)
             
-            local isActive = not proxy.icon:IsDesaturated()
-            table.insert(allProxyData, { proxy = proxy, isActive = isActive, key = proxyKey })
+            -- Store isActive on proxy to avoid creating intermediate tables
+            proxy._isActive = not proxy.icon:IsDesaturated()
+            table_insert(allProxyDataCache, proxy)
         end
     end
     
     -- PASS 2: Determine which proxies to show and collect them for positioning
-    local visibleProxies = {}
-    for _, data in ipairs(allProxyData) do
-        if hideInactive and not data.isActive then
+    for _, proxy in ipairs(allProxyDataCache) do
+        if hideInactive and not proxy._isActive then
             -- Will be hidden in pass 3
         else
-            data.proxy:SetAlpha(data.isActive and 1.0 or inactiveAlpha)
-            table.insert(visibleProxies, data.proxy)
+            proxy:SetAlpha(proxy._isActive and 1.0 or inactiveAlpha)
+            table_insert(visibleProxiesCache, proxy)
         end
     end
     
     -- PASS 3: Position and show visible proxies, hide inactive ones
-    if #visibleProxies > 0 then
-        local totalWidth = (#visibleProxies * p.buffsWidth) + ((#visibleProxies - 1) * gap)
+    local numVisible = #visibleProxiesCache
+    if numVisible > 0 then
+        local totalWidth = (numVisible * p.buffsWidth) + ((numVisible - 1) * gap)
         local startX = -totalWidth / 2
-        addon:Log(string.format("TrackedBuffs: Rendering %d active buffs. Total width: %.1f", #visibleProxies, totalWidth), "proxy")
-        for i, proxy in ipairs(visibleProxies) do
+        -- Debug logging removed from hot path to avoid string.format garbage
+        for i, proxy in ipairs(visibleProxiesCache) do
             proxy:ClearAllPoints()
             local x = startX + (i - 1) * (p.buffsWidth + gap)
             proxy:SetPoint("LEFT", container, "CENTER", x, 0)
             proxy:Show()
-            addon:Log(string.format("  [%d] %s at x=%.1f", i, proxy.spellName or "??", x), "proxy")
         end
         container:SetSize(totalWidth, p.buffsHeight)
     else
@@ -186,16 +196,16 @@ function TrackedBuffs:RenderBuffProxies(container, p)
     end
     
     -- PASS 4: Hide inactive proxies (after all positioning is done)
-    for _, data in ipairs(allProxyData) do
-        if hideInactive and not data.isActive then
-            data.proxy:Hide()
-            data.proxy:ClearAllPoints()
+    for _, proxy in ipairs(allProxyDataCache) do
+        if hideInactive and not proxy._isActive then
+            proxy:Hide()
+            proxy:ClearAllPoints()
         end
     end
 
     -- Cleanup any proxies that are no longer in the configured list
     for key, proxy in pairs(activeProxies) do
-        if not usedKeys[key] then
+        if not usedKeysCache[key] then
             Manager:ReleaseProxy(proxy)
             activeProxies[key] = nil
         end
@@ -209,14 +219,53 @@ function TrackedBuffs:ReleaseBuffProxies()
     end
 end
 
+-- Lightweight update: refresh existing proxies without full re-render
+-- Only updates aura state, doesn't recreate or reposition proxies
+function TrackedBuffs:RefreshActiveProxies()
+    local p = self.db.profile
+    local hideInactive = p.buffsHideInactive
+    local inactiveAlpha = p.buffsInactiveOpacity or 0.5
+    local gap = p.buffsSpacing
+    local needsReposition = false
+    
+    -- Update each proxy's state
+    for key, proxy in pairs(activeProxies) do
+        if proxy.cooldownInfo then
+            local wasActive = not proxy.icon:IsDesaturated()
+            Manager:PopulateBuffProxy(proxy, proxy.cooldownID, proxy.cooldownInfo, lastKnownState, ns)
+            local isActive = not proxy.icon:IsDesaturated()
+            
+            -- Check if visibility changed (needs repositioning)
+            if hideInactive and wasActive ~= isActive then
+                needsReposition = true
+            end
+            
+            -- Update alpha for visible proxies
+            if not hideInactive or isActive then
+                proxy:SetAlpha(isActive and 1.0 or inactiveAlpha)
+            end
+        end
+    end
+    
+    -- Only do full reposition if visibility changed
+    if needsReposition then
+        local container = Manager:GetContainer("buffs")
+        if container then
+            self:RenderBuffProxies(container, p)
+        end
+    end
+end
+
 -- Called by Manager after aura cache update
 function TrackedBuffs:OnAuraUpdate()
     local container = Manager:GetContainer("buffs")
     if container and container:IsShown() then
-        self:RenderBuffProxies(container, self.db.profile)
+        -- Use lightweight refresh instead of full re-render
+        self:RefreshActiveProxies()
     end
 end
 
 function TrackedBuffs:OnPlayerEnteringWorld()
-    C_Timer.After(0.5, function() self:UpdateLayout() end)
+    -- Direct call - data provider should be ready for zone transitions
+    self:UpdateLayout()
 end

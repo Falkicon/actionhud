@@ -4,6 +4,21 @@ local AB = ActionHud:NewModule("ActionBars", "AceEvent-3.0")
 
 local Utils = ns.Utils
 
+-- Local upvalues for performance (hot-path optimization)
+local pairs = pairs
+local ipairs = ipairs
+local GetTime = GetTime
+local GetActionBarPage = GetActionBarPage
+local GetBonusBarOffset = GetBonusBarOffset
+local GetActionInfo = GetActionInfo
+local GetActionTexture = GetActionTexture
+local GetActionCooldown = GetActionCooldown
+local GetActionCount = GetActionCount
+local GetMacroSpell = GetMacroSpell
+local IsUsableAction = IsUsableAction
+local IsActionInRange = IsActionInRange
+local math_floor = math.floor
+
 -- hardcoded slots for now
 local defaultSlots = {
     7, 8, 9, 10, 11, 12,
@@ -236,11 +251,21 @@ function AB:ACTIONBAR_SLOT_CHANGED(event, arg1)
 end
 
 function AB:SPELL_UPDATE_COOLDOWN()
-    for _, btn in ipairs(buttons) do self:UpdateCooldown(btn) end
+    -- Only update buttons with actions (skip empty slots to reduce overhead)
+    for _, btn in ipairs(buttons) do
+        if btn.hasAction then
+            self:UpdateCooldown(btn)
+        end
+    end
 end
 
 function AB:UpdateStateAll()
-    for _, btn in ipairs(buttons) do self:UpdateState(btn) end
+    -- Only update buttons with actions (skip empty slots to reduce overhead)
+    for _, btn in ipairs(buttons) do
+        if btn.hasAction then
+            self:UpdateState(btn)
+        end
+    end
 end
 
 -- Specific Update Functions
@@ -360,13 +385,13 @@ function AB:UpdateState(btn)
    local count = GetActionCount(actionID)
    local countIsSecret = Utils.IsValueSecret(count)
    
+   -- Get charge info once and reuse (avoid duplicate API call)
+   local chargeInfo = btn.spellID and Utils.GetSpellChargesSafe(btn.spellID)
+   
    if not countIsSecret and (not count or count <= 1) then
-       if btn.spellID then
-           local c = Utils.GetSpellChargesSafe(btn.spellID)
-           if c then 
-               count = c.currentCharges
-               countIsSecret = Utils.IsValueSecret(count)
-           end
+       if chargeInfo then 
+           count = chargeInfo.currentCharges
+           countIsSecret = Utils.IsValueSecret(count)
        end
    end
    
@@ -377,13 +402,10 @@ function AB:UpdateState(btn)
        if count and count > 1 then
            showCount = true
        end
-       if btn.spellID and not countIsSecret then
-           local c = Utils.GetSpellChargesSafe(btn.spellID)
-           if c then
-               local maxCharges = c.maxCharges
-               if not Utils.IsValueSecret(maxCharges) and maxCharges > 1 then
-                   showCount = true
-               end
+       if chargeInfo and not countIsSecret then
+           local maxCharges = chargeInfo.maxCharges
+           if not Utils.IsValueSecret(maxCharges) and maxCharges > 1 then
+               showCount = true
            end
        end
        btn.count:SetText(showCount and count or "")

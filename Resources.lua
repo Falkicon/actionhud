@@ -3,6 +3,18 @@ local addon = LibStub("AceAddon-3.0"):GetAddon("ActionHud")
 local Resources = addon:NewModule("Resources", "AceEvent-3.0")
 ns.Resources = Resources -- For backward compatibility with other modules referencing it
 
+-- Local upvalues for performance
+local UnitClass = UnitClass
+local UnitHealth = UnitHealth
+local UnitHealthMax = UnitHealthMax
+local UnitPower = UnitPower
+local UnitPowerMax = UnitPowerMax
+local UnitPowerType = UnitPowerType
+local UnitExists = UnitExists
+local UnitIsPlayer = UnitIsPlayer
+local UnitIsEnemy = UnitIsEnemy
+local UnitIsFriend = UnitIsFriend
+
 local main
 local container
 local playerGroup, targetGroup

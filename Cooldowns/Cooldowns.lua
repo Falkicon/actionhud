@@ -4,7 +4,24 @@ local Cooldowns = addon:NewModule("Cooldowns", "AceEvent-3.0")
 local Manager = ns.CooldownManager
 local Utils = ns.Utils
 
-local activeProxies = {} -- [proxyKey] = proxyFrame
+-- Local upvalues for performance
+local pairs = pairs
+local ipairs = ipairs
+local wipe = wipe
+local table_insert = table.insert
+local CooldownFrame_Set = CooldownFrame_Set
+local CooldownFrame_Clear = CooldownFrame_Clear
+
+local activeProxies = {} -- [cooldownID] = proxyFrame
+
+-- Reusable tables to avoid garbage creation
+local usedKeysCache = {}
+local categoriesCache = {}
+local rowProxiesCache = {}
+
+-- Pre-allocated category info tables (reused each frame)
+local essentialCatInfo = { name = "Essential", cat = nil, w = 0, h = 0 }
+local utilityCatInfo = { name = "Utility", cat = nil, w = 0, h = 0 }
 
 -- Runtime category resolution
 local function GetEssentialCategory()
@@ -34,58 +51,17 @@ function Cooldowns:OnEnable()
         end, self)
     end
 
-    self:StartThrottledUpdate()
-
-    -- Retry UpdateLayout a few times in case data provider wasn't ready
-    C_Timer.After(0.2, function() self:UpdateLayout() end)
+    -- Single delayed retry in case data provider wasn't ready at OnEnable
     C_Timer.After(0.5, function() self:UpdateLayout() end)
-    C_Timer.After(1.0, function() self:UpdateLayout() end)
 end
 
 function Cooldowns:OnDisable()
-    self:StopThrottledUpdate()
     local container = Manager:GetContainer("cd")
     if container then container:Hide() end
     
     local blizzardFrames = Manager:GetBlizzardFrames()
     for _, frameName in ipairs(blizzardFrames.cd) do
         Manager:ShowBlizzardFrame(frameName)
-    end
-end
-
--- Throttled update system
-local updateFrame = nil
-local THROTTLE_INTERVAL = 0.05
-
-function Cooldowns:StartThrottledUpdate()
-    if updateFrame then return end
-    updateFrame = CreateFrame("Frame")
-    updateFrame.elapsed = 0
-    updateFrame:SetScript("OnUpdate", function(f, elapsed)
-        f.elapsed = f.elapsed + elapsed
-        if f.elapsed >= THROTTLE_INTERVAL then
-            f.elapsed = 0
-            self:OnThrottledUpdate()
-        end
-    end)
-end
-
-function Cooldowns:StopThrottledUpdate()
-    if updateFrame then
-        updateFrame:SetScript("OnUpdate", nil)
-        updateFrame:Hide()
-        updateFrame = nil
-    end
-end
-
-function Cooldowns:OnThrottledUpdate()
-    local container = Manager:GetContainer("cd")
-    if container and container:IsShown() then
-        for key, proxy in pairs(activeProxies) do
-            if proxy.cooldownInfo then
-                self:PopulateProxy(proxy, proxy.cooldownID, proxy.cooldownInfo)
-            end
-        end
     end
 end
 
@@ -201,46 +177,68 @@ function Cooldowns:UpdateLayout()
 end
 
 function Cooldowns:RenderCooldownProxies(container, p)
-    -- Track which proxies we use in this pass
-    local usedKeys = {}
+    -- Reuse cached tables to avoid garbage creation
+    wipe(usedKeysCache)
+    wipe(categoriesCache)
     
-    local categories = {}
     local essentialCat = GetEssentialCategory()
     local utilityCat = GetUtilityCategory()
     
+    -- Update pre-allocated category info tables
     if p.cdReverse then
-        if utilityCat then table.insert(categories, { name = "Utility", cat = utilityCat, w = p.cdUtilityWidth, h = p.cdUtilityHeight }) end
-        if essentialCat then table.insert(categories, { name = "Essential", cat = essentialCat, w = p.cdEssentialWidth, h = p.cdEssentialHeight }) end
+        if utilityCat then
+            utilityCatInfo.cat = utilityCat
+            utilityCatInfo.w = p.cdUtilityWidth
+            utilityCatInfo.h = p.cdUtilityHeight
+            table_insert(categoriesCache, utilityCatInfo)
+        end
+        if essentialCat then
+            essentialCatInfo.cat = essentialCat
+            essentialCatInfo.w = p.cdEssentialWidth
+            essentialCatInfo.h = p.cdEssentialHeight
+            table_insert(categoriesCache, essentialCatInfo)
+        end
     else
-        if essentialCat then table.insert(categories, { name = "Essential", cat = essentialCat, w = p.cdEssentialWidth, h = p.cdEssentialHeight }) end
-        if utilityCat then table.insert(categories, { name = "Utility", cat = utilityCat, w = p.cdUtilityWidth, h = p.cdUtilityHeight }) end
+        if essentialCat then
+            essentialCatInfo.cat = essentialCat
+            essentialCatInfo.w = p.cdEssentialWidth
+            essentialCatInfo.h = p.cdEssentialHeight
+            table_insert(categoriesCache, essentialCatInfo)
+        end
+        if utilityCat then
+            utilityCatInfo.cat = utilityCat
+            utilityCatInfo.w = p.cdUtilityWidth
+            utilityCatInfo.h = p.cdUtilityHeight
+            table_insert(categoriesCache, utilityCatInfo)
+        end
     end
     
     local yOffset = 0
     local spacing = p.cdSpacing
     local itemGap = p.cdItemGap
     
-    for _, catInfo in ipairs(categories) do
+    for _, catInfo in ipairs(categoriesCache) do
         local cooldownIDs = Manager:GetCooldownIDsForCategory(catInfo.cat, catInfo.name)
         if #cooldownIDs > 0 then
             local rowWidth = 0
             local xOffset = 0
-            local rowProxies = {}
+            wipe(rowProxiesCache)
             
             for i, cooldownID in ipairs(cooldownIDs) do
                 local info = Manager:GetCooldownInfoForID(cooldownID)
                 if info and info.spellID then
-                    local proxyKey = "cd_" .. cooldownID
-                    usedKeys[proxyKey] = true
+                    -- Use cooldownID directly as key to avoid string concatenation
+                    usedKeysCache[cooldownID] = true
                     
-                    local proxy = activeProxies[proxyKey]
+                    local proxy = activeProxies[cooldownID]
                     if not proxy then
                         proxy = Manager:GetProxy(container, "cooldown")
-                        activeProxies[proxyKey] = proxy
+                        activeProxies[cooldownID] = proxy
+                        proxy.proxyKey = cooldownID
                     end
                     
                     -- Mark this proxy as leased to this key
-                    proxy.leasedTo = proxyKey
+                    proxy.leasedTo = cooldownID
                     
                     proxy:SetSize(catInfo.w, catInfo.h)
                     proxy.count:SetFont("Fonts\\FRIZQT__.TTF", p.cdCountFontSize or 10, "OUTLINE")
@@ -251,7 +249,7 @@ function Cooldowns:RenderCooldownProxies(container, p)
                     proxy:ClearAllPoints()
                     proxy.pendingX = xOffset
                     proxy.pendingY = yOffset
-                    table.insert(rowProxies, proxy)
+                    table_insert(rowProxiesCache, proxy)
                     
                     xOffset = xOffset + catInfo.w + itemGap
                     rowWidth = xOffset - itemGap
@@ -259,7 +257,7 @@ function Cooldowns:RenderCooldownProxies(container, p)
             end
             
             local centerOffset = -rowWidth / 2
-            for _, proxy in ipairs(rowProxies) do
+            for _, proxy in ipairs(rowProxiesCache) do
                 -- Position from top of container (LayoutManager handles overall positioning)
                 proxy:SetPoint("TOPLEFT", container, "TOP", centerOffset + proxy.pendingX, -proxy.pendingY)
                 proxy.pendingX = nil
@@ -271,7 +269,7 @@ function Cooldowns:RenderCooldownProxies(container, p)
 
     -- Cleanup any proxies that are no longer in the configured list
     for key, proxy in pairs(activeProxies) do
-        if not usedKeys[key] then
+        if not usedKeysCache[key] then
             Manager:ReleaseProxy(proxy)
             activeProxies[key] = nil
         end
@@ -349,5 +347,6 @@ function Cooldowns:OnSpellUpdateCooldown()
 end
 
 function Cooldowns:OnPlayerEnteringWorld()
-    C_Timer.After(0.5, function() self:UpdateLayout() end)
+    -- Direct call - data provider should be ready for zone transitions
+    self:UpdateLayout()
 end

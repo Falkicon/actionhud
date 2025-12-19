@@ -3,6 +3,25 @@
 All notable changes to this project will be documented in this file.
 
 
+## [2.5.2] - 2025-12-18
+### Performance
+- **CPU Optimization**: Reduced CPU usage by ~16% (3.47 → 2.9 ms/s).
+    - Removed redundant 20Hz OnUpdate polling from Cooldowns module.
+    - Added frame-level API caching for spell cooldown/charge queries.
+    - Added early-exit checks in ActionBars event handlers for empty slots.
+    - Added local upvalues for hot-path globals.
+    - Consolidated initialization timers.
+    - Cached module references in Manager to avoid GetModule lookups on UNIT_AURA.
+    - Removed duplicate GetSpellChargesSafe call in UpdateState.
+- **Memory Optimization**: Reduced baseline memory by ~60% (5.8MB → 2.2MB).
+    - Eliminated table garbage creation in render functions (reusable cache tables).
+    - Fixed unbounded textureCache growth (now wiped every 60 seconds).
+    - Removed string.format calls from hot paths (allocated even when logging disabled).
+    - Moved legacyFontMap to module level (was recreated every call).
+    - Return shared EMPTY_TABLE instead of `{}` on API failures.
+    - Reuse totemDataCache table instead of creating new one per call.
+- **Memory Management**: Memory now properly garbage collected (cycles between 2.2-6.6MB, returns to baseline after GC).
+
 ## [2.5.1] - 2025-12-18
 ### Fixed
 - **Cooldown Manager**: Fixed Demoralizing Shout (and similar abilities) taking 2-3 seconds to show cooldown.

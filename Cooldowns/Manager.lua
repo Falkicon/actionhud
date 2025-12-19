@@ -5,6 +5,19 @@ ns.CooldownManager = Manager
 
 local Utils = ns.Utils
 
+-- Local upvalues for performance
+local pairs = pairs
+local ipairs = ipairs
+local wipe = wipe
+local GetTime = GetTime
+local pcall = pcall
+local table_insert = table.insert
+local CooldownFrame_Set = CooldownFrame_Set
+local CooldownFrame_Clear = CooldownFrame_Clear
+
+-- Reusable empty table constant (never modify this!)
+local EMPTY_TABLE = {}
+
 -- Shared state
 local proxyPool = {}
 local hiddenFrames = {}
@@ -22,6 +35,10 @@ local blizzardFrames = {
     bars = { "BuffBarCooldownViewer", "TrackedBarCooldownViewer" },
 }
 
+-- Cached module references (populated in OnEnable, avoids GetModule lookup in hot path)
+local cachedTrackedBars = nil
+local cachedTrackedBuffs = nil
+
 -- ============================================================================
 -- Lifecycle
 -- ============================================================================
@@ -29,6 +46,10 @@ local blizzardFrames = {
 function Manager:OnEnable()
     self:RegisterEvent("UNIT_AURA", "OnUnitAura")
     self:AuraCache_RebuildFull()
+    
+    -- Cache module references to avoid GetModule lookups on every UNIT_AURA
+    cachedTrackedBars = addon:GetModule("TrackedBars", true)
+    cachedTrackedBuffs = addon:GetModule("TrackedBuffs", true)
     
     addon:Log("CooldownManager Enabled", "proxy")
     local blizzEnabled = self:IsBlizzardCooldownViewerEnabled()
@@ -39,12 +60,12 @@ function Manager:OnUnitAura(event, unit, unitAuraUpdateInfo)
     if unit ~= "player" then return end
     self:AuraCache_ApplyUpdateInfo(unitAuraUpdateInfo)
     
-    -- Notify other modules that need aura data
-    for _, moduleName in ipairs({"TrackedBars", "TrackedBuffs"}) do
-        local m = addon:GetModule(moduleName, true)
-        if m and m:IsEnabled() and m.OnAuraUpdate then
-            m:OnAuraUpdate()
-        end
+    -- Notify cached modules (avoid GetModule lookup in hot path)
+    if cachedTrackedBars and cachedTrackedBars:IsEnabled() and cachedTrackedBars.OnAuraUpdate then
+        cachedTrackedBars:OnAuraUpdate()
+    end
+    if cachedTrackedBuffs and cachedTrackedBuffs:IsEnabled() and cachedTrackedBuffs.OnAuraUpdate then
+        cachedTrackedBuffs:OnAuraUpdate()
     end
 end
 
@@ -61,7 +82,7 @@ function Manager:IsBlizzardCooldownViewerEnabled()
 end
 
 function Manager:GetCooldownIDsForCategory(category, categoryName)
-    if not category then return {} end
+    if not category then return EMPTY_TABLE end
     if CooldownViewerSettings and CooldownViewerSettings.GetDataProvider then
         local provider = CooldownViewerSettings:GetDataProvider()
         if provider and provider.GetOrderedCooldownIDsForCategory then
@@ -69,7 +90,7 @@ function Manager:GetCooldownIDsForCategory(category, categoryName)
             if ok and ids then return ids end
         end
     end
-    return {}
+    return EMPTY_TABLE
 end
 
 function Manager:GetCooldownInfoForID(cooldownID)
@@ -214,7 +235,7 @@ function Manager:PopulateBuffProxy(proxy, cooldownID, cooldownInfo, stateTable, 
     local displaySpellID = cooldownInfo.overrideTooltipSpellID or cooldownInfo.overrideSpellID or cooldownInfo.spellID
     local auraSpellID = cooldownInfo.overrideSpellID or cooldownInfo.spellID
     
-    addon:Log(string.format("Populating proxy for ID %d (spell %s)", cooldownID, tostring(displaySpellID)), "proxy")
+    -- Debug logging removed from hot path to avoid string.format garbage
     
     proxy.spellID = auraSpellID
     proxy.cooldownID = cooldownID
@@ -292,13 +313,7 @@ function Manager:PopulateBuffProxy(proxy, cooldownID, cooldownInfo, stateTable, 
         end
     end
     
-    if wasActive ~= isActive then
-        if isActive then
-            addon:Log(string.format("ACTIVATED: %s (id=%s, source=%s, foundID=%s)", spellName, tostring(cooldownID), activeSource or "?", tostring(foundSpellID)), "proxy")
-        elseif wasActive == true then
-            addon:Log(string.format("DEACTIVATED: %s (id=%s)", spellName, tostring(cooldownID)), "proxy")
-        end
-    end
+    -- State change tracking (debug logging removed from hot path)
     stateTable[cooldownID] = isActive
 end
 
