@@ -1,4 +1,4 @@
-## Interface: 110007
+## Interface: 120000
 ## Title: ActionHud
 ## Notes: Minimalist HUD mirroring Action Bars 1 & 2
 ## Author: Antigravity
