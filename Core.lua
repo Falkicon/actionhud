@@ -69,6 +69,8 @@ local defaults = {
         debugFrames = false,
         debugEvents = false,
         debugShowBlizzardFrames = false,
+        debugProxy = false,
+        debugContainers = false,
     }
 }
 
@@ -102,11 +104,6 @@ end
 
 function ActionHud:OnEnable()
     self:CreateMainFrame()
-    -- Initialize Resources
-    if ns.Resources and ns.Resources.Initialize then
-         ns.Resources:Initialize(self)
-    end
-
     self:ApplySettings()
     
     self:RegisterChatCommand("actionhud", "SlashHandler")
@@ -129,6 +126,7 @@ function ActionHud:Log(msg, debugType)
     if debugType == "discovery" and p.debugDiscovery then enabled = true
     elseif debugType == "frames" and p.debugFrames then enabled = true
     elseif debugType == "events" and p.debugEvents then enabled = true
+    elseif debugType == "proxy" and p.debugProxy then enabled = true
     elseif debugType == "debug" and p.debugDiscovery then enabled = true  -- General debug piggybacks on discovery
     elseif not debugType then enabled = true -- General logs
     end
@@ -246,11 +244,11 @@ function ActionHud:SlashHandler(msg)
     end
     
     if msg == "dump" then
-        local cooldowns = self:GetModule("Cooldowns", true)
-        if cooldowns and cooldowns.DumpTrackedBuffInfo then
-            cooldowns:DumpTrackedBuffInfo()
+        local Manager = ns.CooldownManager
+        if Manager and Manager.DumpTrackedBuffInfo then
+            Manager:DumpTrackedBuffInfo()
         else
-            print("|cff33ff99ActionHud:|r Cooldowns module not available.")
+            print("|cff33ff99ActionHud:|r Cooldown Manager not available.")
         end
         return
     end

@@ -107,8 +107,11 @@ Open the settings panel via slash command or `Esc` → `Options` → `AddOns` �
 | File | Purpose |
 |------|---------|
 | `ActionHud.toc` | Addon manifest |
-| `Core.lua` | Frame creation, event handling, state updates |
-| `Cooldowns.lua` | Cooldown Manager (Proxy System, Hijacking, Layout) |
+| `Core.lua` | Addon initialization, debug system, slash commands |
+| `Utils.lua` | Shared utility functions (safe API wrappers) |
+| `ActionBars.lua` | Action bar grid (6×4 button frames) |
+| `Resources.lua` | Health, Power, and Class Resource bars |
+| `Cooldowns/` | Modular Cooldown Manager system |
 | `SettingsUI.lua` | Blizzard Settings panel integration |
 
 ## Technical Notes

@@ -1,8 +1,8 @@
 local addonName, ns = ...
-ns.Resources = {}
-local Res = ns.Resources
+local addon = LibStub("AceAddon-3.0"):GetAddon("ActionHud")
+local Resources = addon:NewModule("Resources", "AceEvent-3.0")
+ns.Resources = Resources -- For backward compatibility with other modules referencing it
 
-local addon
 local main
 local container
 local playerGroup, targetGroup
@@ -10,15 +10,7 @@ local playerHealth, playerPower, playerClassBar
 local targetHealth, targetPower
 local classSegments = {}
 
--- Midnight (12.0) compatibility (per Secret Values guide 13)
-local IS_MIDNIGHT = (select(4, GetBuildInfo()) >= 120000)
-
--- Helper: Check if value is a Midnight secret value
-local function IsValueSecret(value)
-    if not IS_MIDNIGHT then return false end
-    if not issecretvalue then return false end
-    return issecretvalue(value) == true
-end
+local Utils = ns.Utils
 
 -- Configuration Cache
 local RCFG = {
@@ -75,18 +67,14 @@ local function CanShowClassPower()
     local cur = UnitPower("player", pType, true)
     
     -- Handle Midnight secret values
-    local maxIsSecret = IsValueSecret(max)
-    local curIsSecret = IsValueSecret(cur)
+    local maxIsSecret = Utils.IsValueSecret(max)
+    local curIsSecret = Utils.IsValueSecret(cur)
     
     if maxIsSecret or curIsSecret then
-        -- In Midnight combat, if we have a class power type, assume we should show
-        -- The display will work via passthrough
-        return true, pType, maxIsSecret and 5 or max  -- Default to 5 segments if secret
+        return true, pType, maxIsSecret and 5 or max
     end
     
     if max <= 0 then return false, pType, 0 end
-    
-    -- User Request: Only show if we actually have points/charges
     if cur <= 0 then return false, pType, 0 end
     
     return true, pType, max
@@ -102,7 +90,7 @@ local function UpdateClassPower()
     end
     
     local cur = UnitPower("player", pType, true)
-    local curIsSecret = IsValueSecret(cur)
+    local curIsSecret = Utils.IsValueSecret(cur)
     
     playerClassBar:Show()
     
@@ -139,9 +127,7 @@ local function UpdateClassPower()
         end
         
         -- Color / Alpha - handle Midnight secret values
-        local isFilled = false
         if curIsSecret then
-            -- In Midnight, show all segments at half alpha as degraded display
             seg:SetAlpha(0.6)
             local c = ClassBarColors[pType]
             if c then seg:SetColorTexture(c.r * 0.8, c.g * 0.8, c.b * 0.8)
@@ -164,7 +150,7 @@ end
 local function UpdateBarColor(bar, unit)
     if not bar or not UnitExists(unit) then return end
     
-    local mult = 0.85 -- Desaturation multiplier
+    local mult = 0.85 
     
     if bar.type == "HEALTH" then
         if UnitIsPlayer(unit) then
@@ -214,13 +200,109 @@ local function UpdateBarValue(bar, unit)
         max = UnitPowerMax(unit)
     end
     
-    -- Passthrough pattern: StatusBar:SetMinMaxValues and SetValue accept secret values
-    -- per Secret Values guide 13 - Blizzard widgets handle decryption internally
     bar:SetMinMaxValues(0, max)
     bar:SetValue(cur)
 end
 
-function Res:UpdateLayout()
+function Resources:OnInitialize()
+    self.db = addon.db
+end
+
+function Resources:OnEnable()
+    main = _G["ActionHudFrame"]
+    if not main then return end
+    
+    if not container then
+        container = CreateFrame("Frame", "ActionHudResources", main)
+        playerGroup = CreateFrame("Frame", nil, container)
+        targetGroup = CreateFrame("Frame", nil, container)
+        
+        playerHealth = CreateBar(playerGroup)
+        playerHealth.type = "HEALTH"
+        playerPower = CreateBar(playerGroup)
+        playerPower.type = "POWER"
+        
+        playerClassBar = CreateFrame("Frame", nil, playerGroup)
+        
+        targetHealth = CreateBar(targetGroup)
+        targetHealth.type = "HEALTH"
+        targetPower = CreateBar(targetGroup)
+        targetPower.type = "POWER"
+    end
+    
+    self:RegisterEvent("PLAYER_TARGET_CHANGED", "OnEvent")
+    self:RegisterEvent("PLAYER_ENTERING_WORLD", "OnEvent")
+    self:RegisterEvent("UNIT_HEALTH", "OnEvent")
+    self:RegisterEvent("UNIT_POWER_UPDATE", "OnEvent")
+    self:RegisterEvent("UNIT_DISPLAYPOWER", "OnEvent")
+    self:RegisterEvent("UNIT_MAXPOWER", "OnEvent")
+    self:RegisterEvent("UPDATE_SHAPESHIFT_FORM", "OnEvent")
+    
+    UpdateBarColor(playerHealth, "player")
+    UpdateBarColor(playerPower, "player")
+    UpdateBarValue(playerHealth, "player")
+    UpdateBarValue(playerPower, "player")
+    UpdateClassPower()
+    
+    self:UpdateLayout()
+end
+
+function Resources:OnEvent(event, unit)
+    if not RCFG.enabled then return end
+    
+    if event == "PLAYER_ENTERING_WORLD" then
+        UpdateClassPower()
+        self:UpdateLayout()
+        
+    elseif event == "PLAYER_TARGET_CHANGED" then
+        self:UpdateLayout()
+        UpdateBarColor(targetHealth, "target")
+        UpdateBarColor(targetPower, "target")
+        UpdateBarValue(targetHealth, "target")
+        UpdateBarValue(targetPower, "target")
+        
+    elseif event == "UNIT_HEALTH" then
+        if unit == "player" then UpdateBarValue(playerHealth, "player") end
+        if unit == "target" then UpdateBarValue(targetHealth, "target") end
+        
+    elseif event == "UNIT_POWER_UPDATE" then
+        if unit == "player" then 
+            UpdateBarValue(playerPower, "player") 
+            local cType = GetClassPowerType()
+            if cType then
+                 local shouldShow = CanShowClassPower()
+                 local isShown = playerClassBar:IsShown()
+                 if shouldShow ~= isShown then
+                     self:UpdateLayout()
+                 else
+                     if shouldShow then UpdateClassPower() end
+                 end
+            end
+        end
+        if unit == "target" then UpdateBarValue(targetPower, "target") end
+    
+    elseif event == "UNIT_DISPLAYPOWER" then
+        if unit == "player" then 
+            UpdateBarColor(playerPower, "player") 
+            UpdateBarValue(playerPower, "player")
+            UpdateClassPower() 
+        end
+        if unit == "target" then
+             UpdateBarColor(targetPower, "target")
+             UpdateBarValue(targetPower, "target") 
+        end
+    elseif event == "UNIT_MAXPOWER" then
+        if unit == "player" then
+             UpdateClassPower()
+             self:UpdateLayout() 
+        end
+    elseif event == "UPDATE_SHAPESHIFT_FORM" then
+        UpdateClassPower()
+        self:UpdateLayout()
+    end
+end
+
+function Resources:UpdateLayout()
     if not container or not addon then return end
     
     local db = addon.db.profile
@@ -244,18 +326,13 @@ function Res:UpdateLayout()
     if not main then return end
     
     local hudWidth = main:GetWidth()
-    
     local hasClassBar, _, _ = CanShowClassPower()
-    
     local totalHeight = RCFG.healthHeight + RCFG.powerHeight + RCFG.spacing
-    if hasClassBar then
-        totalHeight = totalHeight + RCFG.classHeight + RCFG.spacing
-    end
+    if hasClassBar then totalHeight = totalHeight + RCFG.classHeight + RCFG.spacing end
     
     container:SetSize(hudWidth, totalHeight) 
     container:ClearAllPoints()
     
-    -- Main Container Anchor
     if RCFG.position == "TOP" then
          container:SetPoint("BOTTOM", main, "TOP", 0, RCFG.offset)
     else
@@ -263,9 +340,7 @@ function Res:UpdateLayout()
     end
     
     local useSplit = false
-    if RCFG.showTarget and UnitExists("target") then
-        useSplit = true
-    end
+    if RCFG.showTarget and UnitExists("target") then useSplit = true end
     
     playerGroup:ClearAllPoints()
     targetGroup:ClearAllPoints()
@@ -285,21 +360,18 @@ function Res:UpdateLayout()
         playerGroup:SetPoint("CENTER", container, "CENTER", 0, 0)
     end
     
-    -- Clear internal points
     playerHealth:ClearAllPoints()
     playerPower:ClearAllPoints()
     playerClassBar:ClearAllPoints()
     targetHealth:ClearAllPoints()
     targetPower:ClearAllPoints()
     
-    -- Set Dimensions
     playerHealth:SetHeight(RCFG.healthHeight)
     playerPower:SetHeight(RCFG.powerHeight)
     targetHealth:SetHeight(RCFG.healthHeight)
     targetPower:SetHeight(RCFG.powerHeight)
     if hasClassBar then playerClassBar:SetHeight(RCFG.classHeight) end
     
-    -- Horizontal anchors (always fill width of group)
     local function FillWidth(f, p)
         f:SetPoint("LEFT", p, "LEFT", 0, 0)
         f:SetPoint("RIGHT", p, "RIGHT", 0, 0)
@@ -311,16 +383,11 @@ function Res:UpdateLayout()
     FillWidth(targetHealth, targetGroup)
     FillWidth(targetPower, targetGroup)
     
-    -- Vertical Anchoring
     if RCFG.position == "TOP" then
-        -- Bottom-up Stack: [Power] -> [Health] -> [Class]
-        -- Power is at bottom of container (closest to HUD)
         playerPower:SetPoint("BOTTOM", playerGroup, "BOTTOM", 0, 0)
         playerHealth:SetPoint("BOTTOM", playerPower, "TOP", 0, RCFG.spacing)
-        
         targetPower:SetPoint("BOTTOM", targetGroup, "BOTTOM", 0, 0)
         targetHealth:SetPoint("BOTTOM", targetPower, "TOP", 0, RCFG.spacing)
-        
         if hasClassBar then
             playerClassBar:Show()
             playerClassBar:SetPoint("BOTTOM", playerHealth, "TOP", 0, RCFG.spacing)
@@ -328,16 +395,11 @@ function Res:UpdateLayout()
         else
             playerClassBar:Hide()
         end
-        
-    else -- BOTTOM
-        -- Top-down Stack: [Health] -> [Power] -> [Class]
-        -- Health is at top of container (closest to HUD)
+    else
         playerHealth:SetPoint("TOP", playerGroup, "TOP", 0, 0)
         playerPower:SetPoint("TOP", playerHealth, "BOTTOM", 0, -RCFG.spacing)
-        
         targetHealth:SetPoint("TOP", targetGroup, "TOP", 0, 0)
         targetPower:SetPoint("TOP", targetHealth, "BOTTOM", 0, -RCFG.spacing)
-        
         if hasClassBar then
             playerClassBar:Show()
             playerClassBar:SetPoint("TOP", playerPower, "BOTTOM", 0, -RCFG.spacing)
@@ -347,110 +409,12 @@ function Res:UpdateLayout()
         end
     end
 
-    -- Update Cooldowns (Buffs) to re-anchor
-    if addon and addon:GetModule("Cooldowns", true) then
-        addon:GetModule("Cooldowns"):UpdateLayout()
+    for _, moduleName in ipairs({"Cooldowns", "TrackedBars", "TrackedBuffs"}) do
+        local m = addon:GetModule(moduleName, true)
+        if m and m.UpdateLayout then m:UpdateLayout() end
     end
 end
 
-local function OnEvent(self, event, unit)
-    if not RCFG.enabled then return end
-    
-    if event == "PLAYER_ENTERING_WORLD" then
-        UpdateClassPower()
-        Res:UpdateLayout()
-        
-    elseif event == "PLAYER_TARGET_CHANGED" then
-        Res:UpdateLayout()
-        UpdateBarColor(targetHealth, "target")
-        UpdateBarColor(targetPower, "target")
-        UpdateBarValue(targetHealth, "target")
-        UpdateBarValue(targetPower, "target")
-        
-    elseif event == "UNIT_HEALTH" then
-        if unit == "player" then UpdateBarValue(playerHealth, "player") end
-        if unit == "target" then UpdateBarValue(targetHealth, "target") end
-        
-    elseif event == "UNIT_POWER_UPDATE" then
-        if unit == "player" then 
-            UpdateBarValue(playerPower, "player") 
-            
-            local cType = GetClassPowerType()
-            if cType then
-                 local shouldShow = CanShowClassPower()
-                 local isShown = playerClassBar:IsShown()
-                 if shouldShow ~= isShown then
-                     Res:UpdateLayout()
-                 else
-                     if shouldShow then UpdateClassPower() end
-                 end
-            end
-        end
-        if unit == "target" then UpdateBarValue(targetPower, "target") end
-    
-    elseif event == "UNIT_DISPLAYPOWER" then
-        if unit == "player" then 
-            UpdateBarColor(playerPower, "player") 
-            UpdateBarValue(playerPower, "player")
-            UpdateClassPower() 
-        end
-        if unit == "target" then
-             UpdateBarColor(targetPower, "target")
-             UpdateBarValue(targetPower, "target") 
-        end
-    elseif event == "UNIT_MAXPOWER" then
-        if unit == "player" then
-             UpdateClassPower()
-             Res:UpdateLayout() 
-        end
-    elseif event == "UPDATE_SHAPESHIFT_FORM" then
-        UpdateClassPower()
-        Res:UpdateLayout()
-    end
-end
-
-function Res:Initialize(addonObj)
-    if container then return end
-    addon = addonObj 
-    main = _G["ActionHudFrame"]
-    if not main then return end
-    
-    container = CreateFrame("Frame", "ActionHudResources", main)
-    
-    playerGroup = CreateFrame("Frame", nil, container)
-    targetGroup = CreateFrame("Frame", nil, container)
-    
-    playerHealth = CreateBar(playerGroup)
-    playerHealth.type = "HEALTH"
-    playerPower = CreateBar(playerGroup)
-    playerPower.type = "POWER"
-    
-    playerClassBar = CreateFrame("Frame", nil, playerGroup)
-    
-    targetHealth = CreateBar(targetGroup)
-    targetHealth.type = "HEALTH"
-    targetPower = CreateBar(targetGroup)
-    targetPower.type = "POWER"
-    
-    container:RegisterEvent("PLAYER_TARGET_CHANGED")
-    container:RegisterEvent("PLAYER_ENTERING_WORLD")
-    container:RegisterEvent("UNIT_HEALTH")
-    container:RegisterEvent("UNIT_POWER_UPDATE")
-    container:RegisterEvent("UNIT_DISPLAYPOWER")
-    container:RegisterEvent("UNIT_MAXPOWER")
-    container:RegisterEvent("UPDATE_SHAPESHIFT_FORM")
-    
-    container:SetScript("OnEvent", OnEvent)
-    
-    UpdateBarColor(playerHealth, "player")
-    UpdateBarColor(playerPower, "player")
-    UpdateBarValue(playerHealth, "player")
-    UpdateBarValue(playerPower, "player")
-    UpdateClassPower()
-    
-    Res:UpdateLayout()
-end
-
-function Res:GetContainer()
+function Resources:GetContainer()
     return container
 end

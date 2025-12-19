@@ -20,7 +20,7 @@ For reverse-engineering, hijacking, or modifying official Blizzard UI frames:
 
 - **[wow-ui-source-live](../../wow-ui-source-live/)** – Official Blizzard UI addon code
   - Use this to understand frame hierarchies, event patterns, and protected frame behavior
-  - Essential when working with `Cooldowns.lua` proxy system and frame hijacking
+  - Essential when working with `Cooldowns/` proxy system and frame hijacking
   - Reference for standard UI templates and widget implementations
 
 ---
@@ -44,8 +44,14 @@ A compact action bar HUD overlay that displays ability icons, cooldowns, and pro
 
 | File | Purpose |
 |------|---------|
-| `Core.lua` | Frame creation, event handling, state updates |
-| `Cooldowns.lua` | Cooldown Manager (Proxy System, Hijacking, Layout) |
+| `Core.lua` | Addon initialization, debug system, slash commands |
+| `Utils.lua` | Shared utility functions (safe API wrappers, fonts) |
+| `ActionBars.lua` | Action bar grid (6×4 button frames) |
+| `Resources.lua` | Health, Power, and Class Resource bars |
+| `Cooldowns/Manager.lua` | Centralized proxy pool, aura cache, Blizzard frame management |
+| `Cooldowns/Cooldowns.lua` | Essential/Utility cooldown icons |
+| `Cooldowns/TrackedBars.lua` | Tracked Bar proxies (status bar style) |
+| `Cooldowns/TrackedBuffs.lua` | Tracked Buff proxies (icon style) |
 | `SettingsUI.lua` | Blizzard Settings API integration (no external libs) |
 | `ActionHud.toc` | Addon metadata and load order |
 
@@ -76,7 +82,7 @@ A compact action bar HUD overlay that displays ability icons, cooldowns, and pro
 
 Opacity configurable via `CFG.procGlowAlpha` and `CFG.assistGlowAlpha`.
 
-### The Proxy System (Cooldowns.lua)
+### The Proxy System (Cooldowns/)
 
 ActionHud uses a **"hide-only" visibility model** that is minimally invasive to Blizzard's UI:
 

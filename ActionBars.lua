@@ -2,61 +2,7 @@ local addonName, ns = ...
 local ActionHud = LibStub("AceAddon-3.0"):GetAddon("ActionHud")
 local AB = ActionHud:NewModule("ActionBars", "AceEvent-3.0")
 
--- Midnight (12.0) compatibility (per Secret Values guide 13)
-local IS_MIDNIGHT = (select(4, GetBuildInfo()) >= 120000)
-
--- Helper: Check if value is a Midnight secret value
--- Returns true if value is secret and cannot be compared/formatted
-local function IsValueSecret(value)
-    if not IS_MIDNIGHT then return false end
-    if not issecretvalue then return false end
-    return issecretvalue(value) == true
-end
-
--- Helper: Safe comparison that handles secret values
--- Returns nil if comparison is not possible
-local function SafeCompare(a, b, op)
-    if IsValueSecret(a) or IsValueSecret(b) then return nil end
-    if op == ">" then return a > b
-    elseif op == "<" then return a < b
-    elseif op == ">=" then return a >= b
-    elseif op == "<=" then return a <= b
-    elseif op == "==" then return a == b
-    end
-    return nil
-end
-
--- Safe API wrappers with pcall (per API Resilience guide 09)
-local function SafeGetSpellCooldown(spellID)
-    if not spellID then return nil end
-    if not C_Spell or not C_Spell.GetSpellCooldown then return nil end
-    local ok, info = pcall(C_Spell.GetSpellCooldown, spellID)
-    if ok and info then return info end
-    return nil
-end
-
-local function SafeGetSpellCharges(spellID)
-    if not spellID then return nil end
-    if not C_Spell or not C_Spell.GetSpellCharges then return nil end
-    local ok, info = pcall(C_Spell.GetSpellCharges, spellID)
-    if ok and info then return info end
-    return nil
-end
-
-local function SafeIsSpellOverlayed(spellID)
-    if not spellID then return false end
-    -- Try new API first
-    if C_SpellActivationOverlay and C_SpellActivationOverlay.IsSpellOverlayed then
-        local ok, result = pcall(C_SpellActivationOverlay.IsSpellOverlayed, spellID)
-        if ok then return result end
-    end
-    -- Fallback to old API
-    if IsSpellOverlayed then
-        local ok, result = pcall(IsSpellOverlayed, spellID)
-        if ok then return result end
-    end
-    return false
-end
+local Utils = ns.Utils
 
 -- hardcoded slots for now
 local defaultSlots = {
@@ -71,10 +17,7 @@ local buttons = {}
 function AB:OnEnable()
     -- Create Button Grid
     local parent = ActionHud.frame
-    if not parent then
-        -- This should exist by now if Core initialized it
-        return 
-    end
+    if not parent then return end
     
     -- Create Buttons if not already existing
     if #buttons == 0 then
@@ -214,15 +157,9 @@ function AB:UpdateOpacity()
     for _, btn in ipairs(buttons) do
         if btn.icon and not btn.hasAction then
              btn.icon:SetColorTexture(0, 0, 0, alpha)
-        else
-            -- If has action, alpha is controlled by UpdateState/Action usually (1)
         end
     end
 end
-
--- =========================================================================
--- Button Logic
--- =========================================================================
 
 function AB:OnDisable()
     for _, btn in ipairs(buttons) do
@@ -308,68 +245,56 @@ function AB:UpdateCooldown(btn)
     if not btn.hasAction then return end
     local start, duration = GetActionCooldown(btn.actionID)
     
-    -- Check for secret values (Midnight combat)
-    local startIsSecret = IsValueSecret(start)
-    local durationIsSecret = IsValueSecret(duration)
+    local startIsSecret = Utils.IsValueSecret(start)
+    local durationIsSecret = Utils.IsValueSecret(duration)
     
     if start and duration then
-        -- Use passthrough for Cooldown:SetCooldown - it accepts secret values
-        -- But we can't do comparisons if values are secret
         local hasRealCD = false
         if not startIsSecret and not durationIsSecret then
             hasRealCD = start > 0 and duration > 0
         else
-            -- In Midnight, assume we have a CD if values exist and are non-nil
-            -- Passthrough will handle display correctly
             hasRealCD = true
         end
         
         if hasRealCD then
-            -- GCD Check (Spell ID 61304) - skip if values are secret
             if not startIsSecret and not durationIsSecret then
-                local gcdInfo = SafeGetSpellCooldown(61304)
-                if gcdInfo and not IsValueSecret(gcdInfo.startTime) and not IsValueSecret(gcdInfo.duration) then
+                local gcdInfo = Utils.GetSpellCooldownSafe(61304)
+                if gcdInfo and not Utils.IsValueSecret(gcdInfo.startTime) and not Utils.IsValueSecret(gcdInfo.duration) then
                     if gcdInfo.startTime == start and gcdInfo.duration == duration then
                         btn.cd:SetDrawEdge(false)
                     else
                         if duration <= 1.5 then btn.cd:SetDrawEdge(false) else btn.cd:SetDrawEdge(true) end
                     end
                 else
-                    btn.cd:SetDrawEdge(false) -- Safe default when secret
+                    btn.cd:SetDrawEdge(false)
                 end
             else
-                btn.cd:SetDrawEdge(false) -- Safe default when secret
+                btn.cd:SetDrawEdge(false)
             end
             
-            -- Passthrough: Cooldown:SetCooldown accepts secret values
             btn.cd:SetCooldown(start, duration)
             btn.cd:Show()
             return
         end
     end
     
-    -- Charges fallback
     if btn.spellID then
-        local chargeInfo = SafeGetSpellCharges(btn.spellID)
+        local chargeInfo = Utils.GetSpellChargesSafe(btn.spellID)
         if chargeInfo then
             local cdStart = chargeInfo.cooldownStartTime
             local cdDuration = chargeInfo.cooldownDuration
-            local cdStartSecret = IsValueSecret(cdStart)
-            local cdDurationSecret = IsValueSecret(cdDuration)
+            local cdStartSecret = Utils.IsValueSecret(cdStart)
+            local cdDurationSecret = Utils.IsValueSecret(cdDuration)
             
             local hasChargeCooldown = false
             if not cdStartSecret and not cdDurationSecret then
-                -- Safe comparison
                 hasChargeCooldown = cdStart > 0 and (GetTime() < cdStart + cdDuration)
             else
-                -- In Midnight, if we have charge info, assume cooldown is active
-                -- Passthrough will display correctly
                 hasChargeCooldown = cdStart ~= nil
             end
             
             if hasChargeCooldown then
                 btn.cd:SetDrawEdge(true)
-                -- Passthrough: SetCooldown accepts secret values
                 btn.cd:SetCooldown(cdStart, cdDuration)
                 btn.cd:Show()
                 return
@@ -384,33 +309,31 @@ function AB:UpdateState(btn)
    if not btn.hasAction then return end
    local actionID = btn.actionID
    
-   -- Count - handle secret values
    local count = GetActionCount(actionID)
-   local countIsSecret = IsValueSecret(count)
+   local countIsSecret = Utils.IsValueSecret(count)
    
    if not countIsSecret and (not count or count <= 1) then
        if btn.spellID then
-           local c = SafeGetSpellCharges(btn.spellID)
+           local c = Utils.GetSpellChargesSafe(btn.spellID)
            if c then 
                count = c.currentCharges
-               countIsSecret = IsValueSecret(count)
+               countIsSecret = Utils.IsValueSecret(count)
            end
        end
    end
    
-   -- Display count - degrade gracefully if secret
    if countIsSecret then
-       btn.count:SetText("...") -- Degraded display for Midnight
+       btn.count:SetText("...") 
    else
        local showCount = false
        if count and count > 1 then
            showCount = true
        end
        if btn.spellID and not countIsSecret then
-           local c = SafeGetSpellCharges(btn.spellID)
+           local c = Utils.GetSpellChargesSafe(btn.spellID)
            if c then
                local maxCharges = c.maxCharges
-               if not IsValueSecret(maxCharges) and maxCharges > 1 then
+               if not Utils.IsValueSecret(maxCharges) and maxCharges > 1 then
                    showCount = true
                end
            end
@@ -418,7 +341,6 @@ function AB:UpdateState(btn)
        btn.count:SetText(showCount and count or "")
    end
    
-   -- Usable
    local isUsable, noMana = IsUsableAction(actionID)
    if not isUsable and not noMana then
        btn.icon:SetDesaturated(true)
@@ -431,15 +353,13 @@ function AB:UpdateState(btn)
        btn.icon:SetVertexColor(1, 1, 1)
    end
    
-   -- Range
    if ActionButton_GetInRange and ActionButton_GetInRange(actionID) == false then 
        if IsActionInRange(actionID) == false then btn.icon:SetVertexColor(0.8, 0.1, 0.1) end
    end
    
-   -- Glow
    local isOverlayed = false
    if btn.spellID then
-        isOverlayed = SafeIsSpellOverlayed(btn.spellID)
+        isOverlayed = Utils.IsSpellOverlayedSafe(btn.spellID)
    end
    if isOverlayed then btn.glow:Show() else btn.glow:Hide() end
 end

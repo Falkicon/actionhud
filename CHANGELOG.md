@@ -3,6 +3,13 @@
 All notable changes to this project will be documented in this file.
 
 
+## [2.4.1] - 2025-12-18
+### Fixed
+- **Proxy Pool Collision Bug**: Fixed TrackedBuffs and TrackedBars not displaying correctly after refactor.
+    - **Root Cause**: `Manager:GetProxy()` was returning hidden proxies that were still logically owned by another cooldownID, causing multiple IDs to share the same frame.
+    - **Solution**: Added lease tracking (`leasedTo` property) to prevent proxy reuse while still assigned to an active item.
+    - **Render Loop Restructure**: Changed from single-pass to multi-pass rendering to prevent proxies from being "stolen" mid-render.
+
 ## [2.4.0] - 2025-12-18
 ### Changed
 - **Major Proxy System Rewrite**: Simplified visibility model for better compatibility.

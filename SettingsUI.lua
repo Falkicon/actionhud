@@ -359,59 +359,59 @@ Enable it in Gameplay Enhancements to use Tracked Bars.]]
                 name = "Enable Tracked Bars", desc = "Enable and style the Tracked Bars (Active Effects) viewer.", type = "toggle", order = 1, width = "full",
                 disabled = function() return not IsBlizzardCooldownViewerEnabled() end,
                 get = function(info) return self.db.profile.tbEnabled end,
-                set = function(info, val) self.db.profile.tbEnabled = val; ActionHud:GetModule("Cooldowns"):UpdateLayout() end,
+                set = function(info, val) self.db.profile.tbEnabled = val; ActionHud:GetModule("TrackedBars"):UpdateLayout() end,
             },
             offsets = { name = "Positioning", type = "header", order = 10 },
             tbXOffset = {
                 name = "X Offset (Sidecar)", desc = "Horizontal offset from center of HUD.", type = "range", min = -500, max = 500, step = 1, order = 11,
                 disabled = function() return not IsBlizzardCooldownViewerEnabled() end,
                 get = function(info) return self.db.profile.tbXOffset end,
-                set = function(info, val) self.db.profile.tbXOffset = val; ActionHud:GetModule("Cooldowns"):UpdateLayout() end,
+                set = function(info, val) self.db.profile.tbXOffset = val; ActionHud:GetModule("TrackedBars"):UpdateLayout() end,
             },
             tbYOffset = {
                 name = "Y Offset", desc = "Vertical offset from center of HUD.", type = "range", min = -500, max = 500, step = 1, order = 12,
                 disabled = function() return not IsBlizzardCooldownViewerEnabled() end,
                 get = function(info) return self.db.profile.tbYOffset end,
-                set = function(info, val) self.db.profile.tbYOffset = val; ActionHud:GetModule("Cooldowns"):UpdateLayout() end,
+                set = function(info, val) self.db.profile.tbYOffset = val; ActionHud:GetModule("TrackedBars"):UpdateLayout() end,
             },
             visuals = { name = "Dimensions & Spacing", type = "header", order = 20 },
             tbWidth = {
                 name = "Icon Width", type = "range", min = 10, max = 100, step = 1, order = 21,
                 disabled = function() return not IsBlizzardCooldownViewerEnabled() end,
                 get = function(info) return self.db.profile.tbWidth end,
-                set = function(info, val) self.db.profile.tbWidth = val; ActionHud:GetModule("Cooldowns"):UpdateLayout() end,
+                set = function(info, val) self.db.profile.tbWidth = val; ActionHud:GetModule("TrackedBars"):UpdateLayout() end,
             },
             tbHeight = {
                 name = "Icon Height", type = "range", min = 10, max = 100, step = 1, order = 22,
                 disabled = function() return not IsBlizzardCooldownViewerEnabled() end,
                 get = function(info) return self.db.profile.tbHeight end,
-                set = function(info, val) self.db.profile.tbHeight = val; ActionHud:GetModule("Cooldowns"):UpdateLayout() end,
+                set = function(info, val) self.db.profile.tbHeight = val; ActionHud:GetModule("TrackedBars"):UpdateLayout() end,
             },
             tbGap = {
                 name = "Icon Spacing", desc = "Distance between items in the stack.", type = "range", min = 0, max = 20, step = 1, order = 23,
                 disabled = function() return not IsBlizzardCooldownViewerEnabled() end,
                 get = function(info) return self.db.profile.tbGap end,
-                set = function(info, val) self.db.profile.tbGap = val; ActionHud:GetModule("Cooldowns"):UpdateLayout() end,
+                set = function(info, val) self.db.profile.tbGap = val; ActionHud:GetModule("TrackedBars"):UpdateLayout() end,
             },
             displayOptions = { name = "Display Options", type = "header", order = 25 },
             tbHideInactive = {
                 name = "Hide Inactive Bars", desc = "Only show bars when they are active.", type = "toggle", order = 26,
                 disabled = function() return not IsBlizzardCooldownViewerEnabled() end,
                 get = function(info) return self.db.profile.tbHideInactive end,
-                set = function(info, val) self.db.profile.tbHideInactive = val; ActionHud:GetModule("Cooldowns"):UpdateLayout() end,
+                set = function(info, val) self.db.profile.tbHideInactive = val; ActionHud:GetModule("TrackedBars"):UpdateLayout() end,
             },
             tbInactiveOpacity = {
                 name = "Inactive Bar Opacity", desc = "Opacity for inactive (greyed out) bars when not hidden.", type = "range", min = 0.1, max = 1.0, step = 0.1, isPercent = true, order = 27,
                 disabled = function() return not IsBlizzardCooldownViewerEnabled() or self.db.profile.tbHideInactive end,
                 get = function(info) return self.db.profile.tbInactiveOpacity end,
-                set = function(info, val) self.db.profile.tbInactiveOpacity = val; ActionHud:GetModule("Cooldowns"):UpdateLayout() end,
+                set = function(info, val) self.db.profile.tbInactiveOpacity = val; ActionHud:GetModule("TrackedBars"):UpdateLayout() end,
             },
             fonts = { name = "Fonts", type = "header", order = 30 },
             tbCountFontSize = {
                 name = "Stack Count Font Size", type = "range", min = 6, max = 18, step = 1, order = 31,
                 disabled = function() return not IsBlizzardCooldownViewerEnabled() end,
                 get = function(info) return self.db.profile.tbCountFontSize end,
-                set = function(info, val) self.db.profile.tbCountFontSize = val; ActionHud:GetModule("Cooldowns"):UpdateLayout() end,
+                set = function(info, val) self.db.profile.tbCountFontSize = val; ActionHud:GetModule("TrackedBars"):UpdateLayout() end,
             },
             tbTimerFontSize = {
                 name = "Timer Font Size", type = "select", order = 32,
@@ -419,7 +419,7 @@ Enable it in Gameplay Enhancements to use Tracked Bars.]]
                 sorting = { "small", "medium", "large", "huge" },
                 disabled = function() return not IsBlizzardCooldownViewerEnabled() end,
                 get = function(info) return self.db.profile.tbTimerFontSize end,
-                set = function(info, val) self.db.profile.tbTimerFontSize = val; ActionHud:GetModule("Cooldowns"):UpdateLayout() end,
+                set = function(info, val) self.db.profile.tbTimerFontSize = val; ActionHud:GetModule("TrackedBars"):UpdateLayout() end,
             },
         },
     }
@@ -446,53 +446,53 @@ Enable it in Gameplay Enhancements to use Tracked Buffs.]]
                 name = "Enable Tracked Buffs", desc = "Enable and style the long-duration buffs center-top.", type = "toggle", order = 1, width = "full",
                 disabled = function() return not IsBlizzardCooldownViewerEnabled() end,
                 get = function(info) return self.db.profile.buffsEnabled end,
-                set = function(info, val) self.db.profile.buffsEnabled = val; ActionHud:GetModule("Cooldowns"):UpdateLayout() end,
+                set = function(info, val) self.db.profile.buffsEnabled = val; ActionHud:GetModule("TrackedBuffs"):UpdateLayout() end,
             },
             offsets = { name = "Positioning", type = "header", order = 10 },
             buffsGap = {
                 name = "Gap from HUD", desc = "Distance above the personal health/power bars.", type = "range", min = 0, max = 200, step = 1, order = 11,
                 disabled = function() return not IsBlizzardCooldownViewerEnabled() end,
                 get = function(info) return self.db.profile.buffsGap end,
-                set = function(info, val) self.db.profile.buffsGap = val; ActionHud:GetModule("Cooldowns"):UpdateLayout() end,
+                set = function(info, val) self.db.profile.buffsGap = val; ActionHud:GetModule("TrackedBuffs"):UpdateLayout() end,
             },
             visuals = { name = "Dimensions & Spacing", type = "header", order = 20 },
             buffsWidth = {
                 name = "Icon Width", type = "range", min = 10, max = 100, step = 1, order = 21,
                 disabled = function() return not IsBlizzardCooldownViewerEnabled() end,
                 get = function(info) return self.db.profile.buffsWidth end,
-                set = function(info, val) self.db.profile.buffsWidth = val; ActionHud:GetModule("Cooldowns"):UpdateLayout() end,
+                set = function(info, val) self.db.profile.buffsWidth = val; ActionHud:GetModule("TrackedBuffs"):UpdateLayout() end,
             },
             buffsHeight = {
                 name = "Icon Height", type = "range", min = 10, max = 100, step = 1, order = 22,
                 disabled = function() return not IsBlizzardCooldownViewerEnabled() end,
                 get = function(info) return self.db.profile.buffsHeight end,
-                set = function(info, val) self.db.profile.buffsHeight = val; ActionHud:GetModule("Cooldowns"):UpdateLayout() end,
+                set = function(info, val) self.db.profile.buffsHeight = val; ActionHud:GetModule("TrackedBuffs"):UpdateLayout() end,
             },
             buffsSpacing = {
                 name = "Icon Spacing", type = "range", min = 0, max = 20, step = 1, order = 23,
                 disabled = function() return not IsBlizzardCooldownViewerEnabled() end,
                 get = function(info) return self.db.profile.buffsSpacing end,
-                set = function(info, val) self.db.profile.buffsSpacing = val; ActionHud:GetModule("Cooldowns"):UpdateLayout() end,
+                set = function(info, val) self.db.profile.buffsSpacing = val; ActionHud:GetModule("TrackedBuffs"):UpdateLayout() end,
             },
             displayOptions = { name = "Display Options", type = "header", order = 25 },
             buffsHideInactive = {
                 name = "Hide Inactive Buffs", desc = "Only show buffs when they are active.", type = "toggle", order = 26,
                 disabled = function() return not IsBlizzardCooldownViewerEnabled() end,
                 get = function(info) return self.db.profile.buffsHideInactive end,
-                set = function(info, val) self.db.profile.buffsHideInactive = val; ActionHud:GetModule("Cooldowns"):UpdateLayout() end,
+                set = function(info, val) self.db.profile.buffsHideInactive = val; ActionHud:GetModule("TrackedBuffs"):UpdateLayout() end,
             },
             buffsInactiveOpacity = {
                 name = "Inactive Buff Opacity", desc = "Opacity for inactive (greyed out) buffs when not hidden.", type = "range", min = 0.1, max = 1.0, step = 0.1, isPercent = true, order = 27,
                 disabled = function() return not IsBlizzardCooldownViewerEnabled() or self.db.profile.buffsHideInactive end,
                 get = function(info) return self.db.profile.buffsInactiveOpacity end,
-                set = function(info, val) self.db.profile.buffsInactiveOpacity = val; ActionHud:GetModule("Cooldowns"):UpdateLayout() end,
+                set = function(info, val) self.db.profile.buffsInactiveOpacity = val; ActionHud:GetModule("TrackedBuffs"):UpdateLayout() end,
             },
             fonts = { name = "Fonts", type = "header", order = 30 },
             buffsCountFontSize = {
                 name = "Stack Count Font Size", type = "range", min = 6, max = 18, step = 1, order = 31,
                 disabled = function() return not IsBlizzardCooldownViewerEnabled() end,
                 get = function(info) return self.db.profile.buffsCountFontSize end,
-                set = function(info, val) self.db.profile.buffsCountFontSize = val; ActionHud:GetModule("Cooldowns"):UpdateLayout() end,
+                set = function(info, val) self.db.profile.buffsCountFontSize = val; ActionHud:GetModule("TrackedBuffs"):UpdateLayout() end,
             },
             buffsTimerFontSize = {
                 name = "Timer Font Size", type = "select", order = 32,
@@ -500,7 +500,7 @@ Enable it in Gameplay Enhancements to use Tracked Buffs.]]
                 sorting = { "small", "medium", "large", "huge" },
                 disabled = function() return not IsBlizzardCooldownViewerEnabled() end,
                 get = function(info) return self.db.profile.buffsTimerFontSize end,
-                set = function(info, val) self.db.profile.buffsTimerFontSize = val; ActionHud:GetModule("Cooldowns"):UpdateLayout() end,
+                set = function(info, val) self.db.profile.buffsTimerFontSize = val; ActionHud:GetModule("TrackedBuffs"):UpdateLayout() end,
             },
         },
     }
@@ -529,6 +529,22 @@ Enable it in Gameplay Enhancements to use Tracked Buffs.]]
                 name = "Debug Events", desc = "Logs key HUD events to the chat window.", type = "toggle", order = 12,
                 get = function(info) return self.db.profile.debugEvents end,
                 set = function(info, val) self.db.profile.debugEvents = val end,
+            },
+            proxy = {
+                name = "Debug Proxies", desc = "Logs detailed information about tracked buff/bar population and aura changes.", type = "toggle", order = 12.5,
+                get = function(info) return self.db.profile.debugProxy end,
+                set = function(info, val) self.db.profile.debugProxy = val end,
+            },
+            containers = {
+                name = "Debug Containers", desc = "Shows colored backgrounds behind the Hud containers to verify their positions.", type = "toggle", order = 12.6,
+                get = function(info) return self.db.profile.debugContainers end,
+                set = function(info, val) 
+                    self.db.profile.debugContainers = val
+                    for _, mName in ipairs({"Cooldowns", "TrackedBars", "TrackedBuffs"}) do
+                        local m = ActionHud:GetModule(mName, true)
+                        if m and m.UpdateLayout then m:UpdateLayout() end
+                    end
+                end,
             },
             showBlizzardFrames = {
                 name = "Show Native Blizzard Frames", desc = "Show both Blizzard's cooldown frames and ActionHud proxies side-by-side for comparison.", type = "toggle", order = 13,
@@ -584,10 +600,9 @@ Enable it in Gameplay Enhancements to use Tracked Buffs.]]
             refresh = {
                 name = "Force Layout Update", type = "execute", order = 26,
                 func = function() 
-                    local CD = ActionHud:GetModule("Cooldowns")
-                    if CD then 
-                        CD:ScanForWidgets()
-                        CD:UpdateLayout() 
+                    for _, mName in ipairs({"ActionBars", "Resources", "Cooldowns", "TrackedBars", "TrackedBuffs"}) do
+                        local m = ActionHud:GetModule(mName, true)
+                        if m and m.UpdateLayout then m:UpdateLayout() end
                     end
                     print("ActionHud: Layout Refreshed.")
                 end,
@@ -595,8 +610,8 @@ Enable it in Gameplay Enhancements to use Tracked Buffs.]]
             scan = {
                 name = "Scan for New Frames", desc = "Scans all global frames for 'Viewer' or 'Tracked' names and logs them.", type = "execute", order = 27,
                 func = function()
-                    local CD = ActionHud:GetModule("Cooldowns")
-                    if CD then CD:FindPotentialTargets() end
+                    local Manager = ns.CooldownManager
+                    if Manager and Manager.FindPotentialTargets then Manager:FindPotentialTargets() end
                 end,
             },
             dumpBuffInfo = {
@@ -604,8 +619,8 @@ Enable it in Gameplay Enhancements to use Tracked Buffs.]]
                 desc = "Prints all tracked buff/bar spell IDs and linkedSpellIDs to chat. Use /ah dump as shortcut.",
                 type = "execute", order = 28,
                 func = function()
-                    local CD = ActionHud:GetModule("Cooldowns")
-                    if CD and CD.DumpTrackedBuffInfo then CD:DumpTrackedBuffInfo() end
+                    local Manager = ns.CooldownManager
+                    if Manager and Manager.DumpTrackedBuffInfo then Manager:DumpTrackedBuffInfo() end
                 end,
             },
         },
