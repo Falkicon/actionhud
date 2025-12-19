@@ -3,7 +3,7 @@
 A lightweight, high-performance action bar HUD for World of Warcraft Retail. Displays a compact 6×4 grid of your primary action bars, designed for quick combat awareness.
 
 ![WoW Version](https://img.shields.io/badge/WoW-11.0%2B-blue)
-![Interface](https://img.shields.io/badge/Interface-110002-green)
+![Interface](https://img.shields.io/badge/Interface-120000-green)
 [![GitHub](https://img.shields.io/badge/GitHub-Falkicon%2FActionHud-181717?logo=github)](https://github.com/Falkicon/ActionHud)
 [![Sponsor](https://img.shields.io/badge/Sponsor-pink?logo=githubsponsors)](https://github.com/sponsors/Falkicon)
 
