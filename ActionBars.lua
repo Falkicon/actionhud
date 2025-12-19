@@ -2,6 +2,62 @@ local addonName, ns = ...
 local ActionHud = LibStub("AceAddon-3.0"):GetAddon("ActionHud")
 local AB = ActionHud:NewModule("ActionBars", "AceEvent-3.0")
 
+-- Midnight (12.0) compatibility (per Secret Values guide 13)
+local IS_MIDNIGHT = (select(4, GetBuildInfo()) >= 120000)
+
+-- Helper: Check if value is a Midnight secret value
+-- Returns true if value is secret and cannot be compared/formatted
+local function IsValueSecret(value)
+    if not IS_MIDNIGHT then return false end
+    if not issecretvalue then return false end
+    return issecretvalue(value) == true
+end
+
+-- Helper: Safe comparison that handles secret values
+-- Returns nil if comparison is not possible
+local function SafeCompare(a, b, op)
+    if IsValueSecret(a) or IsValueSecret(b) then return nil end
+    if op == ">" then return a > b
+    elseif op == "<" then return a < b
+    elseif op == ">=" then return a >= b
+    elseif op == "<=" then return a <= b
+    elseif op == "==" then return a == b
+    end
+    return nil
+end
+
+-- Safe API wrappers with pcall (per API Resilience guide 09)
+local function SafeGetSpellCooldown(spellID)
+    if not spellID then return nil end
+    if not C_Spell or not C_Spell.GetSpellCooldown then return nil end
+    local ok, info = pcall(C_Spell.GetSpellCooldown, spellID)
+    if ok and info then return info end
+    return nil
+end
+
+local function SafeGetSpellCharges(spellID)
+    if not spellID then return nil end
+    if not C_Spell or not C_Spell.GetSpellCharges then return nil end
+    local ok, info = pcall(C_Spell.GetSpellCharges, spellID)
+    if ok and info then return info end
+    return nil
+end
+
+local function SafeIsSpellOverlayed(spellID)
+    if not spellID then return false end
+    -- Try new API first
+    if C_SpellActivationOverlay and C_SpellActivationOverlay.IsSpellOverlayed then
+        local ok, result = pcall(C_SpellActivationOverlay.IsSpellOverlayed, spellID)
+        if ok then return result end
+    end
+    -- Fallback to old API
+    if IsSpellOverlayed then
+        local ok, result = pcall(IsSpellOverlayed, spellID)
+        if ok then return result end
+    end
+    return false
+end
+
 -- hardcoded slots for now
 local defaultSlots = {
     7, 8, 9, 10, 11, 12,
@@ -251,47 +307,115 @@ end
 function AB:UpdateCooldown(btn)
     if not btn.hasAction then return end
     local start, duration = GetActionCooldown(btn.actionID)
-    if start and duration and start > 0 and duration > 0 then
-        -- GCD Check (Spell ID 61304)
-        local gcdInfo = C_Spell.GetSpellCooldown(61304)
-        if gcdInfo and gcdInfo.startTime == start and gcdInfo.duration == duration then
-            btn.cd:SetDrawEdge(false)
+    
+    -- Check for secret values (Midnight combat)
+    local startIsSecret = IsValueSecret(start)
+    local durationIsSecret = IsValueSecret(duration)
+    
+    if start and duration then
+        -- Use passthrough for Cooldown:SetCooldown - it accepts secret values
+        -- But we can't do comparisons if values are secret
+        local hasRealCD = false
+        if not startIsSecret and not durationIsSecret then
+            hasRealCD = start > 0 and duration > 0
         else
-            if duration <= 1.5 then btn.cd:SetDrawEdge(false) else btn.cd:SetDrawEdge(true) end
+            -- In Midnight, assume we have a CD if values exist and are non-nil
+            -- Passthrough will handle display correctly
+            hasRealCD = true
         end
-        btn.cd:SetCooldown(start, duration)
-        btn.cd:Show()
-    else
-        -- Charges
-        if btn.spellID then
-            local chargeInfo = C_Spell.GetSpellCharges(btn.spellID)
-            if chargeInfo and chargeInfo.cooldownStartTime > 0 and (GetTime() < chargeInfo.cooldownStartTime + chargeInfo.cooldownDuration) then
-                 btn.cd:SetDrawEdge(true)
-                 btn.cd:SetCooldown(chargeInfo.cooldownStartTime, chargeInfo.cooldownDuration)
-                 btn.cd:Show()
-                 return
+        
+        if hasRealCD then
+            -- GCD Check (Spell ID 61304) - skip if values are secret
+            if not startIsSecret and not durationIsSecret then
+                local gcdInfo = SafeGetSpellCooldown(61304)
+                if gcdInfo and not IsValueSecret(gcdInfo.startTime) and not IsValueSecret(gcdInfo.duration) then
+                    if gcdInfo.startTime == start and gcdInfo.duration == duration then
+                        btn.cd:SetDrawEdge(false)
+                    else
+                        if duration <= 1.5 then btn.cd:SetDrawEdge(false) else btn.cd:SetDrawEdge(true) end
+                    end
+                else
+                    btn.cd:SetDrawEdge(false) -- Safe default when secret
+                end
+            else
+                btn.cd:SetDrawEdge(false) -- Safe default when secret
+            end
+            
+            -- Passthrough: Cooldown:SetCooldown accepts secret values
+            btn.cd:SetCooldown(start, duration)
+            btn.cd:Show()
+            return
+        end
+    end
+    
+    -- Charges fallback
+    if btn.spellID then
+        local chargeInfo = SafeGetSpellCharges(btn.spellID)
+        if chargeInfo then
+            local cdStart = chargeInfo.cooldownStartTime
+            local cdDuration = chargeInfo.cooldownDuration
+            local cdStartSecret = IsValueSecret(cdStart)
+            local cdDurationSecret = IsValueSecret(cdDuration)
+            
+            local hasChargeCooldown = false
+            if not cdStartSecret and not cdDurationSecret then
+                -- Safe comparison
+                hasChargeCooldown = cdStart > 0 and (GetTime() < cdStart + cdDuration)
+            else
+                -- In Midnight, if we have charge info, assume cooldown is active
+                -- Passthrough will display correctly
+                hasChargeCooldown = cdStart ~= nil
+            end
+            
+            if hasChargeCooldown then
+                btn.cd:SetDrawEdge(true)
+                -- Passthrough: SetCooldown accepts secret values
+                btn.cd:SetCooldown(cdStart, cdDuration)
+                btn.cd:Show()
+                return
             end
         end
-        btn.cd:Hide()
     end
+    
+    btn.cd:Hide()
 end
 
 function AB:UpdateState(btn)
    if not btn.hasAction then return end
    local actionID = btn.actionID
    
-   -- Count
+   -- Count - handle secret values
    local count = GetActionCount(actionID)
-   if not count or count <= 1 then
+   local countIsSecret = IsValueSecret(count)
+   
+   if not countIsSecret and (not count or count <= 1) then
        if btn.spellID then
-           local c = C_Spell.GetSpellCharges(btn.spellID)
-           if c then count = c.currentCharges end
+           local c = SafeGetSpellCharges(btn.spellID)
+           if c then 
+               count = c.currentCharges
+               countIsSecret = IsValueSecret(count)
+           end
        end
    end
-   btn.count:SetText((count and count > 1) and count or "")
-   if btn.spellID then
-       local c = C_Spell.GetSpellCharges(btn.spellID)
-       if c and c.maxCharges > 1 then btn.count:SetText(count) end
+   
+   -- Display count - degrade gracefully if secret
+   if countIsSecret then
+       btn.count:SetText("...") -- Degraded display for Midnight
+   else
+       local showCount = false
+       if count and count > 1 then
+           showCount = true
+       end
+       if btn.spellID and not countIsSecret then
+           local c = SafeGetSpellCharges(btn.spellID)
+           if c then
+               local maxCharges = c.maxCharges
+               if not IsValueSecret(maxCharges) and maxCharges > 1 then
+                   showCount = true
+               end
+           end
+       end
+       btn.count:SetText(showCount and count or "")
    end
    
    -- Usable
@@ -315,11 +439,7 @@ function AB:UpdateState(btn)
    -- Glow
    local isOverlayed = false
    if btn.spellID then
-        if C_SpellActivationOverlay and C_SpellActivationOverlay.IsSpellOverlayed then
-             isOverlayed = C_SpellActivationOverlay.IsSpellOverlayed(btn.spellID)
-        else
-             isOverlayed = IsSpellOverlayed(btn.spellID)
-        end
+        isOverlayed = SafeIsSpellOverlayed(btn.spellID)
    end
    if isOverlayed then btn.glow:Show() else btn.glow:Hide() end
 end

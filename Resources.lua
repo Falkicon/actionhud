@@ -10,6 +10,16 @@ local playerHealth, playerPower, playerClassBar
 local targetHealth, targetPower
 local classSegments = {}
 
+-- Midnight (12.0) compatibility (per Secret Values guide 13)
+local IS_MIDNIGHT = (select(4, GetBuildInfo()) >= 120000)
+
+-- Helper: Check if value is a Midnight secret value
+local function IsValueSecret(value)
+    if not IS_MIDNIGHT then return false end
+    if not issecretvalue then return false end
+    return issecretvalue(value) == true
+end
+
 -- Configuration Cache
 local RCFG = {
     enabled = true,
@@ -62,10 +72,21 @@ local function CanShowClassPower()
     if not pType then return false, nil, 0 end
     
     local max = UnitPowerMax("player", pType)
+    local cur = UnitPower("player", pType, true)
+    
+    -- Handle Midnight secret values
+    local maxIsSecret = IsValueSecret(max)
+    local curIsSecret = IsValueSecret(cur)
+    
+    if maxIsSecret or curIsSecret then
+        -- In Midnight combat, if we have a class power type, assume we should show
+        -- The display will work via passthrough
+        return true, pType, maxIsSecret and 5 or max  -- Default to 5 segments if secret
+    end
+    
     if max <= 0 then return false, pType, 0 end
     
     -- User Request: Only show if we actually have points/charges
-    local cur = UnitPower("player", pType, true)
     if cur <= 0 then return false, pType, 0 end
     
     return true, pType, max
@@ -81,6 +102,7 @@ local function UpdateClassPower()
     end
     
     local cur = UnitPower("player", pType, true)
+    local curIsSecret = IsValueSecret(cur)
     
     playerClassBar:Show()
     
@@ -116,8 +138,15 @@ local function UpdateClassPower()
             seg:SetPoint("LEFT", classSegments[i-1], "RIGHT", spacing, 0)
         end
         
-        -- Color / Alpha
-        if i <= cur then
+        -- Color / Alpha - handle Midnight secret values
+        local isFilled = false
+        if curIsSecret then
+            -- In Midnight, show all segments at half alpha as degraded display
+            seg:SetAlpha(0.6)
+            local c = ClassBarColors[pType]
+            if c then seg:SetColorTexture(c.r * 0.8, c.g * 0.8, c.b * 0.8)
+            else seg:SetColorTexture(0.8, 0.8, 0) end
+        elseif i <= cur then
             seg:SetAlpha(1)
             local c = ClassBarColors[pType]
             if c then seg:SetColorTexture(c.r, c.g, c.b)
@@ -185,6 +214,8 @@ local function UpdateBarValue(bar, unit)
         max = UnitPowerMax(unit)
     end
     
+    -- Passthrough pattern: StatusBar:SetMinMaxValues and SetValue accept secret values
+    -- per Secret Values guide 13 - Blizzard widgets handle decryption internally
     bar:SetMinMaxValues(0, max)
     bar:SetValue(cur)
 end
@@ -315,12 +346,21 @@ function Res:UpdateLayout()
             playerClassBar:Hide()
         end
     end
+
+    -- Update Cooldowns (Buffs) to re-anchor
+    if addon and addon:GetModule("Cooldowns", true) then
+        addon:GetModule("Cooldowns"):UpdateLayout()
+    end
 end
 
 local function OnEvent(self, event, unit)
     if not RCFG.enabled then return end
     
-    if event == "PLAYER_TARGET_CHANGED" then
+    if event == "PLAYER_ENTERING_WORLD" then
+        UpdateClassPower()
+        Res:UpdateLayout()
+        
+    elseif event == "PLAYER_TARGET_CHANGED" then
         Res:UpdateLayout()
         UpdateBarColor(targetHealth, "target")
         UpdateBarColor(targetPower, "target")
@@ -393,6 +433,7 @@ function Res:Initialize(addonObj)
     targetPower.type = "POWER"
     
     container:RegisterEvent("PLAYER_TARGET_CHANGED")
+    container:RegisterEvent("PLAYER_ENTERING_WORLD")
     container:RegisterEvent("UNIT_HEALTH")
     container:RegisterEvent("UNIT_POWER_UPDATE")
     container:RegisterEvent("UNIT_DISPLAYPOWER")

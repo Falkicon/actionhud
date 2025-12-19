@@ -33,11 +33,42 @@ local defaults = {
         cdEssentialHeight = 20,
         cdUtilityWidth = 20,
         cdUtilityHeight = 20,
-        cdCountFontSize = 8, -- Changed to 8
-        debugDiscovery = false,
+        cdCountFontSize = 10,
+        cdTimerFontSize = "medium",
+
+        -- Tracked Bars (New)
+        tbEnabled = true,
+        tbXOffset = 100,
+        tbYOffset = 0,
+        tbWidth = 28,
+        tbHeight = 28,
+        tbGap = 2,
+        tbCountFontSize = 10,
+        tbTimerFontSize = "medium",
+        tbHideInactive = true,
+        tbInactiveOpacity = 0.4,
+
+        -- Tracked Buffs
+        buffsEnabled = true,
+        buffsGap = 25,
+        buffsWidth = 28,
+        buffsHeight = 28,
+        buffsSpacing = 2,
+        buffsCountFontSize = 10,
+        buffsTimerFontSize = "medium",
+        buffsHideInactive = true,
+        buffsInactiveOpacity = 0.4,
+
+        -- Minimap Icon (LibDBIcon)
         minimap = {
             hide = false,
         },
+
+        -- Debugging (Consolidated)
+        debugDiscovery = false,
+        debugFrames = false,
+        debugEvents = false,
+        debugShowBlizzardFrames = false,
     }
 }
 
@@ -47,35 +78,15 @@ function ActionHud:OnInitialize()
     self.db.RegisterCallback(self, "OnProfileCopied", "OnProfileChanged")
     self.db.RegisterCallback(self, "OnProfileReset", "OnProfileChanged")
     
-    -- Initialize LDB & Minimap
-    local ldb = LibStub("LibDataBroker-1.1"):NewDataObject("ActionHud", {
-        type = "launcher",
-        text = "ActionHud",
-        icon = "Interface\\Icons\\Ability_DualWield",
-        OnClick = function(clickedframe, button)
-            -- print("ActionHud Debug: " .. tostring(button)) 
-            if button == "RightButton" then
-                self:SlashHandler("")
-            else
-                self.db.profile.locked = not self.db.profile.locked
-                self:UpdateLockState()
-                local status = self.db.profile.locked and "|cff00ff00Locked|r" or "|cffff0000Unlocked|r"
-                print("|cff33ff99ActionHud:|r " .. status)
-            end
-        end,
-        OnTooltipShow = function(tt)
-            tt:AddLine("ActionHud")
-            tt:AddLine("|cffeda55fLeft-Click|r to Toggle Lock")
-            tt:AddLine("|cffeda55fRight-Click|r to Open Settings")
-        end,
-    })
-    
-    self.icon = LibStub("LibDBIcon-1.0")
-    self.icon:Register("ActionHud", ldb, self.db.profile.minimap)
-    
-    -- Fix LibDBIcon click registration (Right-Click support)
-    local btn = self.icon:GetMinimapButton("ActionHud") 
-    if btn then btn:RegisterForClicks("AnyUp") end
+    -- Register with Addon Compartment (Blizzard's dropdown menu)
+    if AddonCompartmentFrame and AddonCompartmentFrame.RegisterAddon then
+        AddonCompartmentFrame:RegisterAddon({
+            text = "ActionHud",
+            icon = "Interface\\Icons\\Ability_DualWield",
+            notCheckable = true,
+            func = function() self:SlashHandler("") end,
+        })
+    end
     
     self:SetupOptions() -- In SettingsUI.lua
 end
@@ -91,21 +102,156 @@ end
 
 function ActionHud:OnEnable()
     self:CreateMainFrame()
-    self:ApplySettings()
-    
-    self:RegisterChatCommand("actionhud", "SlashHandler")
-    self:RegisterChatCommand("ah", "SlashHandler")
-    
     -- Initialize Resources
     if ns.Resources and ns.Resources.Initialize then
          ns.Resources:Initialize(self)
     end
+
+    self:ApplySettings()
+    
+    self:RegisterChatCommand("actionhud", "SlashHandler")
+    self:RegisterChatCommand("ah", "SlashHandler")
+end
+
+-- Debug message buffer for clipboard export
+local debugBuffer = {}
+local debugRecording = false
+local DEBUG_BUFFER_CAP = 1000
+
+function ActionHud:Log(msg, debugType)
+    -- Only record if recording is active
+    if not debugRecording then return end
+    
+    local p = self.db.profile
+    
+    -- Check if this specific debug type is enabled
+    local enabled = false
+    if debugType == "discovery" and p.debugDiscovery then enabled = true
+    elseif debugType == "frames" and p.debugFrames then enabled = true
+    elseif debugType == "events" and p.debugEvents then enabled = true
+    elseif debugType == "debug" and p.debugDiscovery then enabled = true  -- General debug piggybacks on discovery
+    elseif not debugType then enabled = true -- General logs
+    end
+    
+    if not enabled then return end
+
+    -- Add to debug buffer (no chat output - buffer only)
+    local timestamp = date("%H:%M:%S")
+    table.insert(debugBuffer, string.format("[%s][%s] %s", timestamp, debugType or "General", tostring(msg)))
+    
+    -- Check buffer cap and auto-stop if reached
+    if #debugBuffer >= DEBUG_BUFFER_CAP then
+        debugRecording = false
+        print("|cff33ff99ActionHud:|r Debug recording auto-stopped (buffer cap of " .. DEBUG_BUFFER_CAP .. " reached).")
+    end
+end
+
+function ActionHud:StartDebugRecording()
+    debugRecording = true
+    print("|cff33ff99ActionHud:|r Debug recording started.")
+end
+
+function ActionHud:StopDebugRecording()
+    debugRecording = false
+    print("|cff33ff99ActionHud:|r Debug recording stopped (" .. #debugBuffer .. " entries buffered).")
+end
+
+function ActionHud:IsDebugRecording()
+    return debugRecording
+end
+
+-- Debug export popup frame (created on demand)
+local debugExportFrame = nil
+
+local function CreateDebugExportFrame()
+    local frame = CreateFrame("Frame", "ActionHudDebugExportFrame", UIParent, "BasicFrameTemplateWithInset")
+    frame:SetSize(600, 400)
+    frame:SetPoint("CENTER")
+    frame:SetMovable(true)
+    frame:EnableMouse(true)
+    frame:RegisterForDrag("LeftButton")
+    frame:SetScript("OnDragStart", frame.StartMoving)
+    frame:SetScript("OnDragStop", frame.StopMovingOrSizing)
+    frame:SetFrameStrata("DIALOG")
+    frame:SetClampedToScreen(true)
+    
+    -- Title
+    frame.TitleText:SetText("ActionHud Debug Export")
+    
+    -- Instructions
+    local instructions = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    instructions:SetPoint("TOPLEFT", frame.InsetBg, "TOPLEFT", 10, -5)
+    instructions:SetText("Press Ctrl+A to select all, then Ctrl+C to copy:")
+    
+    -- ScrollFrame with EditBox
+    local scrollFrame = CreateFrame("ScrollFrame", nil, frame, "UIPanelScrollFrameTemplate")
+    scrollFrame:SetPoint("TOPLEFT", frame.InsetBg, "TOPLEFT", 10, -25)
+    scrollFrame:SetPoint("BOTTOMRIGHT", frame.InsetBg, "BOTTOMRIGHT", -30, 10)
+    
+    local editBox = CreateFrame("EditBox", nil, scrollFrame)
+    editBox:SetMultiLine(true)
+    editBox:SetFontObject(GameFontHighlightSmall)
+    editBox:SetWidth(scrollFrame:GetWidth())
+    editBox:SetAutoFocus(false)
+    editBox:EnableMouse(true)
+    editBox:SetScript("OnEscapePressed", function() frame:Hide() end)
+    
+    scrollFrame:SetScrollChild(editBox)
+    frame.editBox = editBox
+    
+    -- Close with Escape
+    tinsert(UISpecialFrames, "ActionHudDebugExportFrame")
+    
+    return frame
+end
+
+function ActionHud:ShowDebugExport()
+    local count = #debugBuffer
+    if count == 0 then
+        print("|cff33ff99ActionHud:|r Debug buffer is empty. Start recording and perform some actions first.")
+        return
+    end
+    
+    -- Create frame if needed
+    if not debugExportFrame then
+        debugExportFrame = CreateDebugExportFrame()
+    end
+    
+    -- Set text
+    local text = table.concat(debugBuffer, "\n")
+    debugExportFrame.editBox:SetText(text)
+    
+    -- Show and focus
+    debugExportFrame:Show()
+    debugExportFrame.editBox:SetFocus()
+    debugExportFrame.editBox:HighlightText()
+    
+    print("|cff33ff99ActionHud:|r Debug export opened (" .. count .. " entries). Use Ctrl+A, Ctrl+C to copy.")
+end
+
+function ActionHud:GetDebugBufferCount()
+    return #debugBuffer
+end
+
+function ActionHud:ClearDebugBuffer()
+    wipe(debugBuffer)
+    print("|cff33ff99ActionHud:|r Debug buffer cleared.")
 end
 
 function ActionHud:SlashHandler(msg)
     if msg == "debug" then
         self.db.profile.debugDiscovery = not self.db.profile.debugDiscovery
         print("ActionHud Debug: " .. tostring(self.db.profile.debugDiscovery))
+        return
+    end
+    
+    if msg == "dump" then
+        local cooldowns = self:GetModule("Cooldowns", true)
+        if cooldowns and cooldowns.DumpTrackedBuffInfo then
+            cooldowns:DumpTrackedBuffInfo()
+        else
+            print("|cff33ff99ActionHud:|r Cooldowns module not available.")
+        end
         return
     end
 

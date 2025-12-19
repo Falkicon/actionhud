@@ -2,6 +2,59 @@
 
 All notable changes to this project will be documented in this file.
 
+
+## [2.4.0] - 2025-12-18
+### Changed
+- **Major Proxy System Rewrite**: Simplified visibility model for better compatibility.
+    - **Hide-Only Model**: Now uses simple `SetShown(false)` to hide Blizzard frames instead of reparenting and alpha manipulation.
+    - **Direct API Queries**: Proxies now query spell data directly from `C_Spell` APIs and `CooldownViewerSettings:GetDataProvider()` instead of scraping from hidden frames.
+    - **Event-Driven Updates**: Uses `SPELL_UPDATE_COOLDOWN`, `UNIT_AURA`, `PLAYER_TOTEM_UPDATE` events instead of 20Hz OnUpdate polling.
+    - **Clean Restoration**: Disabling features now instantly restores Blizzard's native UI with a single `SetShown(true)` call.
+- **Settings UX**: Settings now dynamically show status of Blizzard's Cooldown Manager.
+    - Green message when enabled, red warning when disabled.
+    - All cooldown-related settings are greyed out when Blizzard's feature is disabled.
+
+### Fixed
+- **Tracked Buffs/Bars responsiveness**: Activation tracking now uses an event-driven `UNIT_AURA` cache (Blizzard-style `unitAuraUpdateInfo`) instead of relying on repeated `C_UnitAuras.GetPlayerAuraBySpellID` polling, fixing slow/late activations (e.g. Shield Block, Ignore Pain, Demoralizing Shout).
+
+### Removed
+- **Legacy Code**: Removed `ahOriginalParent`, `ahOriginalAlpha`, `EnableMouse(false)` complexity.
+- **OnUpdate Polling**: Eliminated the 20Hz sync loop in favor of event-driven updates.
+- **Frame Sync Logic**: Removed heuristic texture/fontstring scraping from Blizzard frame children.
+
+
+## [2.3.1] - 2025-12-18
+### Added
+- **Midnight (12.0) Compatibility**: Full support for secret values that will be introduced in WoW 12.0.
+    - Cooldown displays use passthrough pattern for `Cooldown:SetCooldown()`.
+    - Charge counts gracefully degrade to "..." when values are secret during combat.
+    - Resource bars use passthrough for `StatusBar:SetValue()` and `SetMinMaxValues()`.
+- **API Resilience**: Added `pcall` wrappers for critical spell APIs (`C_Spell.GetSpellCooldown`, `C_Spell.GetSpellCharges`, `IsSpellOverlayed`).
+
+### Changed
+- **Performance**: Implemented adaptive throttling for OnUpdate handler (20 Hz when visible, 2 Hz when hidden).
+- **Performance**: Global namespace scan for debug mode now rate-limited to once per 5 seconds.
+- **Performance**: Reusable table pool eliminates per-frame allocations in hot paths.
+- **Performance**: O(1) lookup for known target frames instead of O(n) iteration.
+
+### Fixed
+- **Settings**: Added missing `minimap` default table to prevent nil reference errors.
+- **Settings**: Minimap icon toggle now safely handles missing LibDBIcon.
+
+## [2.3.0] - 2025-12-18
+### Added
+- **Proxy System**: Complete rewrite of the Cooldown Manager's frame handling.
+    - **Shadow Mode**: Original Blizzard frames are now hidden but kept active to preserve game logic/tooltips.
+    - **Proxies**: Custom, stable "Proxy Frames" now display the cooldown information, synced in real-time.
+    - **Stability**: Resolves all issues with "floating" icons (e.g., Ravager) and layout jitter.
+- **Live Restore**: Disabling the addon or specific features now instantly restores the original Blizzard frames to their native state without a reload.
+- **Granular Toggles**: "Tracked Buffs" and "Tracked Bars" can now be toggled independently of the main "Cooldown Manager" (Essential/Utility) icons.
+- **Timer Text**: Added support for displaying the numeric cooldown timer on proxies (scraped from native frames).
+
+### Changed
+- **Settings**: "Enable" checkbox for Cooldown Manager now only toggles the Essential/Utility bars, decoupling it from the Tracked Buffs/Bars.
+- **Font Sizing**: Added explicit font size settings for Timer Text vs Stack Count for all viewers.
+
 ## [2.2.2] - 2025-12-16
 ### Added
 - **Minimap Button**: Added a minimap button (LibDBIcon) with options to toggle it.
