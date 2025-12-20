@@ -28,7 +28,6 @@ function TrackedBuffs:OnEnable()
     Manager:CreateContainer("buffs", "ActionHudBuffContainer")
     
     self:RegisterEvent("PLAYER_ENTERING_WORLD", "OnPlayerEnteringWorld")
-    self:RegisterEvent("PLAYER_REGEN_ENABLED", "OnCombatEnd")
     
     -- Delay initial setup to ensure Blizzard frames are loaded
     C_Timer.After(0.5, function() 
@@ -209,70 +208,44 @@ function TrackedBuffs:PositionBlizzardFrame()
     local p = self.db.profile
     if not p.buffsEnabled then return end
     
-    -- Position the Blizzard frame - anchor TOP to match our layout system
-    -- This ensures it's centered horizontally on the HUD
+    -- Center the Blizzard frame in our container
     blizzFrame:ClearAllPoints()
-    blizzFrame:SetPoint("TOP", container, "TOP", 0, 0)
+    blizzFrame:SetPoint("CENTER", container, "CENTER", 0, 0)
 end
 
 -- Apply our custom styling to the Blizzard frame
+-- IMPORTANT: We only apply safe visual changes here. DO NOT call:
+--   - SetHideWhenInactive() - triggers Blizzard refresh with protected APIs
+--   - itemContainerFrame:Layout() - triggers refresh cycle
+--   - Setting blizzFrame.iconScale - triggers internal refresh logic
 function TrackedBuffs:ApplyCustomStyling()
     local blizzFrame = self:GetBlizzardFrame()
     if not blizzFrame then return end
     
     local p = self.db.profile
     
-    -- Calculate icon scale based on desired size
-    -- Default Blizzard BuffIconItemTemplate is 40x40
+    -- Calculate scale based on desired size vs default 40x40
     local DEFAULT_ICON_SIZE = 40
-    local desiredWidth = p.buffsWidth or DEFAULT_ICON_SIZE
-    local desiredHeight = p.buffsHeight or DEFAULT_ICON_SIZE
-    -- Use the smaller dimension to maintain aspect ratio
-    local desiredSize = math.min(desiredWidth, desiredHeight)
-    local iconScale = desiredSize / DEFAULT_ICON_SIZE
+    local desiredSize = math.min(p.buffsWidth or DEFAULT_ICON_SIZE, p.buffsHeight or DEFAULT_ICON_SIZE)
+    local scale = desiredSize / DEFAULT_ICON_SIZE
     
-    -- Set icon scale on the viewer (affects all item frames)
-    blizzFrame.iconScale = iconScale
+    -- Apply scale to the entire frame (safe - doesn't trigger refresh)
+    blizzFrame:SetScale(scale)
     
-    -- Apply scale to existing items (wrap in pcall to avoid combat errors)
-    pcall(function()
-        for itemFrame in blizzFrame.itemFramePool:EnumerateActive() do
-            itemFrame:SetScale(iconScale)
-            self:StyleItemFrame(itemFrame)
-        end
-    end)
+    -- Apply opacity (safe)
+    blizzFrame:SetAlpha(p.buffsOpacity or 1.0)
     
-    -- Apply opacity
-    local opacity = p.buffsOpacity or 1.0
-    blizzFrame:SetAlpha(opacity)
-    
-    -- Override padding if we have custom spacing
+    -- Override padding if we have custom spacing (safe - just property assignment)
     if p.buffsSpacing then
         blizzFrame.childXPadding = p.buffsSpacing
         blizzFrame.childYPadding = p.buffsSpacing
     end
     
-    -- Apply hide inactive setting via Blizzard's API
-    -- ONLY outside combat - this triggers Blizzard refresh which uses protected APIs
-    if not InCombatLockdown() then
-        local hideInactive = p.buffsHideInactive
-        if hideInactive ~= nil then
-            blizzFrame:SetHideWhenInactive(hideInactive)
-        end
-        
-        -- Force re-layout with our settings (only safe outside combat)
-        local itemContainerFrame = blizzFrame:GetItemContainerFrame()
-        if itemContainerFrame and itemContainerFrame.Layout then
-            itemContainerFrame:Layout()
-        end
-    end
-    
-    -- Update container size to match
+    -- Update container size to match scaled frame
     local container = Manager:GetContainer("buffs")
     if container then
-        -- Get actual frame dimensions after layout
-        local width = blizzFrame:GetWidth() or 200
-        local height = blizzFrame:GetHeight() or 40
+        local width = (blizzFrame:GetWidth() or 200) * scale
+        local height = (blizzFrame:GetHeight() or 40) * scale
         container:SetSize(math.max(width, 1), math.max(height, 1))
     end
 end
@@ -413,28 +386,6 @@ function TrackedBuffs:OnPlayerEnteringWorld()
     C_Timer.After(0.2, function()
         self:UpdateLayout()
     end)
-end
-
--- Called when combat ends - apply settings that couldn't be applied during combat
-function TrackedBuffs:OnCombatEnd()
-    if not isReskinActive then return end
-    
-    local blizzFrame = self:GetBlizzardFrame()
-    if not blizzFrame then return end
-    
-    local p = self.db.profile
-    
-    -- Now safe to apply settings that trigger Blizzard refreshes
-    local hideInactive = p.buffsHideInactive
-    if hideInactive ~= nil then
-        blizzFrame:SetHideWhenInactive(hideInactive)
-    end
-    
-    -- Force re-layout
-    local itemContainerFrame = blizzFrame:GetItemContainerFrame()
-    if itemContainerFrame and itemContainerFrame.Layout then
-        itemContainerFrame:Layout()
-    end
 end
 
 -- Called by Manager (for compatibility, but not used in reskin mode)
