@@ -177,38 +177,38 @@ Use |cffffffffAdvanced Cooldown Settings|r to configure which spells are tracked
             enable = {
                 name = "Enable", type = "toggle", order = 1,
                 get = function(info) return self.db.profile.resEnabled end,
-                set = function(info, val) self.db.profile.resEnabled = val; self:UpdateLayout() end,
+                set = function(info, val) self.db.profile.resEnabled = val; ActionHud:GetModule("Resources"):UpdateLayout() end,
             },
             showTarget = {
                 name = "Show Target Stats", desc = "Split bars to show target health/power.", type = "toggle", order = 2,
                 get = function(info) return self.db.profile.resShowTarget end,
-                set = function(info, val) self.db.profile.resShowTarget = val; self:UpdateLayout() end,
+                set = function(info, val) self.db.profile.resShowTarget = val; ActionHud:GetModule("Resources"):UpdateLayout() end,
             },
             layout = { name = "Layout Dimensions", type = "header", order = 10 },
             healthHeight = {
                 name = "Health Bar Height", type = "range", min = 1, max = 30, step = 1, order = 11,
                 get = function(info) return self.db.profile.resHealthHeight end,
-                set = function(info, val) self.db.profile.resHealthHeight = val; self:UpdateLayout() end,
+                set = function(info, val) self.db.profile.resHealthHeight = val; ActionHud:GetModule("Resources"):UpdateLayout() end,
             },
             powerHeight = {
                 name = "Power Bar Height", type = "range", min = 1, max = 30, step = 1, order = 12,
                 get = function(info) return self.db.profile.resPowerHeight end,
-                set = function(info, val) self.db.profile.resPowerHeight = val; self:UpdateLayout() end,
+                set = function(info, val) self.db.profile.resPowerHeight = val; ActionHud:GetModule("Resources"):UpdateLayout() end,
             },
             classHeight = {
                 name = "Class Resource Height", desc = "Height of Combo Points, Holy Power, etc.", type = "range", min = 1, max = 20, step = 1, order = 12.5,
                 get = function(info) return self.db.profile.resClassHeight end,
-                set = function(info, val) self.db.profile.resClassHeight = val; self:UpdateLayout() end,
+                set = function(info, val) self.db.profile.resClassHeight = val; ActionHud:GetModule("Resources"):UpdateLayout() end,
             },
             spacing = {
                 name = "Bar Spacing", type = "range", min = 0, max = 10, step = 1, order = 14,
                 get = function(info) return self.db.profile.resSpacing end,
-                set = function(info, val) self.db.profile.resSpacing = val; self:UpdateLayout() end,
+                set = function(info, val) self.db.profile.resSpacing = val; ActionHud:GetModule("Resources"):UpdateLayout() end,
             },
             gap = {
                 name = "Player-Target Gap", desc = "Space between player and target bars.", type = "range", min = 0, max = 50, step = 1, order = 15,
                 get = function(info) return self.db.profile.resGap end,
-                set = function(info, val) self.db.profile.resGap = val; self:UpdateLayout() end,
+                set = function(info, val) self.db.profile.resGap = val; ActionHud:GetModule("Resources"):UpdateLayout() end,
             },
         },
     }
