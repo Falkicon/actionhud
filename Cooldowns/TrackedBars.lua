@@ -187,9 +187,21 @@ function TrackedBars:ApplyCustomStyling()
     
     local p = self.db.profile
     
-    -- Apply scale
-    local scale = p.tbScale or 1.0
-    blizzFrame:SetScale(scale)
+    -- Calculate icon scale based on desired size
+    -- Default Blizzard BuffBarItemTemplate is 220x30 (the bar), but icon is ~30x30
+    -- We scale the entire item frame proportionally
+    local DEFAULT_BAR_HEIGHT = 30
+    local desiredHeight = p.tbHeight or DEFAULT_BAR_HEIGHT
+    local iconScale = desiredHeight / DEFAULT_BAR_HEIGHT
+    
+    -- Set icon scale on the viewer (affects all item frames)
+    blizzFrame.iconScale = iconScale
+    
+    -- Apply scale to existing items
+    for itemFrame in blizzFrame.itemFramePool:EnumerateActive() do
+        itemFrame:SetScale(iconScale)
+        self:StyleItemFrame(itemFrame)
+    end
     
     -- Apply opacity
     local opacity = p.tbOpacity or 1.0
@@ -201,9 +213,10 @@ function TrackedBars:ApplyCustomStyling()
         blizzFrame.childYPadding = p.tbGap
     end
     
-    -- Style each item frame
-    for itemFrame in blizzFrame.itemFramePool:EnumerateActive() do
-        self:StyleItemFrame(itemFrame)
+    -- Apply hide inactive setting via Blizzard's API
+    local hideInactive = p.tbHideInactive
+    if hideInactive ~= nil then
+        blizzFrame:SetHideWhenInactive(hideInactive)
     end
     
     -- Force re-layout with our settings
@@ -215,8 +228,8 @@ function TrackedBars:ApplyCustomStyling()
     -- Update container size to match
     local container = Manager:GetContainer("bars")
     if container then
-        local width = blizzFrame:GetWidth() * scale
-        local height = blizzFrame:GetHeight() * scale
+        local width = blizzFrame:GetWidth() or 220
+        local height = blizzFrame:GetHeight() or 30
         container:SetSize(math.max(width, 1), math.max(height, 1))
     end
 end

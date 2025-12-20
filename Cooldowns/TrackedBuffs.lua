@@ -208,9 +208,10 @@ function TrackedBuffs:PositionBlizzardFrame()
     local p = self.db.profile
     if not p.buffsEnabled then return end
     
-    -- Apply positioning
+    -- Position the Blizzard frame - anchor TOP to match our layout system
+    -- This ensures it's centered horizontally on the HUD
     blizzFrame:ClearAllPoints()
-    blizzFrame:SetPoint("CENTER", container, "CENTER", 0, 0)
+    blizzFrame:SetPoint("TOP", container, "TOP", 0, 0)
 end
 
 -- Apply our custom styling to the Blizzard frame
@@ -220,9 +221,20 @@ function TrackedBuffs:ApplyCustomStyling()
     
     local p = self.db.profile
     
-    -- Apply scale
-    local scale = p.buffsScale or 1.0
-    blizzFrame:SetScale(scale)
+    -- Calculate icon scale based on desired size
+    -- Default Blizzard BuffIconItemTemplate is 40x40
+    local DEFAULT_ICON_SIZE = 40
+    local desiredSize = p.buffsWidth or p.buffsHeight or DEFAULT_ICON_SIZE
+    local iconScale = desiredSize / DEFAULT_ICON_SIZE
+    
+    -- Set icon scale on the viewer (affects all item frames)
+    blizzFrame.iconScale = iconScale
+    
+    -- Apply scale to existing items
+    for itemFrame in blizzFrame.itemFramePool:EnumerateActive() do
+        itemFrame:SetScale(iconScale)
+        self:StyleItemFrame(itemFrame)
+    end
     
     -- Apply opacity
     local opacity = p.buffsOpacity or 1.0
@@ -234,9 +246,10 @@ function TrackedBuffs:ApplyCustomStyling()
         blizzFrame.childYPadding = p.buffsSpacing
     end
     
-    -- Style each item frame
-    for itemFrame in blizzFrame.itemFramePool:EnumerateActive() do
-        self:StyleItemFrame(itemFrame)
+    -- Apply hide inactive setting via Blizzard's API
+    local hideInactive = p.buffsHideInactive
+    if hideInactive ~= nil then
+        blizzFrame:SetHideWhenInactive(hideInactive)
     end
     
     -- Force re-layout with our settings
@@ -248,8 +261,9 @@ function TrackedBuffs:ApplyCustomStyling()
     -- Update container size to match
     local container = Manager:GetContainer("buffs")
     if container then
-        local width = blizzFrame:GetWidth() * scale
-        local height = blizzFrame:GetHeight() * scale
+        -- Get actual frame dimensions after layout
+        local width = blizzFrame:GetWidth() or 200
+        local height = blizzFrame:GetHeight() or 40
         container:SetSize(math.max(width, 1), math.max(height, 1))
     end
 end
