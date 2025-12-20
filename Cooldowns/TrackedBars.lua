@@ -185,6 +185,7 @@ end
 --   - SetHideWhenInactive() - triggers Blizzard refresh with protected APIs
 --   - itemContainerFrame:Layout() - triggers refresh cycle
 --   - Setting blizzFrame.iconScale - triggers internal refresh logic
+--   - itemFrame:SetScale() in iteration - may trigger refresh
 function TrackedBars:ApplyCustomStyling()
     local blizzFrame = self:GetBlizzardFrame()
     if not blizzFrame then return end
@@ -206,6 +207,14 @@ function TrackedBars:ApplyCustomStyling()
     if p.tbGap then
         blizzFrame.childXPadding = p.tbGap
         blizzFrame.childYPadding = p.tbGap
+    end
+    
+    -- Style existing item frames (safe operations only - no SetScale on items)
+    -- This catches items that existed before our hooks were installed
+    if blizzFrame.itemFramePool then
+        for itemFrame in blizzFrame.itemFramePool:EnumerateActive() do
+            self:StyleItemFrame(itemFrame)
+        end
     end
     
     -- Update container size to match scaled frame
