@@ -4,226 +4,323 @@ local TrackedBars = addon:NewModule("TrackedBars", "AceEvent-3.0")
 local Manager = ns.CooldownManager
 local Utils = ns.Utils
 
--- Local upvalues for performance
-local pairs = pairs
-local ipairs = ipairs
-local wipe = wipe
-local table_insert = table.insert
+-- Reskin approach: We hook into Blizzard's BuffBarCooldownViewer frame
+-- and reparent/restyle it instead of creating our own proxy frames.
+-- This allows Blizzard's code to handle the protected API calls for aura data.
 
-local lastKnownState = {} -- [cooldownID] = boolean
-local activeProxies = {} -- [proxyKey] = proxyFrame
+local BLIZZARD_FRAME_NAME = "BuffBarCooldownViewer"
 
--- Reusable tables to avoid garbage creation
-local usedKeysCache = {}
-local allProxyDataCache = {}
-
-local function GetTrackedBarCategory()
-    return Enum.CooldownViewerCategory and Enum.CooldownViewerCategory.TrackedBar
-end
+-- State for reskin management
+local isReskinActive = false
+local originalParent = nil
+local originalPoints = nil
+local originalScale = nil
+local hooksInstalled = false
 
 function TrackedBars:OnInitialize()
     self.db = addon.db
 end
 
 function TrackedBars:OnEnable()
-    addon:Log("TrackedBars:OnEnable called", "discovery")
-    Manager:CreateContainer("bars", "ActionHudTrackedBarsContainer")
-    self:UpdateLayout()
+    addon:Log("TrackedBars:OnEnable called (reskin mode)", "discovery")
     
-    self:RegisterEvent("PLAYER_TOTEM_UPDATE", "OnAuraUpdate")
+    -- Create our container for positioning
+    Manager:CreateContainer("bars", "ActionHudTrackedBarsContainer")
+    
     self:RegisterEvent("PLAYER_ENTERING_WORLD", "OnPlayerEnteringWorld")
-
-    -- Single delayed retry in case data provider wasn't ready at OnEnable
-    C_Timer.After(0.5, function() self:UpdateLayout() end)
+    
+    -- Delay initial setup to ensure Blizzard frames are loaded
+    C_Timer.After(0.5, function() 
+        self:SetupReskin()
+    end)
 end
 
 function TrackedBars:OnDisable()
+    self:RestoreBlizzardFrame()
     local container = Manager:GetContainer("bars")
     if container then container:Hide() end
-    
-    local blizzardFrames = Manager:GetBlizzardFrames()
-    for _, frameName in ipairs(blizzardFrames.bars) do
-        Manager:ShowBlizzardFrame(frameName)
-    end
 end
 
-function TrackedBars:UpdateLayout()
-    addon:Log("TrackedBars:UpdateLayout START", "discovery")
-    local main = _G["ActionHudFrame"]
-    if not main then 
-        addon:Log("TrackedBars:UpdateLayout: No main frame", "discovery")
-        return 
-    end
-    local p = self.db.profile
+-- Get the Blizzard frame we're reskinning
+function TrackedBars:GetBlizzardFrame()
+    return _G[BLIZZARD_FRAME_NAME]
+end
+
+-- TrackedBars is a "sidecar" module - not part of vertical stack
+-- It uses independent X/Y offset positioning from profile
+
+-- Apply position from profile settings (sidecar positioning)
+function TrackedBars:ApplyLayoutPosition()
     local container = Manager:GetContainer("bars")
-    if not container then 
-        addon:Log("TrackedBars:UpdateLayout: No container", "discovery")
-        return 
-    end
+    if not container then return end
     
-    local blizzEnabled = Manager:IsBlizzardCooldownViewerEnabled()
-    addon:Log(string.format("TrackedBars:UpdateLayout: enabled=%s, blizzEnabled=%s", tostring(p.tbEnabled), tostring(blizzEnabled)), "discovery")
-    
-    container:ClearAllPoints()
-    container:SetPoint("CENTER", main, "CENTER", p.tbXOffset or 100, p.tbYOffset or 0)
-    
-    if p.tbEnabled and blizzEnabled then
-        local blizzardFrames = Manager:GetBlizzardFrames()
-        if not p.debugShowBlizzardFrames then
-            for _, frameName in ipairs(blizzardFrames.bars) do Manager:HideBlizzardFrame(frameName) end
-        else
-            for _, frameName in ipairs(blizzardFrames.bars) do Manager:ShowBlizzardFrame(frameName) end
-        end
-        container:Show()
-        Manager:UpdateContainerDebug("bars", {r=1, g=0, b=0}) -- Red for bars
-        self:RenderTrackedBarProxies(container, p)
-    else
+    local p = self.db.profile
+    if not p.tbEnabled then 
         container:Hide()
-        local blizzardFrames = Manager:GetBlizzardFrames()
-        for _, frameName in ipairs(blizzardFrames.bars) do Manager:ShowBlizzardFrame(frameName) end
-        self:ReleaseTrackedBarProxies()
+        self:RestoreBlizzardFrame()
+        return
     end
+    
+    local main = _G["ActionHudFrame"]
+    if not main then return end
+    
+    -- Sidecar positioning: independent X/Y offsets from main frame center
+    container:ClearAllPoints()
+    container:SetPoint("CENTER", main, "CENTER", p.tbXOffset or 76, p.tbYOffset or 0)
+    container:Show()
+    
+    -- Re-apply positioning to Blizzard frame
+    self:PositionBlizzardFrame()
+    
+    addon:Log(string.format("TrackedBars positioned: xOffset=%d, yOffset=%d", 
+        p.tbXOffset or 76, p.tbYOffset or 0), "layout")
 end
 
-function TrackedBars:RenderTrackedBarProxies(container, p)
-    local category = GetTrackedBarCategory()
-    if not category then 
-        addon:Log("TrackedBars: No category available", "discovery")
+-- Install hooks on the Blizzard frame (only once)
+function TrackedBars:InstallHooks()
+    if hooksInstalled then return end
+    
+    local blizzFrame = self:GetBlizzardFrame()
+    if not blizzFrame then 
+        addon:Log("TrackedBars: BuffBarCooldownViewer not found for hooks", "discovery")
         return 
     end
     
-    local cooldownIDs = Manager:GetCooldownIDsForCategory(category, "TrackedBar")
-    addon:Log(string.format("TrackedBars:RenderTrackedBarProxies: %d cooldownIDs", #cooldownIDs), "discovery")
-    local gap = p.tbGap
-    local hideInactive = p.tbHideInactive
-    local inactiveAlpha = p.tbInactiveOpacity or 0.5
+    -- Hook RefreshLayout to re-apply our styling after Blizzard updates layout
+    hooksecurefunc(blizzFrame, "RefreshLayout", function()
+        if isReskinActive then
+            self:ApplyCustomStyling()
+        end
+    end)
     
-    -- Reuse cached tables to avoid garbage creation
-    wipe(usedKeysCache)
-    wipe(allProxyDataCache)
+    -- Hook OnAcquireItemFrame to style individual items
+    hooksecurefunc(blizzFrame, "OnAcquireItemFrame", function(_, itemFrame)
+        if isReskinActive then
+            self:StyleItemFrame(itemFrame)
+        end
+    end)
     
-    -- PASS 1: Get/create proxies and populate them (don't show/hide yet)
-    for _, cooldownID in ipairs(cooldownIDs) do
-        local info = Manager:GetCooldownInfoForID(cooldownID)
-        if info and info.spellID then
-            -- Use cooldownID directly as key to avoid string concatenation
-            local proxy = activeProxies[cooldownID]
-            if not proxy then
-                proxy = Manager:GetProxy(container, "bar")
-                activeProxies[cooldownID] = proxy
-                proxy.proxyKey = cooldownID
+    -- Hook UpdateShownState to manage visibility
+    hooksecurefunc(blizzFrame, "UpdateShownState", function()
+        if isReskinActive then
+            -- Ensure our container visibility matches
+            local container = Manager:GetContainer("bars")
+            if container then
+                container:SetShown(blizzFrame:IsShown())
             end
-            usedKeysCache[cooldownID] = true
-            
-            -- Mark this proxy as leased to this key
-            proxy.leasedTo = cooldownID
-            
-            proxy:SetSize(p.tbWidth, p.tbHeight)
-            proxy.count:SetFont("Fonts\\FRIZQT__.TTF", p.tbCountFontSize or 10, "OUTLINE")
-            proxy.cooldown:SetCountdownFont(Utils.GetTimerFont(p.tbTimerFontSize))
-            
-            proxy.cooldownID = cooldownID
-            proxy.cooldownInfo = info
-            
-            Manager:PopulateBuffProxy(proxy, cooldownID, info, lastKnownState, ns)
-            
-            -- Store isActive on proxy to avoid creating intermediate tables
-            proxy._isActive = not proxy.icon:IsDesaturated()
-            table_insert(allProxyDataCache, proxy)
         end
-    end
+    end)
     
-    -- PASS 2: Position and show visible proxies
-    local yOffset = 0
-    for _, proxy in ipairs(allProxyDataCache) do
-        if hideInactive and not proxy._isActive then
-            -- Will be hidden in pass 3
-        else
-            proxy:SetAlpha(proxy._isActive and 1.0 or inactiveAlpha)
-            proxy:ClearAllPoints()
-            proxy:SetPoint("TOP", container, "TOP", 0, -yOffset)
-            proxy:Show()
-            yOffset = yOffset + p.tbHeight + gap
+    hooksInstalled = true
+    addon:Log("TrackedBars: Hooks installed on BuffBarCooldownViewer", "discovery")
+end
+
+-- Save original state of Blizzard frame for restoration
+function TrackedBars:SaveOriginalState()
+    local blizzFrame = self:GetBlizzardFrame()
+    if not blizzFrame then return end
+    
+    if not originalParent then
+        originalParent = blizzFrame:GetParent()
+        originalScale = blizzFrame:GetScale()
+        
+        -- Save all anchor points
+        originalPoints = {}
+        for i = 1, blizzFrame:GetNumPoints() do
+            local point, relativeTo, relativePoint, xOfs, yOfs = blizzFrame:GetPoint(i)
+            table.insert(originalPoints, {point, relativeTo, relativePoint, xOfs, yOfs})
         end
-    end
-    
-    -- PASS 3: Hide inactive proxies (after all positioning is done)
-    for _, proxy in ipairs(allProxyDataCache) do
-        if hideInactive and not proxy._isActive then
-            proxy:Hide()
-            proxy:ClearAllPoints()
-        end
-    end
-    
-    if yOffset > 0 then
-        container:SetSize(p.tbWidth, yOffset - gap)
-    else
-        container:SetSize(1, 1)
-    end
-    
-    -- Cleanup any proxies that are no longer in the configured list
-    for key, proxy in pairs(activeProxies) do
-        if not usedKeysCache[key] then
-            Manager:ReleaseProxy(proxy)
-            activeProxies[key] = nil
-        end
+        
+        addon:Log("TrackedBars: Saved original Blizzard frame state", "discovery")
     end
 end
 
-function TrackedBars:ReleaseTrackedBarProxies()
-    for key, proxy in pairs(activeProxies) do
-        Manager:ReleaseProxy(proxy)
-        activeProxies[key] = nil
-    end
-end
-
--- Lightweight update: refresh existing proxies without full re-render
--- Only updates aura state, doesn't recreate or reposition proxies
-function TrackedBars:RefreshActiveProxies()
-    local p = self.db.profile
-    local hideInactive = p.tbHideInactive
-    local inactiveAlpha = p.tbInactiveOpacity or 0.5
-    local needsReposition = false
+-- Restore Blizzard frame to its original state
+function TrackedBars:RestoreBlizzardFrame()
+    if not isReskinActive then return end
     
-    -- Update each proxy's state
-    for key, proxy in pairs(activeProxies) do
-        if proxy.cooldownInfo then
-            local wasActive = not proxy.icon:IsDesaturated()
-            Manager:PopulateBuffProxy(proxy, proxy.cooldownID, proxy.cooldownInfo, lastKnownState, ns)
-            local isActive = not proxy.icon:IsDesaturated()
-            
-            -- Check if visibility changed (needs repositioning)
-            if hideInactive and wasActive ~= isActive then
-                needsReposition = true
-            end
-            
-            -- Update alpha for visible proxies
-            if not hideInactive or isActive then
-                proxy:SetAlpha(isActive and 1.0 or inactiveAlpha)
-            end
+    local blizzFrame = self:GetBlizzardFrame()
+    if not blizzFrame then return end
+    
+    -- Restore parent
+    if originalParent then
+        blizzFrame:SetParent(originalParent)
+    end
+    
+    -- Restore scale
+    if originalScale then
+        blizzFrame:SetScale(originalScale)
+    end
+    
+    -- Restore anchor points
+    if originalPoints and #originalPoints > 0 then
+        blizzFrame:ClearAllPoints()
+        for _, pointData in ipairs(originalPoints) do
+            blizzFrame:SetPoint(pointData[1], pointData[2], pointData[3], pointData[4], pointData[5])
         end
     end
     
-    -- Only do full reposition if visibility changed
-    if needsReposition then
-        local container = Manager:GetContainer("bars")
-        if container then
-            self:RenderTrackedBarProxies(container, p)
-        end
-    end
+    isReskinActive = false
+    addon:Log("TrackedBars: Restored Blizzard frame to original state", "discovery")
 end
 
--- Called by Manager after aura cache update
-function TrackedBars:OnAuraUpdate()
-    addon:Log("TrackedBars:OnAuraUpdate", "discovery")
+-- Position the Blizzard frame within our container
+function TrackedBars:PositionBlizzardFrame()
+    local blizzFrame = self:GetBlizzardFrame()
+    if not blizzFrame then return end
+    
     local container = Manager:GetContainer("bars")
-    if container and container:IsShown() then
-        -- Use lightweight refresh instead of full re-render
-        self:RefreshActiveProxies()
+    if not container then return end
+    
+    local p = self.db.profile
+    if not p.tbEnabled then return end
+    
+    -- Apply positioning - center in container
+    blizzFrame:ClearAllPoints()
+    blizzFrame:SetPoint("CENTER", container, "CENTER", 0, 0)
+end
+
+-- Apply our custom styling to the Blizzard frame
+function TrackedBars:ApplyCustomStyling()
+    local blizzFrame = self:GetBlizzardFrame()
+    if not blizzFrame then return end
+    
+    local p = self.db.profile
+    
+    -- Apply scale
+    local scale = p.tbScale or 1.0
+    blizzFrame:SetScale(scale)
+    
+    -- Apply opacity
+    local opacity = p.tbOpacity or 1.0
+    blizzFrame:SetAlpha(opacity)
+    
+    -- Override padding if we have custom gap setting
+    if p.tbGap then
+        blizzFrame.childXPadding = p.tbGap
+        blizzFrame.childYPadding = p.tbGap
+    end
+    
+    -- Style each item frame
+    for itemFrame in blizzFrame.itemFramePool:EnumerateActive() do
+        self:StyleItemFrame(itemFrame)
+    end
+    
+    -- Force re-layout with our settings
+    local itemContainerFrame = blizzFrame:GetItemContainerFrame()
+    if itemContainerFrame and itemContainerFrame.Layout then
+        itemContainerFrame:Layout()
+    end
+    
+    -- Update container size to match
+    local container = Manager:GetContainer("bars")
+    if container then
+        local width = blizzFrame:GetWidth() * scale
+        local height = blizzFrame:GetHeight() * scale
+        container:SetSize(math.max(width, 1), math.max(height, 1))
     end
 end
 
+-- Style an individual bar item frame
+function TrackedBars:StyleItemFrame(itemFrame)
+    if not itemFrame then return end
+    
+    local p = self.db.profile
+    
+    -- Apply custom timer font size if specified
+    if p.tbTimerFontSize then
+        local durationFontString = itemFrame.Bar and itemFrame.Bar.Duration
+        if durationFontString then
+            durationFontString:SetFont("Fonts\\FRIZQT__.TTF", p.tbTimerFontSize, "OUTLINE")
+        end
+        
+        local nameFontString = itemFrame.Bar and itemFrame.Bar.Name
+        if nameFontString then
+            nameFontString:SetFont("Fonts\\FRIZQT__.TTF", p.tbTimerFontSize, "OUTLINE")
+        end
+    end
+    
+    -- Apply custom count font size if specified
+    if p.tbCountFontSize then
+        local iconFrame = itemFrame.Icon
+        if iconFrame and iconFrame.Applications then
+            iconFrame.Applications:SetFont("Fonts\\FRIZQT__.TTF", p.tbCountFontSize, "OUTLINE")
+        end
+    end
+end
+
+-- Main setup function for the reskin
+function TrackedBars:SetupReskin()
+    local blizzFrame = self:GetBlizzardFrame()
+    if not blizzFrame then
+        addon:Log("TrackedBars: BuffBarCooldownViewer not available yet", "discovery")
+        -- Retry after a delay
+        C_Timer.After(1.0, function() self:SetupReskin() end)
+        return
+    end
+    
+    local p = self.db.profile
+    local blizzEnabled = Manager:IsBlizzardCooldownViewerEnabled()
+    
+    addon:Log(string.format("TrackedBars:SetupReskin: enabled=%s, blizzEnabled=%s", 
+        tostring(p.tbEnabled), tostring(blizzEnabled)), "discovery")
+    
+    if not p.tbEnabled or not blizzEnabled then
+        self:RestoreBlizzardFrame()
+        local container = Manager:GetContainer("bars")
+        if container then container:Hide() end
+        return
+    end
+    
+    -- Install hooks (only once)
+    self:InstallHooks()
+    
+    -- Save original state before modifying
+    self:SaveOriginalState()
+    
+    -- Get our container
+    local container = Manager:GetContainer("bars")
+    if not container then return end
+    
+    -- Reparent Blizzard frame to our container
+    blizzFrame:SetParent(container)
+    
+    -- Remove from any managed frame system to prevent conflicts
+    if blizzFrame.layoutParent then
+        blizzFrame.layoutParent = nil
+    end
+    
+    -- Position and style
+    self:PositionBlizzardFrame()
+    self:ApplyCustomStyling()
+    
+    -- Position the container (sidecar positioning)
+    self:ApplyLayoutPosition()
+    
+    -- Show container and debug overlay
+    container:Show()
+    Manager:UpdateContainerDebug("bars", {r=1, g=0, b=0}) -- Red for bars
+    
+    isReskinActive = true
+    addon:Log("TrackedBars: Reskin active, Blizzard frame reparented", "discovery")
+end
+
+-- Update layout (called when settings change)
+function TrackedBars:UpdateLayout()
+    addon:Log("TrackedBars:UpdateLayout", "discovery")
+    self:SetupReskin()
+end
+
+-- Called on zone/world changes
 function TrackedBars:OnPlayerEnteringWorld()
-    -- Direct call - data provider should be ready for zone transitions
-    self:UpdateLayout()
+    -- Re-apply layout after zone changes
+    C_Timer.After(0.2, function()
+        self:UpdateLayout()
+    end)
+end
+
+-- Called by Manager (for compatibility, but not used in reskin mode)
+function TrackedBars:OnAuraUpdate()
+    -- In reskin mode, Blizzard handles aura updates automatically
+    -- We don't need to do anything here
 end

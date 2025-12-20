@@ -334,7 +334,7 @@ Enable it in Gameplay Enhancements to use Tracked Bars.]]
                 type = "description", order = 0,
             },
             enable = {
-                name = "Enable Tracked Bars", desc = "Enable and style the Tracked Bars (Active Effects) viewer.", type = "toggle", order = 1, width = "full",
+                name = "Enable Tracked Bars", desc = "Enable and style the Tracked Bars (Active Effects) viewer.\n\n|cffff9900Note:|r Reskins Blizzard's native frame. Changes take effect immediately but a /reload may be needed if display issues occur.", type = "toggle", order = 1, width = "full",
                 disabled = function() return not IsBlizzardCooldownViewerEnabled() end,
                 get = function(info) return self.db.profile.tbEnabled end,
                 set = function(info, val) self.db.profile.tbEnabled = val; ActionHud:GetModule("TrackedBars"):UpdateLayout() end,
@@ -412,7 +412,7 @@ Enable it in Gameplay Enhancements to use Tracked Buffs.]]
                 type = "description", order = 0,
             },
             enable = {
-                name = "Enable Tracked Buffs", desc = "Enable and style the long-duration buffs center-top.", type = "toggle", order = 1, width = "full",
+                name = "Enable Tracked Buffs", desc = "Enable and style the long-duration buffs center-top.\n\n|cffff9900Note:|r Reskins Blizzard's native frame. Changes take effect immediately but a /reload may be needed if display issues occur.", type = "toggle", order = 1, width = "full",
                 disabled = function() return not IsBlizzardCooldownViewerEnabled() end,
                 get = function(info) return self.db.profile.buffsEnabled end,
                 set = function(info, val) self.db.profile.buffsEnabled = val; ActionHud:GetModule("TrackedBuffs"):UpdateLayout() end,

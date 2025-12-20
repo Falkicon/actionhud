@@ -4,46 +4,46 @@ local TrackedBuffs = addon:NewModule("TrackedBuffs", "AceEvent-3.0")
 local Manager = ns.CooldownManager
 local Utils = ns.Utils
 
--- Local upvalues for performance
-local pairs = pairs
-local ipairs = ipairs
-local wipe = wipe
-local table_insert = table.insert
+-- Reskin approach: We hook into Blizzard's BuffIconCooldownViewer frame
+-- and reparent/restyle it instead of creating our own proxy frames.
+-- This allows Blizzard's code to handle the protected API calls for aura data.
 
-local lastKnownState = {} -- [cooldownID] = boolean
-local activeProxies = {} -- [proxyKey] = proxyFrame
+local BLIZZARD_FRAME_NAME = "BuffIconCooldownViewer"
 
--- Reusable tables to avoid garbage creation
-local usedKeysCache = {}
-local allProxyDataCache = {}
-local visibleProxiesCache = {}
-
-local function GetTrackedBuffCategory()
-    return Enum.CooldownViewerCategory and Enum.CooldownViewerCategory.TrackedBuff
-end
+-- State for reskin management
+local isReskinActive = false
+local originalParent = nil
+local originalPoints = nil
+local originalScale = nil
+local hooksInstalled = false
 
 function TrackedBuffs:OnInitialize()
     self.db = addon.db
 end
 
 function TrackedBuffs:OnEnable()
-    addon:Log("TrackedBuffs:OnEnable called", "discovery")
+    addon:Log("TrackedBuffs:OnEnable called (reskin mode)", "discovery")
+    
+    -- Create our container for positioning
     Manager:CreateContainer("buffs", "ActionHudBuffContainer")
-    self:UpdateLayout()
     
     self:RegisterEvent("PLAYER_ENTERING_WORLD", "OnPlayerEnteringWorld")
-
-    -- Single delayed retry in case data provider wasn't ready at OnEnable
-    C_Timer.After(0.5, function() self:UpdateLayout() end)
+    
+    -- Delay initial setup to ensure Blizzard frames are loaded
+    C_Timer.After(0.5, function() 
+        self:SetupReskin()
+    end)
 end
 
 function TrackedBuffs:OnDisable()
+    self:RestoreBlizzardFrame()
     local container = Manager:GetContainer("buffs")
     if container then container:Hide() end
-    local blizzardFrames = Manager:GetBlizzardFrames()
-    for _, frameName in ipairs(blizzardFrames.buffs) do
-        Manager:ShowBlizzardFrame(frameName)
-    end
+end
+
+-- Get the Blizzard frame we're reskinning
+function TrackedBuffs:GetBlizzardFrame()
+    return _G[BLIZZARD_FRAME_NAME]
 end
 
 -- Calculate the height of this module for LayoutManager
@@ -54,14 +54,25 @@ function TrackedBuffs:CalculateHeight()
     local blizzEnabled = Manager:IsBlizzardCooldownViewerEnabled()
     if not blizzEnabled then return 0 end
     
-    return p.buffsHeight or 28
+    -- Height is based on scaled Blizzard frame size
+    local blizzFrame = self:GetBlizzardFrame()
+    if blizzFrame and isReskinActive then
+        local scale = p.buffsScale or 1.0
+        return (blizzFrame:GetHeight() or 40) * scale
+    end
+    
+    return p.buffsHeight or 40
 end
 
 -- Get the width of this module for LayoutManager
 function TrackedBuffs:GetLayoutWidth()
-    local p = addon.db.profile
-    local cols = 6
-    return cols * (p.iconWidth or 20)
+    local blizzFrame = self:GetBlizzardFrame()
+    if blizzFrame and isReskinActive then
+        local p = self.db.profile
+        local scale = p.buffsScale or 1.0
+        return (blizzFrame:GetWidth() or 200) * scale
+    end
+    return 200
 end
 
 -- Apply position from LayoutManager
@@ -72,6 +83,7 @@ function TrackedBuffs:ApplyLayoutPosition()
     local p = self.db.profile
     if not p.buffsEnabled then 
         container:Hide()
+        self:RestoreBlizzardFrame()
         return
     end
     
@@ -83,204 +95,270 @@ function TrackedBuffs:ApplyLayoutPosition()
     
     local yOffset = LM:GetModulePosition("trackedBuffs")
     container:ClearAllPoints()
-    -- Center horizontally within main frame
     container:SetPoint("TOP", main, "TOP", 0, yOffset)
     container:Show()
+    
+    -- Re-apply positioning to Blizzard frame
+    self:PositionBlizzardFrame()
     
     addon:Log(string.format("TrackedBuffs positioned: yOffset=%d", yOffset), "layout")
 end
 
-function TrackedBuffs:UpdateLayout()
-    addon:Log("TrackedBuffs:UpdateLayout START", "discovery")
-    local main = _G["ActionHudFrame"]
-    if not main then 
-        addon:Log("TrackedBuffs:UpdateLayout: No main frame", "discovery")
-        return 
-    end
-    local p = self.db.profile
-    local container = Manager:GetContainer("buffs")
-    if not container then 
-        addon:Log("TrackedBuffs:UpdateLayout: No container", "discovery")
+-- Install hooks on the Blizzard frame (only once)
+function TrackedBuffs:InstallHooks()
+    if hooksInstalled then return end
+    
+    local blizzFrame = self:GetBlizzardFrame()
+    if not blizzFrame then 
+        addon:Log("TrackedBuffs: BuffIconCooldownViewer not found for hooks", "discovery")
         return 
     end
     
+    -- Hook RefreshLayout to re-apply our styling after Blizzard updates layout
+    hooksecurefunc(blizzFrame, "RefreshLayout", function()
+        if isReskinActive then
+            self:ApplyCustomStyling()
+        end
+    end)
+    
+    -- Hook OnAcquireItemFrame to style individual items
+    hooksecurefunc(blizzFrame, "OnAcquireItemFrame", function(_, itemFrame)
+        if isReskinActive then
+            self:StyleItemFrame(itemFrame)
+        end
+    end)
+    
+    -- Hook UpdateShownState to manage visibility
+    hooksecurefunc(blizzFrame, "UpdateShownState", function()
+        if isReskinActive then
+            -- Ensure our container visibility matches
+            local container = Manager:GetContainer("buffs")
+            if container then
+                container:SetShown(blizzFrame:IsShown())
+            end
+        end
+    end)
+    
+    hooksInstalled = true
+    addon:Log("TrackedBuffs: Hooks installed on BuffIconCooldownViewer", "discovery")
+end
+
+-- Save original state of Blizzard frame for restoration
+function TrackedBuffs:SaveOriginalState()
+    local blizzFrame = self:GetBlizzardFrame()
+    if not blizzFrame then return end
+    
+    if not originalParent then
+        originalParent = blizzFrame:GetParent()
+        originalScale = blizzFrame:GetScale()
+        
+        -- Save all anchor points
+        originalPoints = {}
+        for i = 1, blizzFrame:GetNumPoints() do
+            local point, relativeTo, relativePoint, xOfs, yOfs = blizzFrame:GetPoint(i)
+            table.insert(originalPoints, {point, relativeTo, relativePoint, xOfs, yOfs})
+        end
+        
+        addon:Log("TrackedBuffs: Saved original Blizzard frame state", "discovery")
+    end
+end
+
+-- Restore Blizzard frame to its original state
+function TrackedBuffs:RestoreBlizzardFrame()
+    if not isReskinActive then return end
+    
+    local blizzFrame = self:GetBlizzardFrame()
+    if not blizzFrame then return end
+    
+    -- Restore parent
+    if originalParent then
+        blizzFrame:SetParent(originalParent)
+    end
+    
+    -- Restore scale
+    if originalScale then
+        blizzFrame:SetScale(originalScale)
+    end
+    
+    -- Restore anchor points
+    if originalPoints and #originalPoints > 0 then
+        blizzFrame:ClearAllPoints()
+        for _, pointData in ipairs(originalPoints) do
+            blizzFrame:SetPoint(pointData[1], pointData[2], pointData[3], pointData[4], pointData[5])
+        end
+    end
+    
+    -- Re-enable UIParent management
+    if blizzFrame.layoutParent == nil and originalParent then
+        -- The frame will be re-managed by UIParent on next layout cycle
+    end
+    
+    isReskinActive = false
+    addon:Log("TrackedBuffs: Restored Blizzard frame to original state", "discovery")
+end
+
+-- Position the Blizzard frame within our container
+function TrackedBuffs:PositionBlizzardFrame()
+    local blizzFrame = self:GetBlizzardFrame()
+    if not blizzFrame then return end
+    
+    local container = Manager:GetContainer("buffs")
+    if not container then return end
+    
+    local p = self.db.profile
+    if not p.buffsEnabled then return end
+    
+    -- Apply positioning
+    blizzFrame:ClearAllPoints()
+    blizzFrame:SetPoint("CENTER", container, "CENTER", 0, 0)
+end
+
+-- Apply our custom styling to the Blizzard frame
+function TrackedBuffs:ApplyCustomStyling()
+    local blizzFrame = self:GetBlizzardFrame()
+    if not blizzFrame then return end
+    
+    local p = self.db.profile
+    
+    -- Apply scale
+    local scale = p.buffsScale or 1.0
+    blizzFrame:SetScale(scale)
+    
+    -- Apply opacity
+    local opacity = p.buffsOpacity or 1.0
+    blizzFrame:SetAlpha(opacity)
+    
+    -- Override padding if we have custom spacing
+    if p.buffsSpacing then
+        blizzFrame.childXPadding = p.buffsSpacing
+        blizzFrame.childYPadding = p.buffsSpacing
+    end
+    
+    -- Style each item frame
+    for itemFrame in blizzFrame.itemFramePool:EnumerateActive() do
+        self:StyleItemFrame(itemFrame)
+    end
+    
+    -- Force re-layout with our settings
+    local itemContainerFrame = blizzFrame:GetItemContainerFrame()
+    if itemContainerFrame and itemContainerFrame.Layout then
+        itemContainerFrame:Layout()
+    end
+    
+    -- Update container size to match
+    local container = Manager:GetContainer("buffs")
+    if container then
+        local width = blizzFrame:GetWidth() * scale
+        local height = blizzFrame:GetHeight() * scale
+        container:SetSize(math.max(width, 1), math.max(height, 1))
+    end
+end
+
+-- Style an individual item frame
+function TrackedBuffs:StyleItemFrame(itemFrame)
+    if not itemFrame then return end
+    
+    local p = self.db.profile
+    
+    -- Apply custom timer font size if specified
+    if p.buffsTimerFontSize and itemFrame.Cooldown then
+        local fontPath = Utils.GetTimerFont(p.buffsTimerFontSize)
+        if fontPath then
+            itemFrame.Cooldown:SetCountdownFont(fontPath)
+        end
+    end
+    
+    -- Apply custom count font size if specified
+    if p.buffsCountFontSize then
+        local applicationsFrame = itemFrame.Applications
+        if applicationsFrame and applicationsFrame.Applications then
+            applicationsFrame.Applications:SetFont("Fonts\\FRIZQT__.TTF", p.buffsCountFontSize, "OUTLINE")
+        end
+    end
+end
+
+-- Main setup function for the reskin
+function TrackedBuffs:SetupReskin()
+    local blizzFrame = self:GetBlizzardFrame()
+    if not blizzFrame then
+        addon:Log("TrackedBuffs: BuffIconCooldownViewer not available yet", "discovery")
+        -- Retry after a delay
+        C_Timer.After(1.0, function() self:SetupReskin() end)
+        return
+    end
+    
+    local p = self.db.profile
     local blizzEnabled = Manager:IsBlizzardCooldownViewerEnabled()
-    addon:Log(string.format("TrackedBuffs:UpdateLayout: enabled=%s, blizzEnabled=%s", tostring(p.buffsEnabled), tostring(blizzEnabled)), "discovery")
+    
+    addon:Log(string.format("TrackedBuffs:SetupReskin: enabled=%s, blizzEnabled=%s", 
+        tostring(p.buffsEnabled), tostring(blizzEnabled)), "discovery")
     
     -- Report height to LayoutManager
     local LM = addon:GetModule("LayoutManager", true)
-    local height = self:CalculateHeight()
     if LM then
-        LM:SetModuleHeight("trackedBuffs", height)
+        LM:SetModuleHeight("trackedBuffs", self:CalculateHeight())
     end
     
-    if p.buffsEnabled and blizzEnabled then
-        local blizzardFrames = Manager:GetBlizzardFrames()
-        if not p.debugShowBlizzardFrames then
-            for _, frameName in ipairs(blizzardFrames.buffs) do Manager:HideBlizzardFrame(frameName) end
-        else
-            for _, frameName in ipairs(blizzardFrames.buffs) do Manager:ShowBlizzardFrame(frameName) end
-        end
-        container:Show()
-        Manager:UpdateContainerDebug("buffs", {r=0, g=1, b=0}) -- Green for buffs
-        self:RenderBuffProxies(container, p)
-    else
-        container:Hide()
-        local blizzardFrames = Manager:GetBlizzardFrames()
-        for _, frameName in ipairs(blizzardFrames.buffs) do Manager:ShowBlizzardFrame(frameName) end
-        self:ReleaseBuffProxies()
-    end
-end
-
-function TrackedBuffs:RenderBuffProxies(container, p)
-    local category = GetTrackedBuffCategory()
-    if not category then 
-        addon:Log("TrackedBuffs: No category available", "discovery")
-        return 
-    end
-    
-    local cooldownIDs = Manager:GetCooldownIDsForCategory(category, "TrackedBuff")
-    addon:Log(string.format("TrackedBuffs:RenderBuffProxies: %d cooldownIDs", #cooldownIDs), "discovery")
-    local gap = p.buffsSpacing
-    local hideInactive = p.buffsHideInactive
-    local inactiveAlpha = p.buffsInactiveOpacity or 0.5
-    
-    -- Reuse cached tables to avoid garbage creation
-    wipe(usedKeysCache)
-    wipe(allProxyDataCache)
-    wipe(visibleProxiesCache)
-    
-    -- PASS 1: Get/create proxies and populate them (don't show/hide yet)
-    for _, cooldownID in ipairs(cooldownIDs) do
-        local info = Manager:GetCooldownInfoForID(cooldownID)
-        if info and info.spellID then
-            -- Cache proxyKey on proxy to avoid repeated string concat
-            local proxy = activeProxies[cooldownID]
-            if not proxy then
-                proxy = Manager:GetProxy(container, "buff")
-                activeProxies[cooldownID] = proxy
-                proxy.proxyKey = cooldownID
-            end
-            usedKeysCache[cooldownID] = true
-            
-            -- Mark this proxy as leased to this key
-            proxy.leasedTo = cooldownID
-            
-            proxy:SetSize(p.buffsWidth, p.buffsHeight)
-            proxy.count:SetFont("Fonts\\FRIZQT__.TTF", p.buffsCountFontSize or 8, "OUTLINE")
-            proxy.cooldown:SetCountdownFont(Utils.GetTimerFont(p.buffsTimerFontSize))
-            
-            proxy.cooldownID = cooldownID
-            proxy.cooldownInfo = info
-            
-            Manager:PopulateBuffProxy(proxy, cooldownID, info, lastKnownState, ns)
-            
-            -- Store isActive on proxy to avoid creating intermediate tables
-            proxy._isActive = not proxy.icon:IsDesaturated()
-            table_insert(allProxyDataCache, proxy)
-        end
-    end
-    
-    -- PASS 2: Determine which proxies to show and collect them for positioning
-    for _, proxy in ipairs(allProxyDataCache) do
-        if hideInactive and not proxy._isActive then
-            -- Will be hidden in pass 3
-        else
-            proxy:SetAlpha(proxy._isActive and 1.0 or inactiveAlpha)
-            table_insert(visibleProxiesCache, proxy)
-        end
-    end
-    
-    
-    -- PASS 3: Position and show visible proxies, hide inactive ones
-    local numVisible = #visibleProxiesCache
-    if numVisible > 0 then
-        local totalWidth = (numVisible * p.buffsWidth) + ((numVisible - 1) * gap)
-        local startX = -totalWidth / 2
-        -- Debug logging removed from hot path to avoid string.format garbage
-        for i, proxy in ipairs(visibleProxiesCache) do
-            proxy:ClearAllPoints()
-            local x = startX + (i - 1) * (p.buffsWidth + gap)
-            proxy:SetPoint("LEFT", container, "CENTER", x, 0)
-            proxy:Show()
-        end
-        container:SetSize(totalWidth, p.buffsHeight)
-    else
-        container:SetSize(1, 1)
-    end
-    
-    -- PASS 4: Hide inactive proxies (after all positioning is done)
-    for _, proxy in ipairs(allProxyDataCache) do
-        if hideInactive and not proxy._isActive then
-            proxy:Hide()
-            proxy:ClearAllPoints()
-        end
-    end
-
-    -- Cleanup any proxies that are no longer in the configured list
-    for key, proxy in pairs(activeProxies) do
-        if not usedKeysCache[key] then
-            Manager:ReleaseProxy(proxy)
-            activeProxies[key] = nil
-        end
-    end
-end
-
-function TrackedBuffs:ReleaseBuffProxies()
-    for key, proxy in pairs(activeProxies) do
-        Manager:ReleaseProxy(proxy)
-        activeProxies[key] = nil
-    end
-end
-
--- Lightweight update: refresh existing proxies without full re-render
--- Only updates aura state, doesn't recreate or reposition proxies
-function TrackedBuffs:RefreshActiveProxies()
-    local p = self.db.profile
-    local hideInactive = p.buffsHideInactive
-    local inactiveAlpha = p.buffsInactiveOpacity or 0.5
-    local gap = p.buffsSpacing
-    local needsReposition = false
-    
-    -- Update each proxy's state
-    for key, proxy in pairs(activeProxies) do
-        if proxy.cooldownInfo then
-            local wasActive = not proxy.icon:IsDesaturated()
-            Manager:PopulateBuffProxy(proxy, proxy.cooldownID, proxy.cooldownInfo, lastKnownState, ns)
-            local isActive = not proxy.icon:IsDesaturated()
-            
-            -- Check if visibility changed (needs repositioning)
-            if hideInactive and wasActive ~= isActive then
-                needsReposition = true
-            end
-            
-            -- Update alpha for visible proxies
-            if not hideInactive or isActive then
-                proxy:SetAlpha(isActive and 1.0 or inactiveAlpha)
-            end
-        end
-    end
-    
-    -- Only do full reposition if visibility changed
-    if needsReposition then
+    if not p.buffsEnabled or not blizzEnabled then
+        self:RestoreBlizzardFrame()
         local container = Manager:GetContainer("buffs")
-        if container then
-            self:RenderBuffProxies(container, p)
-        end
+        if container then container:Hide() end
+        return
     end
-end
-
--- Called by Manager after aura cache update
-function TrackedBuffs:OnAuraUpdate()
-    addon:Log("TrackedBuffs:OnAuraUpdate", "discovery")
+    
+    -- Install hooks (only once)
+    self:InstallHooks()
+    
+    -- Save original state before modifying
+    self:SaveOriginalState()
+    
+    -- Get our container
     local container = Manager:GetContainer("buffs")
-    if container and container:IsShown() then
-        -- Use lightweight refresh instead of full re-render
-        self:RefreshActiveProxies()
+    if not container then return end
+    
+    -- Reparent Blizzard frame to our container
+    blizzFrame:SetParent(container)
+    
+    -- Remove from UIParent's managed frame system to prevent conflicts
+    if blizzFrame.layoutParent then
+        blizzFrame.layoutParent = nil
+    end
+    
+    -- Position and style
+    self:PositionBlizzardFrame()
+    self:ApplyCustomStyling()
+    
+    -- Show container and debug overlay
+    container:Show()
+    Manager:UpdateContainerDebug("buffs", {r=0, g=1, b=0}) -- Green for buffs
+    
+    isReskinActive = true
+    addon:Log("TrackedBuffs: Reskin active, Blizzard frame reparented", "discovery")
+end
+
+-- Update layout (called when settings change)
+function TrackedBuffs:UpdateLayout()
+    addon:Log("TrackedBuffs:UpdateLayout", "discovery")
+    self:SetupReskin()
+    
+    -- Notify LayoutManager of potential height change
+    local LM = addon:GetModule("LayoutManager", true)
+    if LM then
+        LM:SetModuleHeight("trackedBuffs", self:CalculateHeight())
+        LM:UpdateLayout()
     end
 end
 
+-- Called on zone/world changes
 function TrackedBuffs:OnPlayerEnteringWorld()
-    -- Direct call - data provider should be ready for zone transitions
-    self:UpdateLayout()
+    -- Re-apply layout after zone changes
+    C_Timer.After(0.2, function()
+        self:UpdateLayout()
+    end)
+end
+
+-- Called by Manager (for compatibility, but not used in reskin mode)
+function TrackedBuffs:OnAuraUpdate()
+    -- In reskin mode, Blizzard handles aura updates automatically
+    -- We don't need to do anything here
 end
