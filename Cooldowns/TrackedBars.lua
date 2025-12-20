@@ -192,22 +192,16 @@ function TrackedBars:ApplyCustomStyling()
     
     local p = self.db.profile
     
-    -- Calculate scale based on desired height vs default 30
+    -- Calculate scale based on desired size vs default 30
     local DEFAULT_BAR_HEIGHT = 30
-    local desiredHeight = p.tbHeight or DEFAULT_BAR_HEIGHT
-    local scale = desiredHeight / DEFAULT_BAR_HEIGHT
+    local desiredSize = p.tbSize or p.tbHeight or DEFAULT_BAR_HEIGHT
+    local scale = desiredSize / DEFAULT_BAR_HEIGHT
     
     -- Apply scale to the entire frame (safe - doesn't trigger refresh)
     blizzFrame:SetScale(scale)
     
     -- Apply opacity (safe)
     blizzFrame:SetAlpha(p.tbOpacity or 1.0)
-    
-    -- Override padding if we have custom gap (safe - just property assignment)
-    if p.tbGap then
-        blizzFrame.childXPadding = p.tbGap
-        blizzFrame.childYPadding = p.tbGap
-    end
     
     -- Style existing item frames (safe operations only - no SetScale on items)
     -- This catches items that existed before our hooks were installed

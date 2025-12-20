@@ -208,9 +208,10 @@ function TrackedBuffs:PositionBlizzardFrame()
     local p = self.db.profile
     if not p.buffsEnabled then return end
     
-    -- Center the Blizzard frame in our container
+    -- Anchor at TOP-CENTER of container
+    -- Blizzard's frame has align="center" internally, so this should center the icons
     blizzFrame:ClearAllPoints()
-    blizzFrame:SetPoint("CENTER", container, "CENTER", 0, 0)
+    blizzFrame:SetPoint("TOP", container, "TOP", 0, 0)
 end
 
 -- Apply our custom styling to the Blizzard frame
@@ -227,7 +228,7 @@ function TrackedBuffs:ApplyCustomStyling()
     
     -- Calculate scale based on desired size vs default 40x40
     local DEFAULT_ICON_SIZE = 40
-    local desiredSize = math.min(p.buffsWidth or DEFAULT_ICON_SIZE, p.buffsHeight or DEFAULT_ICON_SIZE)
+    local desiredSize = p.buffsSize or p.buffsHeight or DEFAULT_ICON_SIZE
     local scale = desiredSize / DEFAULT_ICON_SIZE
     
     -- Apply scale to the entire frame (safe - doesn't trigger refresh)
@@ -235,12 +236,6 @@ function TrackedBuffs:ApplyCustomStyling()
     
     -- Apply opacity (safe)
     blizzFrame:SetAlpha(p.buffsOpacity or 1.0)
-    
-    -- Override padding if we have custom spacing (safe - just property assignment)
-    if p.buffsSpacing then
-        blizzFrame.childXPadding = p.buffsSpacing
-        blizzFrame.childYPadding = p.buffsSpacing
-    end
     
     -- Style existing item frames (safe operations only - no SetScale on items)
     -- This catches items that existed before our hooks were installed
