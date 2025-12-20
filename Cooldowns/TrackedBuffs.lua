@@ -91,18 +91,20 @@ function TrackedBuffs:StyleItemFrame(itemFrame)
     self:StripBlizzardDecorations(itemFrame)
     
     -- Apply custom timer font size if specified
-    if p.trackedTimerFontSize and itemFrame.Cooldown then
-        local fontObject = Utils.GetTimerFont(p.trackedTimerFontSize)
+    local timerSize = p.buffsTimerFontSize or p.trackedTimerFontSize or "medium"
+    if timerSize and itemFrame.Cooldown then
+        local fontObject = Utils.GetTimerFont(timerSize)
         if fontObject then
             itemFrame.Cooldown:SetCountdownFont(fontObject)
         end
     end
     
     -- Apply custom count font size if specified (numeric)
-    if p.trackedCountFontSize and type(p.trackedCountFontSize) == "number" then
+    local countSize = p.buffsCountFontSize or p.trackedCountFontSize or 10
+    if countSize and type(countSize) == "number" then
         local applicationsFrame = itemFrame.Applications
         if applicationsFrame and applicationsFrame.Applications then
-            applicationsFrame.Applications:SetFont("Fonts\\FRIZQT__.TTF", p.trackedCountFontSize, "OUTLINE")
+            applicationsFrame.Applications:SetFont("Fonts\\FRIZQT__.TTF", countSize, "OUTLINE")
         end
     end
 end

@@ -315,7 +315,7 @@ All ActionHud cooldown features are unavailable until enabled.]]
         },
     }
     
-    -- SUB: Tracked Abilities (combines Tracked Buffs and Tracked Bars)
+    -- SUB: Tracked Abilities (Tracked Buffs, Tracked Bars, External Defensives)
     -- Style-only overlays on Blizzard's native frames. Position via EditMode.
     local trackedOptions = {
         name = "Tracked Abilities",
@@ -336,18 +336,18 @@ Enable it in Gameplay Enhancements to use these features.]]
             },
             infoNote = {
                 type = "description", order = 1,
-                name = [[ActionHud applies custom styling to Blizzard's Tracked Buffs and Tracked Bars frames, removing rounded corners and adjusting fonts.
+                name = [[ActionHud applies custom styling to Blizzard's Tracked Abilities frames, removing rounded corners and adjusting fonts.
 
 |cffffcc00Positioning:|r Use Blizzard's |cff00ff00EditMode|r (ESC → Edit Mode) to move and resize these frames.
 ]],
             },
             
-            -- Styling Toggles
-            styleHeader = { name = "Styling", type = "header", order = 10 },
+            -- Tracked Buffs Section
+            buffsHeader = { name = "Tracked Buffs", type = "header", order = 10 },
             styleTrackedBuffs = {
-                name = "Style Tracked Buffs", 
+                name = "Enable Styling", 
                 desc = "Apply ActionHud styling to the Tracked Buffs frame (removes rounded corners, custom fonts).", 
-                type = "toggle", order = 11, width = "full",
+                type = "toggle", order = 11, width = 1.0,
                 disabled = function() return not IsBlizzardCooldownViewerEnabled() end,
                 get = function(info) return self.db.profile.styleTrackedBuffs end,
                 set = function(info, val) 
@@ -355,10 +355,37 @@ Enable it in Gameplay Enhancements to use these features.]]
                     ActionHud:GetModule("TrackedBuffs"):UpdateLayout() 
                 end,
             },
+            buffsCountFontSize = {
+                name = "Stack Count Font", 
+                desc = "Font size for stack counts.",
+                type = "range", min = 6, max = 18, step = 1, order = 12, width = 1.0,
+                disabled = function() return not IsBlizzardCooldownViewerEnabled() or not self.db.profile.styleTrackedBuffs end,
+                get = function(info) return self.db.profile.buffsCountFontSize or 10 end,
+                set = function(info, val) 
+                    self.db.profile.buffsCountFontSize = val
+                    ActionHud:GetModule("TrackedBuffs"):UpdateLayout()
+                end,
+            },
+            buffsTimerFontSize = {
+                name = "Timer Font", 
+                desc = "Font size for cooldown timers.",
+                type = "select", order = 13, width = 1.0,
+                values = { small = "Small", medium = "Medium", large = "Large", huge = "Huge" },
+                sorting = { "small", "medium", "large", "huge" },
+                disabled = function() return not IsBlizzardCooldownViewerEnabled() or not self.db.profile.styleTrackedBuffs end,
+                get = function(info) return self.db.profile.buffsTimerFontSize or "medium" end,
+                set = function(info, val) 
+                    self.db.profile.buffsTimerFontSize = val
+                    ActionHud:GetModule("TrackedBuffs"):UpdateLayout()
+                end,
+            },
+            
+            -- Tracked Bars Section
+            barsHeader = { name = "Tracked Bars", type = "header", order = 20 },
             styleTrackedBars = {
-                name = "Style Tracked Bars", 
+                name = "Enable Styling", 
                 desc = "Apply ActionHud styling to the Tracked Bars frame (removes rounded corners, custom fonts).", 
-                type = "toggle", order = 12, width = "full",
+                type = "toggle", order = 21, width = 1.0,
                 disabled = function() return not IsBlizzardCooldownViewerEnabled() end,
                 get = function(info) return self.db.profile.styleTrackedBars end,
                 set = function(info, val) 
@@ -366,35 +393,50 @@ Enable it in Gameplay Enhancements to use these features.]]
                     ActionHud:GetModule("TrackedBars"):UpdateLayout() 
                 end,
             },
-            
-            -- Font Settings (shared)
-            fonts = { name = "Fonts", type = "header", order = 30 },
-            trackedCountFontSize = {
-                name = "Stack Count Font Size", 
-                desc = "Font size for stack counts on tracked abilities.",
-                type = "range", min = 6, max = 18, step = 1, order = 31,
-                disabled = function() return not IsBlizzardCooldownViewerEnabled() end,
-                get = function(info) return self.db.profile.trackedCountFontSize or 10 end,
+            barsCountFontSize = {
+                name = "Stack Count Font", 
+                desc = "Font size for stack counts.",
+                type = "range", min = 6, max = 18, step = 1, order = 22, width = 1.0,
+                disabled = function() return not IsBlizzardCooldownViewerEnabled() or not self.db.profile.styleTrackedBars end,
+                get = function(info) return self.db.profile.barsCountFontSize or 10 end,
                 set = function(info, val) 
-                    self.db.profile.trackedCountFontSize = val
-                    ActionHud:GetModule("TrackedBuffs"):UpdateLayout()
+                    self.db.profile.barsCountFontSize = val
                     ActionHud:GetModule("TrackedBars"):UpdateLayout()
                 end,
             },
-            trackedTimerFontSize = {
-                name = "Timer Font Size", 
-                desc = "Font size for cooldown timers on tracked abilities.",
-                type = "select", order = 32,
+            barsTimerFontSize = {
+                name = "Timer Font", 
+                desc = "Font size for cooldown timers.",
+                type = "select", order = 23, width = 1.0,
                 values = { small = "Small", medium = "Medium", large = "Large", huge = "Huge" },
                 sorting = { "small", "medium", "large", "huge" },
-                disabled = function() return not IsBlizzardCooldownViewerEnabled() end,
-                get = function(info) return self.db.profile.trackedTimerFontSize or "medium" end,
+                disabled = function() return not IsBlizzardCooldownViewerEnabled() or not self.db.profile.styleTrackedBars end,
+                get = function(info) return self.db.profile.barsTimerFontSize or "medium" end,
                 set = function(info, val) 
-                    self.db.profile.trackedTimerFontSize = val
-                    ActionHud:GetModule("TrackedBuffs"):UpdateLayout()
+                    self.db.profile.barsTimerFontSize = val
                     ActionHud:GetModule("TrackedBars"):UpdateLayout()
                 end,
             },
+            
+            -- External Defensives Section
+            defensivesHeader = { name = "External Defensives", type = "header", order = 30 },
+            defensivesNote = {
+                type = "description", order = 31,
+                name = "|cffaaaaaa(Coming soon - pending Blizzard API availability)|r",
+            },
+            --[[
+            styleExternalDefensives = {
+                name = "Enable Styling", 
+                desc = "Apply ActionHud styling to the External Defensives frame.", 
+                type = "toggle", order = 32, width = 1.0,
+                disabled = function() return not IsBlizzardCooldownViewerEnabled() end,
+                get = function(info) return self.db.profile.styleExternalDefensives end,
+                set = function(info, val) 
+                    self.db.profile.styleExternalDefensives = val
+                    -- ActionHud:GetModule("TrackedDefensives"):UpdateLayout() 
+                end,
+            },
+            ]]
         },
     }
 
@@ -415,6 +457,19 @@ Enable it in Gameplay Enhancements to use these features.]]
         local args = {}
         local LM = GetLayoutManager()
         if not LM then return args end
+        
+        -- EditMode Note
+        args.editModeNote = {
+            type = "description", order = 1,
+            name = [[|cffffcc00Tracked Abilities Positioning:|r
+Use Blizzard's |cff00ff00EditMode|r (ESC → Edit Mode) to position and resize:
+• Tracked Buffs
+• Tracked Bars  
+• External Defensives (when available)
+
+These frames are styled by ActionHud but positioned via EditMode.
+]],
+        }
         
         -- HUD Stack Section
         args.stackHeader = { type = "header", name = "HUD Stack Order", order = 10 }

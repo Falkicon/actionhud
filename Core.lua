@@ -42,9 +42,14 @@ local defaults = {
 
         -- Tracked Abilities (style-only, position via EditMode)
         styleTrackedBuffs = true,
+        buffsCountFontSize = 10,
+        buffsTimerFontSize = "medium",
+        
         styleTrackedBars = true,
-        trackedCountFontSize = 10,
-        trackedTimerFontSize = "medium",
+        barsCountFontSize = 10,
+        barsTimerFontSize = "medium",
+        
+        -- styleExternalDefensives = true,  -- Future: when Blizzard adds the frame
 
         -- Minimap Icon (LibDBIcon)
         minimap = {
