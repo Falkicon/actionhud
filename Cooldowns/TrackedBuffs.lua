@@ -283,28 +283,33 @@ function TrackedBuffs:StyleItemFrame(itemFrame)
 end
 
 -- Remove Blizzard's decorative textures (mask, overlay, shadow)
+-- Target specific known elements to avoid secret value issues with GetDrawLayer()
 function TrackedBuffs:StripBlizzardDecorations(itemFrame)
     if not itemFrame then return end
+    if itemFrame._ahStripped then return end -- Only strip once
     
-    -- Hide all OVERLAY layer textures (the IconOverlay frame border)
+    -- Blizzard's CooldownViewerBuffIconItemTemplate structure:
+    -- - Icon (Texture, parentKey) - KEEP
+    -- - MaskTexture - Hide to remove rounded corners
+    -- - Texture (IconOverlay atlas) - Hide to remove border
+    
     local regions = {itemFrame:GetRegions()}
     for _, region in ipairs(regions) do
-        if region:IsObjectType("Texture") then
-            local layer = region:GetDrawLayer()
-            if layer == "OVERLAY" then
-                region:Hide()
-            end
-            -- Also check for the mask texture (it's in ARTWORK layer but we want to disable masking)
-            if region:IsObjectType("MaskTexture") then
-                -- Can't easily disable masking, but we can try to make it full coverage
-            end
+        -- Hide MaskTextures (removes rounded corner masking)
+        if region:IsObjectType("MaskTexture") then
+            region:Hide()
+        -- Hide non-icon textures (the overlay border)
+        elseif region:IsObjectType("Texture") and region ~= itemFrame.Icon then
+            region:Hide()
         end
     end
     
-    -- Remove icon masking by making the icon fill the frame without tex coords cropping
+    -- Apply standard icon crop
     if itemFrame.Icon then
-        itemFrame.Icon:SetTexCoord(0.08, 0.92, 0.08, 0.92) -- Standard slight crop
+        itemFrame.Icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
     end
+    
+    itemFrame._ahStripped = true
 end
 
 -- Main setup function for the reskin

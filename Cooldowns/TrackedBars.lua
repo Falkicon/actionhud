@@ -256,20 +256,26 @@ function TrackedBars:StyleItemFrame(itemFrame)
 end
 
 -- Remove Blizzard's decorative textures (mask, overlay, shadow, bar background)
+-- Target specific known elements to avoid secret value issues with GetDrawLayer()
 function TrackedBars:StripBlizzardDecorations(itemFrame)
     if not itemFrame then return end
+    if itemFrame._ahStripped then return end -- Only strip once
+    
+    -- Blizzard's CooldownViewerBuffBarItemTemplate structure:
+    -- Icon frame contains: Icon texture, MaskTexture, IconOverlay texture, Applications FontString
+    -- Bar frame contains: BarTexture, Background texture, Pip texture, Name FontString, Duration FontString
     
     -- Strip decorations from the Icon frame
     if itemFrame.Icon then
         local iconFrame = itemFrame.Icon
         local regions = {iconFrame:GetRegions()}
         for _, region in ipairs(regions) do
-            if region:IsObjectType("Texture") then
-                local layer = region:GetDrawLayer()
-                -- Hide OVERLAY textures (IconOverlay border)
-                if layer == "OVERLAY" and region ~= iconFrame.Applications then
-                    region:Hide()
-                end
+            -- Hide MaskTextures (removes rounded corner masking)
+            if region:IsObjectType("MaskTexture") then
+                region:Hide()
+            -- Hide textures that aren't the main icon
+            elseif region:IsObjectType("Texture") and region ~= iconFrame.Icon then
+                region:Hide()
             end
         end
         -- Apply standard icon crop
@@ -283,19 +289,23 @@ function TrackedBars:StripBlizzardDecorations(itemFrame)
         local barFrame = itemFrame.Bar
         local regions = {barFrame:GetRegions()}
         for _, region in ipairs(regions) do
+            -- Hide textures that aren't the status bar fill
+            -- The BarTexture is set via :GetStatusBarTexture(), not a child region
             if region:IsObjectType("Texture") then
-                local layer = region:GetDrawLayer()
-                -- Hide BACKGROUND textures (bar background/shadow)
-                if layer == "BACKGROUND" then
+                -- Hide background/pip textures but keep the bar fill
+                local barTexture = barFrame:GetStatusBarTexture()
+                if region ~= barTexture then
                     region:Hide()
                 end
             end
         end
-        -- Hide the pip (end cap indicator)
+        -- Hide the pip (end cap indicator) - it's a parentKey
         if barFrame.Pip then
             barFrame.Pip:Hide()
         end
     end
+    
+    itemFrame._ahStripped = true
 end
 
 -- Main setup function for the reskin
