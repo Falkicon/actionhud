@@ -227,24 +227,73 @@ function TrackedBars:StyleItemFrame(itemFrame)
     
     local p = self.db.profile
     
+    -- Remove Blizzard's decorative elements (mask, overlay, shadows)
+    self:StripBlizzardDecorations(itemFrame)
+    
     -- Apply custom timer font size if specified
+    -- p.tbTimerFontSize is a string like "small", "medium", "large", "huge"
     if p.tbTimerFontSize then
+        local fontObject = Utils.GetTimerFont(p.tbTimerFontSize)
+        
         local durationFontString = itemFrame.Bar and itemFrame.Bar.Duration
-        if durationFontString then
-            durationFontString:SetFont("Fonts\\FRIZQT__.TTF", p.tbTimerFontSize, "OUTLINE")
+        if durationFontString and fontObject then
+            durationFontString:SetFontObject(fontObject)
         end
         
         local nameFontString = itemFrame.Bar and itemFrame.Bar.Name
-        if nameFontString then
-            nameFontString:SetFont("Fonts\\FRIZQT__.TTF", p.tbTimerFontSize, "OUTLINE")
+        if nameFontString and fontObject then
+            nameFontString:SetFontObject(fontObject)
         end
     end
     
-    -- Apply custom count font size if specified
-    if p.tbCountFontSize then
+    -- Apply custom count font size if specified (numeric)
+    if p.tbCountFontSize and type(p.tbCountFontSize) == "number" then
         local iconFrame = itemFrame.Icon
         if iconFrame and iconFrame.Applications then
             iconFrame.Applications:SetFont("Fonts\\FRIZQT__.TTF", p.tbCountFontSize, "OUTLINE")
+        end
+    end
+end
+
+-- Remove Blizzard's decorative textures (mask, overlay, shadow, bar background)
+function TrackedBars:StripBlizzardDecorations(itemFrame)
+    if not itemFrame then return end
+    
+    -- Strip decorations from the Icon frame
+    if itemFrame.Icon then
+        local iconFrame = itemFrame.Icon
+        local regions = {iconFrame:GetRegions()}
+        for _, region in ipairs(regions) do
+            if region:IsObjectType("Texture") then
+                local layer = region:GetDrawLayer()
+                -- Hide OVERLAY textures (IconOverlay border)
+                if layer == "OVERLAY" and region ~= iconFrame.Applications then
+                    region:Hide()
+                end
+            end
+        end
+        -- Apply standard icon crop
+        if iconFrame.Icon then
+            iconFrame.Icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+        end
+    end
+    
+    -- Strip decorations from the Bar frame
+    if itemFrame.Bar then
+        local barFrame = itemFrame.Bar
+        local regions = {barFrame:GetRegions()}
+        for _, region in ipairs(regions) do
+            if region:IsObjectType("Texture") then
+                local layer = region:GetDrawLayer()
+                -- Hide BACKGROUND textures (bar background/shadow)
+                if layer == "BACKGROUND" then
+                    region:Hide()
+                end
+            end
+        end
+        -- Hide the pip (end cap indicator)
+        if barFrame.Pip then
+            barFrame.Pip:Hide()
         end
     end
 end

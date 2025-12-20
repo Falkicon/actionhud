@@ -260,20 +260,50 @@ function TrackedBuffs:StyleItemFrame(itemFrame)
     
     local p = self.db.profile
     
+    -- Remove Blizzard's decorative elements (mask, overlay, shadows)
+    -- These are defined in CooldownViewerBuffIconItemTemplate
+    self:StripBlizzardDecorations(itemFrame)
+    
     -- Apply custom timer font size if specified
+    -- p.buffsTimerFontSize is a string like "small", "medium", "large", "huge"
     if p.buffsTimerFontSize and itemFrame.Cooldown then
-        local fontPath = Utils.GetTimerFont(p.buffsTimerFontSize)
-        if fontPath then
-            itemFrame.Cooldown:SetCountdownFont(fontPath)
+        local fontObject = Utils.GetTimerFont(p.buffsTimerFontSize)
+        if fontObject then
+            itemFrame.Cooldown:SetCountdownFont(fontObject)
         end
     end
     
-    -- Apply custom count font size if specified
-    if p.buffsCountFontSize then
+    -- Apply custom count font size if specified (numeric)
+    if p.buffsCountFontSize and type(p.buffsCountFontSize) == "number" then
         local applicationsFrame = itemFrame.Applications
         if applicationsFrame and applicationsFrame.Applications then
             applicationsFrame.Applications:SetFont("Fonts\\FRIZQT__.TTF", p.buffsCountFontSize, "OUTLINE")
         end
+    end
+end
+
+-- Remove Blizzard's decorative textures (mask, overlay, shadow)
+function TrackedBuffs:StripBlizzardDecorations(itemFrame)
+    if not itemFrame then return end
+    
+    -- Hide all OVERLAY layer textures (the IconOverlay frame border)
+    local regions = {itemFrame:GetRegions()}
+    for _, region in ipairs(regions) do
+        if region:IsObjectType("Texture") then
+            local layer = region:GetDrawLayer()
+            if layer == "OVERLAY" then
+                region:Hide()
+            end
+            -- Also check for the mask texture (it's in ARTWORK layer but we want to disable masking)
+            if region:IsObjectType("MaskTexture") then
+                -- Can't easily disable masking, but we can try to make it full coverage
+            end
+        end
+    end
+    
+    -- Remove icon masking by making the icon fill the frame without tex coords cropping
+    if itemFrame.Icon then
+        itemFrame.Icon:SetTexCoord(0.08, 0.92, 0.08, 0.92) -- Standard slight crop
     end
 end
 
@@ -345,7 +375,7 @@ function TrackedBuffs:UpdateLayout()
     local LM = addon:GetModule("LayoutManager", true)
     if LM then
         LM:SetModuleHeight("trackedBuffs", self:CalculateHeight())
-        LM:UpdateLayout()
+        LM:TriggerLayoutUpdate()
     end
 end
 
