@@ -23,47 +23,18 @@ local proxyPool = {}
 local hiddenFrames = {}
 local containers = {}
 
--- Aura cache
-local auraBySpellID = {}
-local auraByName = {}
-local auraByInstanceID = {}
-local auraByIcon = {}
-
--- Pre-seeded texture to spellID mapping for tracked abilities
--- Built at addon enable (outside combat) to enable fallback matching when spellId is secret
-local knownTextureToSpellID = {}
-
--- Target Blizzard Frames
+-- Target Blizzard Frames (only cd frames are hidden/shown by Manager)
+-- TrackedBuffs/TrackedBars/TrackedDefensives use style-only approach via EditMode
 local blizzardFrames = {
     cd = { "EssentialCooldownViewer", "UtilityCooldownViewer" },
-    buffs = { "BuffIconCooldownViewer" },
-    bars = { "BuffBarCooldownViewer", "TrackedBarCooldownViewer" },
 }
-
--- Cached module references (populated in OnEnable, avoids GetModule lookup in hot path)
-local cachedTrackedBars = nil
-local cachedTrackedBuffs = nil
 
 -- ============================================================================
 -- Lifecycle
 -- ============================================================================
 
 function Manager:OnEnable()
-    self:RegisterEvent("UNIT_AURA", "OnUnitAura")
     self:RegisterEvent("CVAR_UPDATE", "OnEvent")
-    self:RegisterEvent("PLAYER_REGEN_ENABLED", "OnPlayerRegenEnabled")
-    self:RegisterEvent("ZONE_CHANGED_NEW_AREA", "AuraCache_RebuildFull")
-    self:RegisterEvent("PLAYER_ENTERING_WORLD", "AuraCache_RebuildFull")
-    
-    -- Pre-seed known spell textures for fallback matching during combat
-    -- Delayed slightly to ensure data provider is ready
-    C_Timer.After(0.5, function() self:PreSeedKnownSpells() end)
-    
-    self:AuraCache_RebuildFull()
-    
-    -- Cache module references to avoid GetModule lookups on every UNIT_AURA
-    cachedTrackedBars = addon:GetModule("TrackedBars", true)
-    cachedTrackedBuffs = addon:GetModule("TrackedBuffs", true)
     
     -- Watch for Blizzard Cooldown Manager setting changes
     if CVarCallbackRegistry and CVarCallbackRegistry.RegisterCallback then
@@ -76,7 +47,6 @@ function Manager:OnEnable()
 end
 
 function Manager:OnDisable()
-    self:UnregisterEvent("UNIT_AURA")
     self:UnregisterEvent("CVAR_UPDATE")
     
     if CVarCallbackRegistry and CVarCallbackRegistry.UnregisterCallback then
@@ -97,7 +67,7 @@ function Manager:OnCVarChanged(cvarName, value)
     addon:Log("CVar Changed: " .. tostring(cvarName) .. " = " .. tostring(value), "proxy")
     
     -- Notify all dependent modules to refresh their layout and visibility
-    local modules = { "Cooldowns", "TrackedBars", "TrackedBuffs" }
+    local modules = { "Cooldowns", "TrackedBars", "TrackedBuffs", "TrackedDefensives" }
     for _, modName in ipairs(modules) do
         local mod = addon:GetModule(modName, true)
         if mod and mod.UpdateLayout then
@@ -109,27 +79,6 @@ function Manager:OnCVarChanged(cvarName, value)
     local LM = addon:GetModule("LayoutManager", true)
     if LM then
         LM:TriggerLayoutUpdate()
-    end
-end
-
-function Manager:OnPlayerRegenEnabled()
-    -- Combat ended - rebuild cache if we deferred it earlier
-    if self.needsCacheRebuild then
-        addon:Log("OnPlayerRegenEnabled: Processing deferred cache rebuild", "discovery")
-    end
-    self:AuraCache_RebuildFull()
-end
-
-function Manager:OnUnitAura(event, unit, unitAuraUpdateInfo)
-    if unit ~= "player" then return end
-    self:AuraCache_ApplyUpdateInfo(unitAuraUpdateInfo)
-    
-    -- Notify cached modules (avoid GetModule lookup in hot path)
-    if cachedTrackedBars and cachedTrackedBars:IsEnabled() and cachedTrackedBars.OnAuraUpdate then
-        cachedTrackedBars:OnAuraUpdate()
-    end
-    if cachedTrackedBuffs and cachedTrackedBuffs:IsEnabled() and cachedTrackedBuffs.OnAuraUpdate then
-        cachedTrackedBuffs:OnAuraUpdate()
     end
 end
 
@@ -282,15 +231,6 @@ function Manager:ReleaseProxy(proxy)
 end
 
 -- ============================================================================
--- Population Helpers
--- ============================================================================
-
--- NOTE: PopulateBuffProxy was removed in the reskin approach.
--- TrackedBuffs and TrackedBars now hook Blizzard's native frames directly,
--- allowing Blizzard's code to handle protected API calls for aura data.
--- The Cooldowns module (Essential/Utility) uses its own PopulateProxy in Cooldowns.lua.
-
--- ============================================================================
 -- Container Management
 -- ============================================================================
 
@@ -326,194 +266,7 @@ function Manager:UpdateContainerDebug(containerType, color)
         if container:GetWidth() <= 1 then container:SetSize(100, 100) end
     elseif container.debugBg then
         container.debugBg:Hide()
-        -- Reset size if it was 1x1
-        -- Actually, it's better to let the module manage size
     end
-end
-
--- ============================================================================
--- Aura Cache
--- ============================================================================
-
-function Manager:AuraCache_Clear()
-    wipe(auraBySpellID)
-    wipe(auraByName)
-    wipe(auraByInstanceID)
-    wipe(auraByIcon)
-end
-
--- Pre-seed known spell textures for tracked abilities
--- Call this at addon enable (outside combat) to build fallback lookup
-function Manager:PreSeedKnownSpells()
-    wipe(knownTextureToSpellID)
-    local categories = {
-        Enum.CooldownViewerCategory and Enum.CooldownViewerCategory.TrackedBuff,
-        Enum.CooldownViewerCategory and Enum.CooldownViewerCategory.TrackedBar,
-    }
-    local count = 0
-    for _, cat in ipairs(categories) do
-        if cat then
-            local ids = self:GetCooldownIDsForCategory(cat)
-            for _, cooldownID in ipairs(ids) do
-                local info = self:GetCooldownInfoForID(cooldownID)
-                if info and info.spellID then
-                    local texture = Utils.GetSpellTextureSafe(info.spellID)
-                    if texture then
-                        knownTextureToSpellID[texture] = info.spellID
-                        count = count + 1
-                    end
-                    -- Also seed linked spellIDs
-                    if info.linkedSpellIDs then
-                        for _, linkedID in ipairs(info.linkedSpellIDs) do
-                            local linkedTexture = Utils.GetSpellTextureSafe(linkedID)
-                            if linkedTexture then
-                                knownTextureToSpellID[linkedTexture] = linkedID
-                                count = count + 1
-                            end
-                        end
-                    end
-                end
-            end
-        end
-    end
-    addon:Log(string.format("PreSeedKnownSpells: Seeded %d texture->spellID mappings", count), "discovery")
-end
-
--- Get known spellID for a texture (fallback for secret spellId)
-function Manager:GetKnownSpellIDForTexture(texture)
-    if not texture then return nil end
-    return knownTextureToSpellID[texture]
-end
-
-function Manager:AuraCache_Add(auraData)
-    if not auraData or not auraData.auraInstanceID or Utils.IsValueSecret(auraData.auraInstanceID) then return end
-    
-    local id = auraData.auraInstanceID
-    local existing = auraByInstanceID[id]
-
-    -- Preserve known spellId/name/icon if new ones are secret (common in combat)
-    if not Utils.IsValueSecret(auraData.spellId) then
-        auraData._spellId = auraData.spellId
-    elseif existing then
-        auraData._spellId = existing._spellId
-    end
-    
-    if not Utils.IsValueSecret(auraData.name) then
-        auraData._name = auraData.name
-    elseif existing then
-        auraData._name = existing._name
-    end
-
-    if not Utils.IsValueSecret(auraData.icon) then
-        auraData._icon = auraData.icon
-    elseif existing then
-        auraData._icon = existing._icon
-    end
-    
-    -- Fallback: If spellId is still unknown but icon is readable, use pre-seeded lookup
-    if not auraData._spellId and auraData._icon then
-        local knownSpellID = knownTextureToSpellID[auraData._icon]
-        if knownSpellID then
-            auraData._spellId = knownSpellID
-        end
-    end
-    
-    auraByInstanceID[id] = auraData
-    
-    if auraData._spellId then
-        auraBySpellID[auraData._spellId] = auraData
-    end
-    if auraData._name then
-        auraByName[auraData._name] = auraData
-    end
-    if auraData._icon then
-        auraByIcon[auraData._icon] = auraData
-    end
-end
-
-function Manager:AuraCache_Remove(auraInstanceID)
-    if not auraInstanceID or Utils.IsValueSecret(auraInstanceID) then return end
-    local existing = auraByInstanceID[auraInstanceID]
-    
-    -- #region agent log
-    addon:Log(string.format("AuraCache_Remove[%s]: existing=%s", tostring(auraInstanceID), tostring(existing ~= nil)), "discovery")
-    -- #endregion
-
-    if not existing then return end
-    
-    auraByInstanceID[auraInstanceID] = nil
-    
-    -- Use preserved metadata to clear specific caches
-    if existing._spellId and auraBySpellID[existing._spellId] == existing then 
-        auraBySpellID[existing._spellId] = nil 
-    end
-    if existing._name and auraByName[existing._name] == existing then 
-        auraByName[existing._name] = nil 
-    end
-    if existing._icon and auraByIcon[existing._icon] == existing then
-        auraByIcon[existing._icon] = nil
-    end
-end
-
-function Manager:AuraCache_RebuildFull()
-    -- Don't wipe cache during combat - values will be secret and we'll lose lookup keys
-    if InCombatLockdown() then
-        self.needsCacheRebuild = true
-        addon:Log("AuraCache_RebuildFull: Deferred (in combat)", "discovery")
-        return
-    end
-    self.needsCacheRebuild = false
-    
-    self:AuraCache_Clear()
-    for i = 1, 40 do
-        local aura = C_UnitAuras.GetAuraDataByIndex("player", i, "HELPFUL")
-        if not aura then break end
-        self:AuraCache_Add(aura)
-    end
-    for i = 1, 40 do
-        local aura = C_UnitAuras.GetAuraDataByIndex("player", i, "HARMFUL")
-        if not aura then break end
-        self:AuraCache_Add(aura)
-    end
-    addon:Log("AuraCache_RebuildFull: Completed", "discovery")
-end
-
-function Manager:AuraCache_ApplyUpdateInfo(unitAuraUpdateInfo)
-    if not unitAuraUpdateInfo or unitAuraUpdateInfo.isFullUpdate then
-        self:AuraCache_RebuildFull()
-        return
-    end
-    if unitAuraUpdateInfo.removedAuraInstanceIDs then
-        for _, auraInstanceID in ipairs(unitAuraUpdateInfo.removedAuraInstanceIDs) do
-            self:AuraCache_Remove(auraInstanceID)
-        end
-    end
-    if unitAuraUpdateInfo.updatedAuraInstanceIDs then
-        for _, auraInstanceID in ipairs(unitAuraUpdateInfo.updatedAuraInstanceIDs) do
-            local aura = C_UnitAuras.GetAuraDataByAuraInstanceID("player", auraInstanceID)
-            if aura then self:AuraCache_Add(aura) else self:AuraCache_Remove(auraInstanceID) end
-        end
-    end
-    if unitAuraUpdateInfo.addedAuras then
-        for _, aura in ipairs(unitAuraUpdateInfo.addedAuras) do
-            self:AuraCache_Add(aura)
-        end
-    end
-end
-
-function Manager:GetAuraBySpellID(spellID)
-    if not spellID or Utils.IsValueSecret(spellID) then return nil end
-    return auraBySpellID[spellID]
-end
-
-function Manager:GetAuraByName(name)
-    if not name or Utils.IsValueSecret(name) then return nil end
-    return auraByName[name]
-end
-
-function Manager:GetAuraByIcon(icon)
-    if not icon or Utils.IsValueSecret(icon) then return nil end
-    return auraByIcon[icon]
 end
 
 -- ============================================================================

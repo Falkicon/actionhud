@@ -190,5 +190,10 @@ end
 -- Update styling (called when settings change)
 function TrackedDefensives:UpdateLayout()
     self:SetupStyling()
+    
+    -- Force re-apply styling to all existing frames
+    if isStylingActive then
+        self:ApplyStyling()
+    end
 end
 
