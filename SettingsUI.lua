@@ -18,12 +18,15 @@ local function IsBlizzardCooldownViewerEnabled()
     return val == "1"
 end
 
--- Helper to open the Gameplay Enhancements settings panel
--- Category ID 42 = "Gameplay Enhancements" (discovered via testing)
+-- Helper to open the Gameplay Enhancements (Advanced Options) settings panel
+-- Uses Blizzard's defined constant which is more robust than hardcoded IDs
 local function OpenGameplayEnhancements()
     if Settings and Settings.OpenToCategory then
-        Settings.OpenToCategory(42)  -- Gameplay Enhancements
-        return true
+        -- Blizzard defines this constant in AdvancedOptions.lua
+        if Settings.ADVANCED_OPTIONS_CATEGORY_ID then
+            Settings.OpenToCategory(Settings.ADVANCED_OPTIONS_CATEGORY_ID)
+            return true
+        end
     end
     
     -- Fallback: Show settings panel and click Game tab
