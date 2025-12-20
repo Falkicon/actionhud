@@ -42,6 +42,13 @@ local ClassBarColors = {
     [Enum.PowerType.SoulShards]  = {r=0.6, g=0.45, b=0.65},   -- Warlock Purple
     [Enum.PowerType.ArcaneCharges]= {r=0.3, g=0.5, b=0.9},    -- Mage Blue
     [Enum.PowerType.Essence]     = {r=0.3, g=0.7, b=0.6},     -- Evoker Teal
+    [Enum.PowerType.Runes]       = {r=0.77, g=0.12, b=0.23},   -- Death Knight Red
+}
+
+local RuneSpecColors = {
+    [1] = {r=0.77, g=0.12, b=0.23}, -- Blood (Red)
+    [2] = {r=0.1, g=0.6, b=0.8},   -- Frost (Blue)
+    [3] = {r=0.3, g=0.7, b=0.3},   -- Unholy (Green)
 }
 
 local function CreateBar(parent)
@@ -65,8 +72,18 @@ local function GetClassPowerType()
     elseif class == "MAGE" then return Enum.PowerType.ArcaneCharges
     elseif class == "MONK" then return Enum.PowerType.Chi
     elseif class == "EVOKER" then return Enum.PowerType.Essence
+    elseif class == "DEATHKNIGHT" then return Enum.PowerType.Runes
     end
     return nil
+end
+
+local function GetReadyRuneCount()
+    local count = 0
+    for i = 1, 6 do
+        local _, _, ready = GetRuneCooldown(i)
+        if ready then count = count + 1 end
+    end
+    return count
 end
 
 local function CanShowClassPower()
@@ -74,7 +91,12 @@ local function CanShowClassPower()
     if not pType then return false, nil, 0 end
     
     local max = UnitPowerMax("player", pType)
-    local cur = UnitPower("player", pType, true)
+    local cur
+    if pType == Enum.PowerType.Runes then
+        cur = GetReadyRuneCount()
+    else
+        cur = UnitPower("player", pType, true)
+    end
     
     -- Handle Midnight secret values
     local maxIsSecret = Utils.IsValueSecret(max)
@@ -99,7 +121,12 @@ local function UpdateClassPower()
         return 
     end
     
-    local cur = UnitPower("player", pType, true)
+    local cur
+    if pType == Enum.PowerType.Runes then
+        cur = GetReadyRuneCount()
+    else
+        cur = UnitPower("player", pType, true)
+    end
     local curIsSecret = Utils.IsValueSecret(cur)
     
     playerClassBar:Show()
@@ -120,10 +147,21 @@ local function UpdateClassPower()
     
     -- Layout
     local width = playerClassBar:GetWidth()
+    if width <= 0 then
+        -- Fallback to container width if bar hasn't been sized yet
+        width = container:GetWidth()
+    end
+    
     local spacing = 1
     local segWidth = (width - ((max - 1) * spacing)) / max
     if segWidth < 1 then segWidth = 1 end
     
+    local baseColor = ClassBarColors[pType]
+    if pType == Enum.PowerType.Runes then
+        local spec = GetSpecialization()
+        baseColor = RuneSpecColors[spec] or ClassBarColors[pType]
+    end
+
     for i = 1, max do
         local seg = classSegments[i]
         seg:ClearAllPoints()
@@ -139,17 +177,17 @@ local function UpdateClassPower()
         -- Color / Alpha - handle Midnight secret values
         if curIsSecret then
             seg:SetAlpha(0.6)
-            local c = ClassBarColors[pType]
+            local c = baseColor
             if c then seg:SetColorTexture(c.r * 0.8, c.g * 0.8, c.b * 0.8)
             else seg:SetColorTexture(0.8, 0.8, 0) end
         elseif i <= cur then
             seg:SetAlpha(1)
-            local c = ClassBarColors[pType]
+            local c = baseColor
             if c then seg:SetColorTexture(c.r, c.g, c.b)
             else seg:SetColorTexture(1, 1, 0) end
         else
             seg:SetAlpha(0.3)
-            local c = ClassBarColors[pType]
+            local c = baseColor
             if c then seg:SetColorTexture(c.r * 0.5, c.g * 0.5, c.b * 0.5)
             else seg:SetColorTexture(0.5, 0.5, 0.5) end
         end
@@ -247,6 +285,7 @@ function Resources:OnEnable()
     self:RegisterEvent("UNIT_DISPLAYPOWER", "OnEvent")
     self:RegisterEvent("UNIT_MAXPOWER", "OnEvent")
     self:RegisterEvent("UPDATE_SHAPESHIFT_FORM", "OnEvent")
+    self:RegisterEvent("RUNE_POWER_UPDATE", "OnEvent")
     
     UpdateBarColor(playerHealth, "player")
     UpdateBarColor(playerPower, "player")
@@ -309,6 +348,8 @@ function Resources:OnEvent(event, unit)
     elseif event == "UPDATE_SHAPESHIFT_FORM" then
         UpdateClassPower()
         self:UpdateLayout()
+    elseif event == "RUNE_POWER_UPDATE" then
+        UpdateClassPower()
     end
 end
 
@@ -352,6 +393,8 @@ function Resources:ApplyLayoutPosition()
     -- Center horizontally within main frame
     container:SetPoint("TOP", main, "TOP", 0, yOffset)
     container:Show()
+    
+    UpdateClassPower()
     
     addon:Log(string.format("Resources positioned: yOffset=%d", yOffset), "layout")
 end

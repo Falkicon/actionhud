@@ -1,8 +1,8 @@
-## Interface: 120000
+## Interface: 120001
 ## Title: ActionHud
 ## Notes: Minimalist HUD mirroring Action Bars 1 & 2
 ## Author: Antigravity
-## Version: 2.5.2
+## Version: 2.5.3
 ## SavedVariables: ActionHudDB
 
 DevMarker.lua

@@ -36,6 +36,7 @@ A compact action bar HUD overlay that displays ability icons, cooldowns, and pro
 ## Constraints
 
 - Must work on Retail 11.0+
+- **Interface Version**: Currently targeting **120001** (Midnight expansion, due January 20th, 2026)
 - Uses Ace3 framework (AceAddon, AceDB, AceConfig)
 - Event-driven design – never uses `OnUpdate` polling
 - Static frame pool – 24 button frames created once at load, reused forever
@@ -64,6 +65,7 @@ The HUD uses a centralized `LayoutManager` module that coordinates vertical stac
 
 **Stack Model:**
 - All modules (TrackedBuffs, Resources, ActionBars, Cooldowns) are treated as "rows" in a vertical stack
+- Resources module handles Health, Power, and Class Resource bars (Combo Points, Holy Power, Chi, Arcane Charges, Soul Shards, Essence, Runes)
 - Order is fully customizable via the Layout settings panel
 - Gaps between modules are defined independently for each adjacent pair
 - TrackedBars is a "sidecar" module with independent X/Y offset positioning

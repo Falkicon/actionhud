@@ -3,6 +3,16 @@
 All notable changes to this project will be documented in this file.
 
 
+## [2.5.3] - 2025-12-19
+### Added
+- **Death Knight Support**: Added support for Rune tracking in the class resource bar.
+    - Runes now display as segments in the class resource bar for Death Knights.
+    - Matches Rogue combo point behavior: hides when no runes are ready.
+    - Added spec-based coloring (Blood: Red, Frost: Blue, Unholy: Green).
+    - Added `RUNE_POWER_UPDATE` event handling for instant UI updates.
+    - Fixed an issue where runes would always show as full and not deplete.
+    - Fixed Rune segments appearing as small dashes on initial load by ensuring layout calculation happens after frame sizing.
+
 ## [2.5.2] - 2025-12-18
 ### Performance
 - **CPU Optimization**: Reduced CPU usage by ~16% (3.47 → 2.9 ms/s).
@@ -160,7 +170,7 @@ All notable changes to this project will be documented in this file.
 ## [2.1.0] - 2025-12-16
 
 ### Added
-- **Class Resource Bars**: Universal support for secondary power bars (Combo Points, Holy Power, Chi, Arcane Charges, Soul Shards, Essence).
+- **Class Resource Bars**: Universal support for secondary power bars (Combo Points, Holy Power, Chi, Arcane Charges, Soul Shards, Essence, Runes).
 - **Smart Visibility**: Class bars only appear when you have active charges/points. They auto-hide in forms/stances that don't satisfy this (e.g., Bear Form with 0 CP).
 - **Dynamic Layout**: The gap between Player and Target HUDs now automatically expands/collapses based on Class Bar visibility to maintain symmetry.
 - **Settings**:
