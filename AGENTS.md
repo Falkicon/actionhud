@@ -103,49 +103,35 @@ Uses a **"hide-only" visibility model** with custom proxy frames:
 2. Query data directly from `C_Spell.GetSpellCooldown()`, `CooldownViewerSettings:GetDataProvider()`
 3. Watch `cooldownViewerEnabled` CVar via `CVAR_UPDATE` for real-time toggling
 
-#### TrackedBuffs/TrackedBars (Reskin Approach)
+#### TrackedBuffs/TrackedBars (Style-Only Approach)
 
-**Midnight (12.0) Compatibility:** These modules use a "reskin" approach because aura-tracking requires `C_UnitAuras.GetPlayerAuraBySpellID()` which is protected in Midnight.
+**Midnight (12.0) Compatibility:** These modules use a "style-only" approach. Blizzard's frames handle all aura data (protected APIs). ActionHud only applies visual styling.
 
 | Blizzard Frame | ActionHud Module |
 |----------------|------------------|
 | `BuffIconCooldownViewer` | TrackedBuffs |
 | `BuffBarCooldownViewer` | TrackedBars |
 
-**Reskin Design:**
-1. Hook into Blizzard's native frames (they can call protected APIs)
-2. Reparent frames to ActionHud container
-3. Apply custom styling via `hooksecurefunc`:
-   - `RefreshLayout` → Re-apply frame-level scale (safe)
-   - `OnAcquireItemFrame` → Style individual icons/bars (decoration stripping)
-   - `UpdateShownState` → Sync container visibility
-4. Save original state (parent, points, scale) for restoration
+**Design:**
+1. **No reparenting or positioning** – Use Blizzard's EditMode for position/size
+2. Hook into Blizzard's native frames via `hooksecurefunc`:
+   - `RefreshLayout` → Re-apply styling after Blizzard updates
+   - `OnAcquireItemFrame` → Style individual icons/bars as they're created
+3. Style operations only:
+   - Strip decorations (MaskTexture, overlay borders)
+   - Apply custom fonts for timers and stack counts
+   - Crop icons with `SetTexCoord`
 
-**Critical: Safe vs Unsafe Operations**
+**Available Settings:**
 
-| Safe Operations | Unsafe Operations (trigger Blizzard refresh) |
-|-----------------|---------------------------------------------|
-| `blizzFrame:SetScale(x)` | `blizzFrame.iconScale = x` |
-| `blizzFrame:SetAlpha(x)` | `blizzFrame:SetHideWhenInactive(x)` |
-| `blizzFrame.childXPadding = x` | `itemContainerFrame:Layout()` |
-| `blizzFrame.ignoreFramePositionManager = true` | `blizzFrame.layoutParent = nil` |
-| `itemFrame:SetScale(x)` in OnAcquireItemFrame hook | Iterating itemFramePool in ApplyCustomStyling |
+| Setting | Description |
+|---------|-------------|
+| Style Tracked Buffs | Toggle styling on/off |
+| Style Tracked Bars | Toggle styling on/off |
+| Stack Count Font Size | Numeric font size for stack counts |
+| Timer Font Size | Font size for cooldown timers (small/medium/large/huge) |
 
-**Current Settings Status (Midnight PTR):**
-
-| Setting | TrackedBuffs | TrackedBars | Notes |
-|---------|--------------|-------------|-------|
-| Icon Height | ✅ Works | ❌ | Uses frame SetScale() |
-| Icon Width | ❌ | ❌ | Only frame scale, not individual |
-| Icon Spacing | ❌ | ❌ | Padding doesn't trigger relayout |
-| Hide Inactive | ❌ | ❌ | SetHideWhenInactive unsafe |
-| Timer Font Size | ❌ | ❌ | Need safe StyleItemFrame path |
-| Stack Count Font | ❌ | ❌ | Need safe StyleItemFrame path |
-| X/Y Offset | N/A | ✅ Works | Sidecar positioning |
-
-**Toggle Behavior:**
-- Enable: Reparent Blizzard frame → Apply safe styling only
-- Disable: Restore original parent/position → Blizzard works normally
+**Note:** Sizing and positioning are controlled via Blizzard's EditMode (ESC → Edit Mode). ActionHud does not manage placement for these frames.
 
 For detailed Blizzard frame structure and API reference, see `Docs/proxy-system.md`.
 
@@ -170,13 +156,15 @@ Stored in `ActionHudDB.profile`:
   
   -- Layout (managed by LayoutManager)
   layout = {
-    stack = { "trackedBuffs", "resources", "actionBars", "cooldowns" },
-    gaps = { 4, 4, 4, 0 },
+    stack = { "resources", "actionBars", "cooldowns" },
+    gaps = { 4, 4, 0 },
   },
   
-  -- TrackedBars sidecar positioning
-  tbXOffset = 76,      -- X offset from HUD center
-  tbYOffset = 0,        -- Y offset from HUD center
+  -- Tracked Abilities (style-only, position via EditMode)
+  styleTrackedBuffs = true,
+  styleTrackedBars = true,
+  trackedCountFontSize = 10,
+  trackedTimerFontSize = "medium",
 }
 ```
 

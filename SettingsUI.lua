@@ -315,9 +315,10 @@ All ActionHud cooldown features are unavailable until enabled.]]
         },
     }
     
-    -- SUB: Tracked Bars
-    local tbOptions = {
-        name = "Tracked Bars",
+    -- SUB: Tracked Abilities (combines Tracked Buffs and Tracked Bars)
+    -- Style-only overlays on Blizzard's native frames. Position via EditMode.
+    local trackedOptions = {
+        name = "Tracked Abilities",
         handler = ActionHud,
         type = "group",
         args = {
@@ -328,103 +329,71 @@ All ActionHud cooldown features are unavailable until enabled.]]
                     else
                         return [[|cffff4444Blizzard Cooldown Manager is disabled.|r
 
-Enable it in Gameplay Enhancements to use Tracked Bars.]]
+Enable it in Gameplay Enhancements to use these features.]]
                     end
                 end,
                 type = "description", order = 0,
             },
-            enable = {
-                name = "Enable Tracked Bars", desc = "Enable and style the Tracked Bars (Active Effects) viewer.\n\n|cffff9900Note:|r Reskins Blizzard's native frame. Changes take effect immediately but a /reload may be needed if display issues occur.", type = "toggle", order = 1, width = "full",
-                disabled = function() return not IsBlizzardCooldownViewerEnabled() end,
-                get = function(info) return self.db.profile.tbEnabled end,
-                set = function(info, val) self.db.profile.tbEnabled = val; ActionHud:GetModule("TrackedBars"):UpdateLayout() end,
-            },
-            positionNote = {
-                type = "description", order = 9,
-                name = "|cffaaaaaa(Position settings moved to Layout tab)|r",
-            },
-            visuals = { name = "Dimensions", type = "header", order = 20 },
-            tbSize = {
-                name = "Bar Size", desc = "Size of bar items (scales entire frame uniformly).", type = "range", min = 10, max = 100, step = 1, order = 21,
-                disabled = function() return not IsBlizzardCooldownViewerEnabled() end,
-                get = function(info) return self.db.profile.tbSize or self.db.profile.tbHeight or 30 end,
-                set = function(info, val) 
-                    self.db.profile.tbSize = val
-                    -- Keep legacy values in sync for compatibility
-                    self.db.profile.tbWidth = val
-                    self.db.profile.tbHeight = val
-                    ActionHud:GetModule("TrackedBars"):UpdateLayout() 
-                end,
-            },
-            fonts = { name = "Fonts", type = "header", order = 30 },
-            tbCountFontSize = {
-                name = "Stack Count Font Size", type = "range", min = 6, max = 18, step = 1, order = 31,
-                disabled = function() return not IsBlizzardCooldownViewerEnabled() end,
-                get = function(info) return self.db.profile.tbCountFontSize end,
-                set = function(info, val) self.db.profile.tbCountFontSize = val; ActionHud:GetModule("TrackedBars"):UpdateLayout() end,
-            },
-            tbTimerFontSize = {
-                name = "Timer Font Size", type = "select", order = 32,
-                values = { small = "Small", medium = "Medium", large = "Large", huge = "Huge" },
-                sorting = { "small", "medium", "large", "huge" },
-                disabled = function() return not IsBlizzardCooldownViewerEnabled() end,
-                get = function(info) return self.db.profile.tbTimerFontSize end,
-                set = function(info, val) self.db.profile.tbTimerFontSize = val; ActionHud:GetModule("TrackedBars"):UpdateLayout() end,
-            },
-        },
-    }
-    
-    -- SUB: Tracked Buffs
-    local buffOptions = {
-        name = "Tracked Buffs",
-        handler = ActionHud,
-        type = "group",
-        args = {
-            reqNote = {
-                name = function()
-                    if IsBlizzardCooldownViewerEnabled() then
-                        return "|cff00ff00Blizzard Cooldown Manager is enabled.|r"
-                    else
-                        return [[|cffff4444Blizzard Cooldown Manager is disabled.|r
+            infoNote = {
+                type = "description", order = 1,
+                name = [[ActionHud applies custom styling to Blizzard's Tracked Buffs and Tracked Bars frames, removing rounded corners and adjusting fonts.
 
-Enable it in Gameplay Enhancements to use Tracked Buffs.]]
-                    end
-                end,
-                type = "description", order = 0,
+|cffffcc00Positioning:|r Use Blizzard's |cff00ff00EditMode|r (ESC → Edit Mode) to move and resize these frames.
+]],
             },
-            enable = {
-                name = "Enable Tracked Buffs", desc = "Enable and style the long-duration buffs center-top.\n\n|cffff9900Note:|r Reskins Blizzard's native frame. Changes take effect immediately but a /reload may be needed if display issues occur.", type = "toggle", order = 1, width = "full",
+            
+            -- Styling Toggles
+            styleHeader = { name = "Styling", type = "header", order = 10 },
+            styleTrackedBuffs = {
+                name = "Style Tracked Buffs", 
+                desc = "Apply ActionHud styling to the Tracked Buffs frame (removes rounded corners, custom fonts).", 
+                type = "toggle", order = 11, width = "full",
                 disabled = function() return not IsBlizzardCooldownViewerEnabled() end,
-                get = function(info) return self.db.profile.buffsEnabled end,
-                set = function(info, val) self.db.profile.buffsEnabled = val; ActionHud:GetModule("TrackedBuffs"):UpdateLayout() end,
-            },
-            visuals = { name = "Dimensions", type = "header", order = 20 },
-            buffsSize = {
-                name = "Icon Size", desc = "Size of buff icons (scales entire frame uniformly).", type = "range", min = 10, max = 100, step = 1, order = 21,
-                disabled = function() return not IsBlizzardCooldownViewerEnabled() end,
-                get = function(info) return self.db.profile.buffsSize or self.db.profile.buffsHeight or 40 end,
+                get = function(info) return self.db.profile.styleTrackedBuffs end,
                 set = function(info, val) 
-                    self.db.profile.buffsSize = val
-                    -- Keep legacy values in sync for compatibility
-                    self.db.profile.buffsWidth = val
-                    self.db.profile.buffsHeight = val
+                    self.db.profile.styleTrackedBuffs = val
                     ActionHud:GetModule("TrackedBuffs"):UpdateLayout() 
                 end,
             },
-            fonts = { name = "Fonts", type = "header", order = 30 },
-            buffsCountFontSize = {
-                name = "Stack Count Font Size", type = "range", min = 6, max = 18, step = 1, order = 31,
+            styleTrackedBars = {
+                name = "Style Tracked Bars", 
+                desc = "Apply ActionHud styling to the Tracked Bars frame (removes rounded corners, custom fonts).", 
+                type = "toggle", order = 12, width = "full",
                 disabled = function() return not IsBlizzardCooldownViewerEnabled() end,
-                get = function(info) return self.db.profile.buffsCountFontSize end,
-                set = function(info, val) self.db.profile.buffsCountFontSize = val; ActionHud:GetModule("TrackedBuffs"):UpdateLayout() end,
+                get = function(info) return self.db.profile.styleTrackedBars end,
+                set = function(info, val) 
+                    self.db.profile.styleTrackedBars = val
+                    ActionHud:GetModule("TrackedBars"):UpdateLayout() 
+                end,
             },
-            buffsTimerFontSize = {
-                name = "Timer Font Size", type = "select", order = 32,
+            
+            -- Font Settings (shared)
+            fonts = { name = "Fonts", type = "header", order = 30 },
+            trackedCountFontSize = {
+                name = "Stack Count Font Size", 
+                desc = "Font size for stack counts on tracked abilities.",
+                type = "range", min = 6, max = 18, step = 1, order = 31,
+                disabled = function() return not IsBlizzardCooldownViewerEnabled() end,
+                get = function(info) return self.db.profile.trackedCountFontSize or 10 end,
+                set = function(info, val) 
+                    self.db.profile.trackedCountFontSize = val
+                    ActionHud:GetModule("TrackedBuffs"):UpdateLayout()
+                    ActionHud:GetModule("TrackedBars"):UpdateLayout()
+                end,
+            },
+            trackedTimerFontSize = {
+                name = "Timer Font Size", 
+                desc = "Font size for cooldown timers on tracked abilities.",
+                type = "select", order = 32,
                 values = { small = "Small", medium = "Medium", large = "Large", huge = "Huge" },
                 sorting = { "small", "medium", "large", "huge" },
                 disabled = function() return not IsBlizzardCooldownViewerEnabled() end,
-                get = function(info) return self.db.profile.buffsTimerFontSize end,
-                set = function(info, val) self.db.profile.buffsTimerFontSize = val; ActionHud:GetModule("TrackedBuffs"):UpdateLayout() end,
+                get = function(info) return self.db.profile.trackedTimerFontSize or "medium" end,
+                set = function(info, val) 
+                    self.db.profile.trackedTimerFontSize = val
+                    ActionHud:GetModule("TrackedBuffs"):UpdateLayout()
+                    ActionHud:GetModule("TrackedBars"):UpdateLayout()
+                end,
             },
         },
     }
@@ -446,27 +415,6 @@ Enable it in Gameplay Enhancements to use Tracked Buffs.]]
         local args = {}
         local LM = GetLayoutManager()
         if not LM then return args end
-        
-        -- Tracked Bars (Sidecar) Section
-        args.sidecarHeader = { type = "header", name = "Tracked Bars (Sidecar)", order = 1 }
-        args.sidecarDesc = {
-            type = "description", order = 2,
-            name = "Tracked Bars use independent X/Y positioning relative to the HUD center.\n ",
-        }
-        args.tbXOffset = {
-            name = "X Offset", desc = "Horizontal offset from center of HUD.", 
-            type = "range", min = -500, max = 500, step = 1, order = 3,
-            disabled = function() return not IsBlizzardCooldownViewerEnabled() end,
-            get = function() return self.db.profile.tbXOffset end,
-            set = function(_, val) self.db.profile.tbXOffset = val; ActionHud:GetModule("TrackedBars"):UpdateLayout() end,
-        }
-        args.tbYOffset = {
-            name = "Y Offset", desc = "Vertical offset from center of HUD.", 
-            type = "range", min = -500, max = 500, step = 1, order = 4,
-            disabled = function() return not IsBlizzardCooldownViewerEnabled() end,
-            get = function() return self.db.profile.tbYOffset end,
-            set = function(_, val) self.db.profile.tbYOffset = val; ActionHud:GetModule("TrackedBars"):UpdateLayout() end,
-        }
         
         -- HUD Stack Section
         args.stackHeader = { type = "header", name = "HUD Stack Order", order = 10 }
@@ -713,11 +661,8 @@ Enable it in Gameplay Enhancements to use Tracked Buffs.]]
     LibStub("AceConfig-3.0"):RegisterOptionsTable("ActionHud_CD", cdOptions)
     LibStub("AceConfigDialog-3.0"):AddToBlizOptions("ActionHud_CD", "Cooldown Manager", "ActionHud")
     
-    LibStub("AceConfig-3.0"):RegisterOptionsTable("ActionHud_Buffs", buffOptions)
-    LibStub("AceConfigDialog-3.0"):AddToBlizOptions("ActionHud_Buffs", "Tracked Buffs", "ActionHud")
-    
-    LibStub("AceConfig-3.0"):RegisterOptionsTable("ActionHud_TB", tbOptions)
-    LibStub("AceConfigDialog-3.0"):AddToBlizOptions("ActionHud_TB", "Tracked Bars", "ActionHud")
+    LibStub("AceConfig-3.0"):RegisterOptionsTable("ActionHud_Tracked", trackedOptions)
+    LibStub("AceConfigDialog-3.0"):AddToBlizOptions("ActionHud_Tracked", "Tracked Abilities", "ActionHud")
     
     -- 8-9. Meta settings
     local profiles = LibStub("AceDBOptions-3.0"):GetOptionsTable(self.db)

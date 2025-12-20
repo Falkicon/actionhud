@@ -6,19 +6,26 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased - Midnight Branch]
 
 ### Changed
-- **TrackedBuffs/TrackedBars Reskin**: Complete rewrite using a "reskin" approach for Midnight (12.0) compatibility.
-    - Now hooks into Blizzard's native `BuffIconCooldownViewer` and `BuffBarCooldownViewer` frames instead of creating custom proxies.
-    - Blizzard's code handles all protected API calls (e.g., `C_UnitAuras.GetPlayerAuraBySpellID`) which are inaccessible to addons in Midnight.
-    - ActionHud reparents Blizzard frames to its container and applies custom styling (scale, opacity, fonts, positioning).
+- **TrackedBuffs/TrackedBars Style-Only**: Simplified to style-only approach for Midnight (12.0) compatibility.
+    - Hooks into Blizzard's native `BuffIconCooldownViewer` and `BuffBarCooldownViewer` frames.
+    - Blizzard handles all protected API calls and positioning (via EditMode).
+    - ActionHud applies visual styling only: strips decorations, custom fonts.
     - Resolves "secret value" errors during combat in instanced content.
+- **Settings Consolidation**: Combined separate Tracked Buffs and Tracked Bars tabs into single "Tracked Abilities" tab.
+    - "Enable" toggles renamed to "Style Tracked Buffs/Bars" for clarity.
+    - Shared font settings (Stack Count Font Size, Timer Font Size).
+    - Removed sizing/positioning settings – use EditMode instead.
+- **Layout Stack**: Removed `trackedBuffs` from the HUD layout stack (now positioned via EditMode).
 
 ### Removed
-- **PopulateBuffProxy**: Removed ~140 lines of dead code from Manager.lua (no longer needed with reskin approach).
+- **PopulateBuffProxy**: Removed ~140 lines of dead code from Manager.lua (no longer needed).
+- **Tracked Bars Sidecar**: Removed X/Y offset settings from Layout tab (use EditMode).
+- **Obsolete Settings**: Removed buffsEnabled, tbEnabled, sizing, spacing, hide inactive settings.
 
 ### Technical
-- Added hook points on `RefreshLayout`, `OnAcquireItemFrame`, and `UpdateShownState` for Blizzard frame restyling.
-- Preserved original frame state for restoration when feature is disabled.
-- Added reload warning to Tracked Buffs/Bars settings.
+- Added hook points on `RefreshLayout` and `OnAcquireItemFrame` for Blizzard frame restyling.
+- Strips MaskTexture and overlay Texture regions for cleaner icon appearance.
+- Migration code cleans up trackedBuffs from existing layout stacks.
 
 ---
 

@@ -40,28 +40,11 @@ local defaults = {
         cdCountFontSize = 10,
         cdTimerFontSize = "medium",
 
-        -- Tracked Bars (New)
-        tbEnabled = true,
-        tbXOffset = 100,
-        tbYOffset = 0,
-        tbWidth = 28,
-        tbHeight = 28,
-        tbGap = 2,
-        tbCountFontSize = 10,
-        tbTimerFontSize = "medium",
-        tbHideInactive = true,
-        tbInactiveOpacity = 0.4,
-
-        -- Tracked Buffs
-        buffsEnabled = true,
-        buffsGap = 25,
-        buffsWidth = 28,
-        buffsHeight = 28,
-        buffsSpacing = 2,
-        buffsCountFontSize = 10,
-        buffsTimerFontSize = "medium",
-        buffsHideInactive = true,
-        buffsInactiveOpacity = 0.4,
+        -- Tracked Abilities (style-only, position via EditMode)
+        styleTrackedBuffs = true,
+        styleTrackedBars = true,
+        trackedCountFontSize = 10,
+        trackedTimerFontSize = "medium",
 
         -- Minimap Icon (LibDBIcon)
         minimap = {
@@ -109,15 +92,26 @@ end
 function ActionHud:MigrateLayoutSettings()
     local p = self.db.profile
     
-    -- If layout already exists, no migration needed
-    if p.layout then return end
+    -- If layout already exists, clean up trackedBuffs if present (moved to EditMode)
+    if p.layout then
+        local newStack = {}
+        local newGaps = {}
+        for i, id in ipairs(p.layout.stack) do
+            if id ~= "trackedBuffs" then
+                table.insert(newStack, id)
+                table.insert(newGaps, p.layout.gaps[i] or 0)
+            end
+        end
+        if #newStack ~= #p.layout.stack then
+            p.layout.stack = newStack
+            p.layout.gaps = newGaps
+        end
+        return
+    end
     
     -- Build new stack based on old position settings
     local topModules = {}
     local bottomModules = {}
-    
-    -- TrackedBuffs was always on top in old system
-    table.insert(topModules, { id = "trackedBuffs", gap = p.buffsGap or 25 })
     
     -- Resources
     if p.resPosition == "TOP" or p.resPosition == nil then

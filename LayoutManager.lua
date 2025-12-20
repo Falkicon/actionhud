@@ -8,15 +8,15 @@ ns.LayoutManager = LayoutManager
 
 -- Module display names for UI
 local MODULE_NAMES = {
-    trackedBuffs = "Tracked Buffs",
     resources = "Resource Bars",
     actionBars = "Action Bars",
     cooldowns = "Cooldowns",
 }
 
 -- Default stack order and gaps
-local DEFAULT_STACK = { "trackedBuffs", "resources", "actionBars", "cooldowns" }
-local DEFAULT_GAPS = { 4, 4, 4, 0 }
+-- Note: trackedBuffs removed - now positioned via Blizzard's EditMode
+local DEFAULT_STACK = { "resources", "actionBars", "cooldowns" }
+local DEFAULT_GAPS = { 4, 4, 0 }
 
 -- Cache of module heights (updated by modules when they render)
 local moduleHeights = {}
@@ -96,7 +96,7 @@ end
 
 -- Get all available module IDs
 function LayoutManager:GetAllModuleIds()
-    return { "trackedBuffs", "resources", "actionBars", "cooldowns" }
+    return { "resources", "actionBars", "cooldowns" }
 end
 
 -- Set height for a module (called by modules during their UpdateLayout)
@@ -227,7 +227,6 @@ function LayoutManager:TriggerLayoutUpdate()
         if moduleId == "actionBars" then moduleName = "ActionBars"
         elseif moduleId == "resources" then moduleName = "Resources"
         elseif moduleId == "cooldowns" then moduleName = "Cooldowns"
-        elseif moduleId == "trackedBuffs" then moduleName = "TrackedBuffs"
         end
         
         local m = addon:GetModule(moduleName, true)
@@ -255,7 +254,6 @@ function LayoutManager:TriggerLayoutUpdate()
         if moduleId == "actionBars" then moduleName = "ActionBars"
         elseif moduleId == "resources" then moduleName = "Resources"
         elseif moduleId == "cooldowns" then moduleName = "Cooldowns"
-        elseif moduleId == "trackedBuffs" then moduleName = "TrackedBuffs"
         end
         
         local yOffset = self:GetModulePosition(moduleId)
@@ -267,11 +265,7 @@ function LayoutManager:TriggerLayoutUpdate()
         end
     end
     
-    -- Also update TrackedBars (sidecar) since it may reference HUD position
-    local tb = addon:GetModule("TrackedBars", true)
-    if tb and tb.UpdateLayout then
-        tb:UpdateLayout()
-    end
+    -- Note: TrackedBuffs and TrackedBars are now style-only (position via EditMode)
     
     addon:Log("=== Layout Update Complete ===", "layout")
 end
@@ -291,7 +285,6 @@ function LayoutManager:UpdateContainerSize()
         if id == "actionBars" then moduleName = "ActionBars"
         elseif id == "resources" then moduleName = "Resources"
         elseif id == "cooldowns" then moduleName = "Cooldowns"
-        elseif id == "trackedBuffs" then moduleName = "TrackedBuffs"
         end
         
         local m = addon:GetModule(moduleName, true)
@@ -321,14 +314,24 @@ function LayoutManager:MigrateOldSettings()
     if not p then return end
     
     -- Check if migration is needed (old settings exist, new don't)
-    if p.layout then return end  -- Already migrated
+    if p.layout then
+        -- Also remove trackedBuffs if it exists in an old layout
+        local newStack = {}
+        local newGaps = {}
+        for i, id in ipairs(p.layout.stack) do
+            if id ~= "trackedBuffs" then
+                table.insert(newStack, id)
+                table.insert(newGaps, p.layout.gaps[i] or 0)
+            end
+        end
+        p.layout.stack = newStack
+        p.layout.gaps = newGaps
+        return
+    end
     
     -- Build new stack based on old position settings
     local topModules = {}
     local bottomModules = {}
-    
-    -- TrackedBuffs was always on top in old system
-    table.insert(topModules, { id = "trackedBuffs", gap = p.buffsGap or 25 })
     
     -- Resources
     if p.resPosition == "TOP" or p.resPosition == nil then
@@ -336,9 +339,6 @@ function LayoutManager:MigrateOldSettings()
     else
         table.insert(bottomModules, { id = "resources", gap = p.resOffset or 1 })
     end
-    
-    -- ActionBars is the center anchor point
-    -- Modules above actionBars go in topModules, below go in bottomModules
     
     -- Cooldowns
     if p.cdPosition == "TOP" then
