@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file.
 
 
+## [2.5.5] - 2025-12-19
+
+### Changed
+- **Documentation**: Consolidated shared documentation to central `ADDON_DEV/AGENTS.md`; trimmed addon-specific AGENTS.md
+- **Deep-Dive Docs**: Moved detailed proxy system and performance docs to `Docs/` folder
+
+### Added
+- **CurseForge Metadata**: Added `## X-License: GPL-3.0` to .toc file
+- **CurseForge Integration**: Added project ID and webhook info to AGENTS.md
+- **Cursor Ignore**: Added `.cursorignore` to reduce indexing overhead
+
 ## [2.5.4] - 2025-12-19
 ### Fixed
 - **Cooldown Manager Real-time Detection**: Fixed a bug where cooldown-related modules (Essential, Utility, Tracked Buffs, Tracked Bars) would not display until after a UI reload if Blizzard's "Enable Cooldown Manager" setting was turned on during the session.
