@@ -87,8 +87,7 @@ Open the settings panel via slash command or `Esc` → `Options` → `AddOns` �
 - **Action Bars** – Icon dimensions, opacity, and font sizes
 - **Resource Bars** – Enable/Disable Health & Power bars, adjust sizes
 - **Cooldown Manager** – Essential/Utility bar settings and typography
-- **Tracked Bars** – Sidecar positioning and display options
-- **Tracked Buffs** – Buff icon settings and visibility
+- **Tracked Abilities** – Style Blizzard's Tracked Buffs and Tracked Bars (font settings)
 - **Layout** – Reorder modules and set gaps between them
 - **Profiles** – Create, Copy, Delete, or Reset profiles for different characters
 
@@ -101,6 +100,26 @@ Open the settings panel via slash command or `Esc` → `Options` → `AddOns` �
 | Background Opacity | Visibility of empty slot backgrounds (0-100%) |
 | Proc Glow Opacity | Brightness of yellow proc border (0-100%) |
 | Assist Glow Opacity | Brightness of blue recommendation border (0-100%) |
+
+## Tracked Abilities (Buffs & Bars)
+
+ActionHud applies visual styling to Blizzard's **Tracked Buffs** and **Tracked Bars** frames, removing rounded corners and allowing custom fonts. Position and size these frames using Blizzard's **EditMode** (`Esc` → `Edit Mode`).
+
+### Known Blizzard UI Limitations
+
+The following limitations are in Blizzard's native UI and cannot be fixed by addons:
+
+| Limitation | Description |
+|------------|-------------|
+| **No centering option** | Tracked Buffs/Bars can only be aligned left or right in EditMode, not centered |
+| **Bar graphics in Tracked Bars** | Cannot hide the bar portion to show icons only |
+
+**Help improve the game!** If these limitations affect your gameplay, please submit a bug report to Blizzard:
+
+1. In-game: `Esc` → `Support` → `Submit Bug`
+2. Or use the [Bug Report Forums](https://us.forums.blizzard.com/en/wow/c/support/bug-report)
+
+Request features like "center alignment for Tracked Buffs" or "icon-only mode for Tracked Bars." Player feedback helps prioritize UI improvements!
 
 ## Requirements
 
