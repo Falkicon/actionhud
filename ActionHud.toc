@@ -1,7 +1,7 @@
 ## Interface: 120001
 ## Title: ActionHud
 ## Notes: Minimalist HUD mirroring Action Bars 1 & 2
-## Author: Antigravity
+## Author: Jason Falk
 ## Version: 2.5.5
 ## X-License: GPL-3.0
 ## SavedVariables: ActionHudDB
