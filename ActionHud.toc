@@ -2,7 +2,7 @@
 ## Title: ActionHud
 ## Notes: Minimalist HUD mirroring Action Bars 1 & 2
 ## Author: Antigravity
-## Version: 2.5.3
+## Version: 2.5.4
 ## SavedVariables: ActionHudDB
 
 DevMarker.lua

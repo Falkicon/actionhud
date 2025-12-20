@@ -133,7 +133,8 @@ ActionHud uses a **"hide-only" visibility model** that is minimally invasive to 
 1. **Simple Hide/Show**: We only call `SetShown(false)` on Blizzard frames - no reparenting, no alpha changes, no mouse disabling
 2. **Direct API Queries**: Proxies get data directly from `C_Spell.GetSpellCooldown()`, `C_Spell.GetSpellCharges()`, `CooldownViewerSettings:GetDataProvider()` - not scraped from hidden frames
 3. **Event-Driven Updates**: Uses `SPELL_UPDATE_COOLDOWN`, `UNIT_AURA`, `PLAYER_TOTEM_UPDATE` events instead of OnUpdate polling
-4. **Clean Restoration**: When disabled, a single `SetShown(true)` restores Blizzard's native UI instantly
+4. **Real-time Configuration Detection**: Watches `cooldownViewerEnabled` CVar via `CVAR_UPDATE` and `CVarCallbackRegistry` to instantly toggle proxies when Blizzard settings change
+5. **Clean Restoration**: When disabled, a single `SetShown(true)` restores Blizzard's native UI instantly.
 
 **Blizzard Frame Structure (Reference):**
 

@@ -3,6 +3,13 @@
 All notable changes to this project will be documented in this file.
 
 
+## [2.5.4] - 2025-12-19
+### Fixed
+- **Cooldown Manager Real-time Detection**: Fixed a bug where cooldown-related modules (Essential, Utility, Tracked Buffs, Tracked Bars) would not display until after a UI reload if Blizzard's "Enable Cooldown Manager" setting was turned on during the session.
+    - Added `CVAR_UPDATE` event and `CVarCallbackRegistry` monitoring for `cooldownViewerEnabled`.
+    - HUD now instantly populates or clears cooldown modules when the setting is toggled in Blizzard's Gameplay Enhancements options.
+    - Triggers full layout recalculation via LayoutManager on state change.
+
 ## [2.5.3] - 2025-12-19
 ### Added
 - **Death Knight Support**: Added support for Rune tracking in the class resource bar.

@@ -45,15 +45,58 @@ local cachedTrackedBuffs = nil
 
 function Manager:OnEnable()
     self:RegisterEvent("UNIT_AURA", "OnUnitAura")
+    self:RegisterEvent("CVAR_UPDATE", "OnEvent")
     self:AuraCache_RebuildFull()
     
     -- Cache module references to avoid GetModule lookups on every UNIT_AURA
     cachedTrackedBars = addon:GetModule("TrackedBars", true)
     cachedTrackedBuffs = addon:GetModule("TrackedBuffs", true)
     
+    -- Watch for Blizzard Cooldown Manager setting changes
+    if CVarCallbackRegistry and CVarCallbackRegistry.RegisterCallback then
+        CVarCallbackRegistry:RegisterCallback("cooldownViewerEnabled", self.OnCVarChanged, self)
+    end
+    
     addon:Log("CooldownManager Enabled", "proxy")
     local blizzEnabled = self:IsBlizzardCooldownViewerEnabled()
     addon:Log("Blizzard Cooldown Manager enabled: " .. tostring(blizzEnabled), "proxy")
+end
+
+function Manager:OnDisable()
+    self:UnregisterEvent("UNIT_AURA")
+    self:UnregisterEvent("CVAR_UPDATE")
+    
+    if CVarCallbackRegistry and CVarCallbackRegistry.UnregisterCallback then
+        CVarCallbackRegistry:UnregisterCallback("cooldownViewerEnabled", self)
+    end
+end
+
+function Manager:OnEvent(event, ...)
+    if event == "CVAR_UPDATE" then
+        local cvarName, value = ...
+        if cvarName == "cooldownViewerEnabled" then
+            self:OnCVarChanged(cvarName, value)
+        end
+    end
+end
+
+function Manager:OnCVarChanged(cvarName, value)
+    addon:Log("CVar Changed: " .. tostring(cvarName) .. " = " .. tostring(value), "proxy")
+    
+    -- Notify all dependent modules to refresh their layout and visibility
+    local modules = { "Cooldowns", "TrackedBars", "TrackedBuffs" }
+    for _, modName in ipairs(modules) do
+        local mod = addon:GetModule(modName, true)
+        if mod and mod.UpdateLayout then
+            mod:UpdateLayout()
+        end
+    end
+    
+    -- Trigger central layout recalculation
+    local LM = addon:GetModule("LayoutManager", true)
+    if LM then
+        LM:TriggerLayoutUpdate()
+    end
 end
 
 function Manager:OnUnitAura(event, unit, unitAuraUpdateInfo)
