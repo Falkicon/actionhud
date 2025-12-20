@@ -241,6 +241,8 @@ local function UpdateBarValue(bar, unit)
     
     local cur, max
     if bar.type == "HEALTH" then
+        -- In Midnight, use helper API for readable percentage display if needed, 
+        -- but StatusBar:SetValue(secret) is supported for the bar itself.
         cur = UnitHealth(unit)
         max = UnitHealthMax(unit)
     else
@@ -248,6 +250,7 @@ local function UpdateBarValue(bar, unit)
         max = UnitPowerMax(unit)
     end
     
+    -- Passthrough: StatusBars in 12.0 handle secret values correctly
     bar:SetMinMaxValues(0, max)
     bar:SetValue(cur)
 end

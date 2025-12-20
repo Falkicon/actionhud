@@ -124,11 +124,11 @@ Stored in `ActionHudDB.profile`:
   -- Layout (managed by LayoutManager)
   layout = {
     stack = { "trackedBuffs", "resources", "actionBars", "cooldowns" },
-    gaps = { 10, 4, 0, 2 },
+    gaps = { 4, 4, 4, 0 },
   },
   
   -- TrackedBars sidecar positioning
-  tbXOffset = 100,      -- X offset from HUD center
+  tbXOffset = 76,      -- X offset from HUD center
   tbYOffset = 0,        -- Y offset from HUD center
 }
 ```

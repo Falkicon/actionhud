@@ -2,7 +2,6 @@
 .DS_Store
 Thumbs.db
 desktop.ini
-AGENTS.md
 
 # Editors
 .vscode/
@@ -18,3 +17,5 @@ _test_/
 tmp/
 
 .cursor/
+AGENTS.md
+.cursorignore

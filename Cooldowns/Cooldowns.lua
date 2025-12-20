@@ -287,38 +287,94 @@ function Cooldowns:PopulateProxy(proxy, cooldownID, cooldownInfo)
     if texture then proxy.icon:SetTexture(texture) end
     
     local cdInfo = Utils.GetSpellCooldownSafe(spellID)
-    if cdInfo and cdInfo.startTime and cdInfo.duration and cdInfo.duration > 0 then
-        -- Check if this is truly the GCD vs a real cooldown
-        -- Some spells (like Demo Shout) incorrectly report GCD category initially
-        -- but have durations >> 1.5s. Trust duration over category.
-        local GCD_THRESHOLD = 1.5
-        local isActualGCD = cdInfo.activeCategory == Constants.SpellCooldownConsts.GLOBAL_RECOVERY_CATEGORY
-                           and cdInfo.duration <= GCD_THRESHOLD
+    local hasCD = false
+    if cdInfo then
+        local duration = cdInfo.duration
+        local startTime = cdInfo.startTime
         
-        if isActualGCD then
-            CooldownFrame_Clear(proxy.cooldown)
-            proxy.icon:SetDesaturated(false)
-        else
-            CooldownFrame_Set(proxy.cooldown, cdInfo.startTime, cdInfo.duration, true, false, cdInfo.modRate or 1)
-            proxy.icon:SetDesaturated(true)
+        -- Use IsSpellUsable for desaturation logic in Midnight (more reliable than secret duration)
+        local isUsable = true
+        local ok, result = pcall(C_Spell.IsSpellUsable, spellID)
+        if ok then
+            -- In Midnight, if the result is secret, assume it's usable to avoid icons 
+            -- getting stuck grey in combat.
+            if Utils.IsValueSecret(result) then
+                isUsable = true
+            else
+                isUsable = result
+            end
         end
-    else
+        proxy.icon:SetDesaturated(not isUsable)
+        
+        -- In Midnight, if duration is secret, we assume it's a real cooldown (>0)
+        if duration and (Utils.IsValueSecret(duration) or Utils.SafeCompare(duration, 0, ">")) then
+            hasCD = true
+            -- Check if this is truly the GCD vs a real cooldown
+            local GCD_THRESHOLD = 1.5
+            local isActualGCD = false
+            
+            -- If activeCategory is GCD, and duration is readable and <= threshold, it's a GCD.
+            local activeCategory = cdInfo.activeCategory
+            if activeCategory and Utils.SafeCompare(activeCategory, Constants.SpellCooldownConsts.GLOBAL_RECOVERY_CATEGORY, "==") then
+                if not Utils.IsValueSecret(duration) and Utils.SafeCompare(duration, GCD_THRESHOLD, "<=") then
+                    isActualGCD = true
+                end
+            end
+            
+            if isActualGCD then
+                CooldownFrame_Clear(proxy.cooldown)
+                -- GCD shouldn't cause desaturation usually
+                proxy.icon:SetDesaturated(false)
+            else
+                if startTime and duration and not Utils.IsValueSecret(startTime) and not Utils.IsValueSecret(duration) then
+                    CooldownFrame_Set(proxy.cooldown, startTime, duration, true, false, cdInfo.modRate or 1)
+                else
+                    -- Passthrough for secret values in 12.0
+                    proxy.cooldown:SetCooldown(startTime or GetTime(), duration)
+                end
+            end
+        end
+    end
+    
+    if not hasCD then
         CooldownFrame_Clear(proxy.cooldown)
         proxy.icon:SetDesaturated(false)
     end
     
     local chargeInfo = Utils.GetSpellChargesSafe(spellID)
-    if chargeInfo and chargeInfo.maxCharges and chargeInfo.maxCharges > 1 then
-        proxy.count:SetText(chargeInfo.currentCharges)
-        proxy.count:Show()
-        if chargeInfo.currentCharges > 0 and chargeInfo.cooldownStartTime and chargeInfo.cooldownStartTime > 0 then
-            CooldownFrame_Set(proxy.cooldown, chargeInfo.cooldownStartTime, chargeInfo.cooldownDuration, true, true, chargeInfo.chargeModRate or 1)
-            proxy.icon:SetDesaturated(false)
+    if chargeInfo and chargeInfo.maxCharges and Utils.SafeCompare(chargeInfo.maxCharges, 1, ">") then
+        local currentCharges = chargeInfo.currentCharges
+        if not Utils.IsValueSecret(currentCharges) then
+            proxy.count:SetText(currentCharges)
+            proxy.count:Show()
+        else
+            proxy.count:SetText("...") -- Degraded display for secret charges
+            proxy.count:Show()
+        end
+
+        local chargeStart = chargeInfo.cooldownStartTime
+        local chargeDuration = chargeInfo.cooldownDuration
+        
+        -- If we have a charge start time, show the refill swipe
+        -- Even if currentCharges is secret, we want to show progress if it's recharging
+        if chargeStart and (Utils.IsValueSecret(chargeStart) or Utils.SafeCompare(chargeStart, 0, ">")) then
+            if not Utils.IsValueSecret(chargeStart) and not Utils.IsValueSecret(chargeDuration) then
+                CooldownFrame_Set(proxy.cooldown, chargeStart, chargeDuration, true, true, chargeInfo.chargeModRate or 1)
+                proxy.icon:SetDesaturated(false)
+            else
+                -- Passthrough for secrets
+                proxy.cooldown:SetCooldown(chargeStart or GetTime(), chargeDuration)
+                proxy.icon:SetDesaturated(false)
+            end
         end
     else
         local castCount = spellID and C_Spell.GetSpellCastCount and C_Spell.GetSpellCastCount(spellID)
-        if castCount and castCount > 0 then
-            proxy.count:SetText(castCount)
+        if castCount and Utils.SafeCompare(castCount, 0, ">") then
+            if not Utils.IsValueSecret(castCount) then
+                proxy.count:SetText(castCount)
+            else
+                proxy.count:SetText("...") -- Degraded display for secret cast counts
+            end
             proxy.count:Show()
         else
             proxy.count:Hide()

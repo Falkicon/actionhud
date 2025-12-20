@@ -15,6 +15,7 @@ Utils.IS_MIDNIGHT = (select(4, GetBuildInfo()) >= 120000)
 -- Returns true if value is secret and cannot be compared/formatted
 function Utils.IsValueSecret(value)
     if not Utils.IS_MIDNIGHT then return false end
+    if value == nil then return false end
     if not issecretvalue then return false end
     return issecretvalue(value) == true
 end
@@ -22,6 +23,7 @@ end
 -- Helper: Safe comparison that handles secret values
 -- Returns nil if comparison is not possible
 function Utils.SafeCompare(a, b, op)
+    if a == nil or b == nil then return nil end
     if Utils.IsValueSecret(a) or Utils.IsValueSecret(b) then return nil end
     if op == ">" then return a > b
     elseif op == "<" then return a < b

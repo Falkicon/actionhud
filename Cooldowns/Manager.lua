@@ -27,6 +27,11 @@ local containers = {}
 local auraBySpellID = {}
 local auraByName = {}
 local auraByInstanceID = {}
+local auraByIcon = {}
+
+-- Pre-seeded texture to spellID mapping for tracked abilities
+-- Built at addon enable (outside combat) to enable fallback matching when spellId is secret
+local knownTextureToSpellID = {}
 
 -- Target Blizzard Frames
 local blizzardFrames = {
@@ -46,6 +51,14 @@ local cachedTrackedBuffs = nil
 function Manager:OnEnable()
     self:RegisterEvent("UNIT_AURA", "OnUnitAura")
     self:RegisterEvent("CVAR_UPDATE", "OnEvent")
+    self:RegisterEvent("PLAYER_REGEN_ENABLED", "OnPlayerRegenEnabled")
+    self:RegisterEvent("ZONE_CHANGED_NEW_AREA", "AuraCache_RebuildFull")
+    self:RegisterEvent("PLAYER_ENTERING_WORLD", "AuraCache_RebuildFull")
+    
+    -- Pre-seed known spell textures for fallback matching during combat
+    -- Delayed slightly to ensure data provider is ready
+    C_Timer.After(0.5, function() self:PreSeedKnownSpells() end)
+    
     self:AuraCache_RebuildFull()
     
     -- Cache module references to avoid GetModule lookups on every UNIT_AURA
@@ -99,6 +112,14 @@ function Manager:OnCVarChanged(cvarName, value)
     end
 end
 
+function Manager:OnPlayerRegenEnabled()
+    -- Combat ended - rebuild cache if we deferred it earlier
+    if self.needsCacheRebuild then
+        addon:Log("OnPlayerRegenEnabled: Processing deferred cache rebuild", "discovery")
+    end
+    self:AuraCache_RebuildFull()
+end
+
 function Manager:OnUnitAura(event, unit, unitAuraUpdateInfo)
     if unit ~= "player" then return end
     self:AuraCache_ApplyUpdateInfo(unitAuraUpdateInfo)
@@ -118,22 +139,23 @@ end
 
 function Manager:IsBlizzardCooldownViewerEnabled()
     if CVarCallbackRegistry and CVarCallbackRegistry.GetCVarValueBool then
-        return CVarCallbackRegistry:GetCVarValueBool("cooldownViewerEnabled")
+        local val = CVarCallbackRegistry:GetCVarValueBool("cooldownViewerEnabled")
+        if val ~= nil then return val end
     end
     local val = GetCVar("cooldownViewerEnabled")
-    return val == "1"
+    return Utils.SafeCompare(val, "1", "==")
 end
 
 function Manager:GetCooldownIDsForCategory(category, categoryName)
-    if not category then return EMPTY_TABLE end
+    local ids = EMPTY_TABLE
     if CooldownViewerSettings and CooldownViewerSettings.GetDataProvider then
         local provider = CooldownViewerSettings:GetDataProvider()
         if provider and provider.GetOrderedCooldownIDsForCategory then
-            local ok, ids = pcall(provider.GetOrderedCooldownIDsForCategory, provider, category)
-            if ok and ids then return ids end
+            local ok, result = pcall(provider.GetOrderedCooldownIDsForCategory, provider, category)
+            if ok and result then ids = result end
         end
     end
-    return EMPTY_TABLE
+    return ids
 end
 
 function Manager:GetCooldownInfoForID(cooldownID)
@@ -157,12 +179,11 @@ function Manager:HideBlizzardFrame(frameName)
     if not frame then return end
     
     if not hiddenFrames[frameName] then
-        hiddenFrames[frameName] = {
-            originalUpdateShownState = frame.UpdateShownState
-        }
-        frame.UpdateShownState = function(self) end
-        frame:Hide()
-        addon:Log("Hooked and hidden Blizzard frame: " .. frameName, "frames")
+        hiddenFrames[frameName] = true
+        -- Use Alpha/Mouse instead of function override to avoid taint in 12.0
+        frame:SetAlpha(0)
+        frame:SetPropagateMouseClicks(true) -- Let clicks pass through to our proxies
+        addon:Log("Visual-hidden Blizzard frame: " .. frameName, "frames")
     end
 end
 
@@ -170,17 +191,10 @@ function Manager:ShowBlizzardFrame(frameName)
     local frame = _G[frameName]
     if not frame then return end
     
-    local saved = hiddenFrames[frameName]
-    if saved then
-        if saved.originalUpdateShownState then
-            frame.UpdateShownState = saved.originalUpdateShownState
-        end
+    if hiddenFrames[frameName] then
         hiddenFrames[frameName] = nil
-        if frame.UpdateShownState then
-            frame:UpdateShownState()
-        else
-            frame:Show()
-        end
+        frame:SetAlpha(1)
+        frame:SetPropagateMouseClicks(false)
         addon:Log("Restored Blizzard frame: " .. frameName, "frames")
     end
 end
@@ -302,50 +316,102 @@ function Manager:PopulateBuffProxy(proxy, cooldownID, cooldownInfo, stateTable, 
         activeSource = "totem"
         proxy.auraInstanceID = nil
         proxy.icon:SetDesaturated(false)
-        if totemData.expirationTime and totemData.duration and totemData.duration > 0 then
-            local startTime = totemData.expirationTime - totemData.duration
-            proxy.cooldown:SetReverse(true)
-            CooldownFrame_Set(proxy.cooldown, startTime, totemData.duration, true, false, totemData.modRate or 1)
+        
+        local duration = totemData.duration
+        local expirationTime = totemData.expirationTime
+        
+        if expirationTime and duration and Utils.SafeCompare(duration, 0, ">") then
+            if not Utils.IsValueSecret(expirationTime) and not Utils.IsValueSecret(duration) then
+                local startTime = expirationTime - duration
+                proxy.cooldown:SetReverse(true)
+                CooldownFrame_Set(proxy.cooldown, startTime, duration, true, false, totemData.modRate or 1)
+            else
+                -- Midnight 12.0: Passthrough for duration works. 
+                -- If we can't calculate startTime, we can try to use SetCooldownDuration if it's duration-only,
+                -- but CooldownFrame:SetCooldown(GetTime(), duration) is a decent fallback for active buffs.
+                proxy.cooldown:SetReverse(true)
+                proxy.cooldown:SetCooldown(GetTime(), duration)
+            end
         else
             CooldownFrame_Clear(proxy.cooldown)
         end
         proxy.count:Hide()
     else
-        local auraData = nil
-        if cooldownInfo.linkedSpellIDs then
-            for _, linkedID in ipairs(cooldownInfo.linkedSpellIDs) do
-                auraData = self:GetAuraBySpellID(linkedID)
-                if auraData then foundSpellID = linkedID; activeSource = "linked"; break end
-            end
+    local auraData = nil
+    
+    -- In Midnight, spellId and name can become secret in combat.
+    -- Try cache lookups in order of reliability.
+    if auraSpellID then
+        auraData = self:GetAuraBySpellID(auraSpellID)
+        if auraData then activeSource = "cache_spellid" end
+    end
+    
+    if not auraData and cooldownInfo.linkedSpellIDs then
+        for _, linkedID in ipairs(cooldownInfo.linkedSpellIDs) do
+            auraData = self:GetAuraBySpellID(linkedID)
+            if auraData then foundSpellID = linkedID; activeSource = "cache_linked"; break end
         end
-        if not auraData and auraSpellID then
-            auraData = self:GetAuraBySpellID(auraSpellID)
-            if auraData then foundSpellID = auraSpellID; activeSource = "aura" end
-        end
-        if not auraData and cooldownInfo.overrideSpellID and cooldownInfo.overrideSpellID ~= auraSpellID then
-            auraData = self:GetAuraBySpellID(cooldownInfo.overrideSpellID)
-            if auraData then foundSpellID = cooldownInfo.overrideSpellID; activeSource = "override" end
-        end
-        if not auraData and spellName and spellName ~= "Unknown" then
-            auraData = self:GetAuraByName(spellName)
-            if auraData then foundSpellID = auraData.spellId; activeSource = "name_cache" end
-        end
+    end
 
-        if auraData and (auraData.expirationTime == 0 or auraData.expirationTime > GetTime()) then
+    if not auraData and spellName and spellName ~= "Unknown" then
+        auraData = self:GetAuraByName(spellName)
+        if auraData then activeSource = "cache_name" end
+    end
+
+    -- Fuzzy matching by icon is the most robust fallback in Midnight combat
+    local lookupIcon = Utils.GetSpellTextureSafe(auraSpellID)
+    if not auraData and lookupIcon then
+        auraData = self:GetAuraByIcon(lookupIcon)
+        if auraData then activeSource = "cache_icon" end
+    end
+
+    if auraData then
+            local expirationTime = auraData.expirationTime
+            local duration = auraData.duration
+            
+            -- If aura exists in cache, it's active unless we can prove it's expired
             isActive = true
-            proxy.auraInstanceID = auraData.auraInstanceID
-            proxy.icon:SetDesaturated(false)
-            if auraData.expirationTime and auraData.duration and auraData.duration > 0 then
-                local startTime = auraData.expirationTime - auraData.duration
-                proxy.cooldown:SetReverse(true)
-                CooldownFrame_Set(proxy.cooldown, startTime, auraData.duration, true, false, auraData.timeMod or 1)
-            else
-                CooldownFrame_Clear(proxy.cooldown)
+            if expirationTime and not Utils.IsValueSecret(expirationTime) and expirationTime > 0 then
+                if expirationTime <= GetTime() then
+                    isActive = false
+                end
             end
-            if auraData.applications and auraData.applications > 1 then
-                proxy.count:SetText(auraData.applications)
-                proxy.count:Show()
+            
+            if isActive then
+                proxy.auraInstanceID = auraData.auraInstanceID
+                proxy.icon:SetDesaturated(false)
+                
+                if expirationTime and duration and Utils.SafeCompare(duration, 0, ">") then
+                    if not Utils.IsValueSecret(expirationTime) and not Utils.IsValueSecret(duration) then
+                        local startTime = expirationTime - duration
+                        proxy.cooldown:SetReverse(true)
+                        CooldownFrame_Set(proxy.cooldown, startTime, duration, true, false, auraData.timeMod or 1)
+                    else
+                        -- Passthrough: Use secret duration with SetCooldown
+                        proxy.cooldown:SetReverse(true)
+                        -- If we don't have a reliable startTime, we can't show progress accurately, 
+                        -- but we should at least show it's active.
+                        -- Actually, for buffs, they usually show full swipe if they have duration.
+                        proxy.cooldown:SetCooldown(GetTime() - 0.1, duration)
+                    end
+                else
+                    CooldownFrame_Clear(proxy.cooldown)
+                end
+                
+                if auraData.applications and (Utils.IsValueSecret(auraData.applications) or Utils.SafeCompare(auraData.applications, 1, ">")) then
+                    if Utils.IsValueSecret(auraData.applications) then
+                        proxy.count:SetText("...") -- Degraded state for secret stacks
+                    else
+                        proxy.count:SetText(auraData.applications)
+                    end
+                    proxy.count:Show()
+                else
+                    proxy.count:Hide()
+                end
             else
+                proxy.auraInstanceID = nil
+                proxy.icon:SetDesaturated(true)
+                CooldownFrame_Clear(proxy.cooldown)
                 proxy.count:Hide()
             end
         else
@@ -409,24 +475,131 @@ function Manager:AuraCache_Clear()
     wipe(auraBySpellID)
     wipe(auraByName)
     wipe(auraByInstanceID)
+    wipe(auraByIcon)
+end
+
+-- Pre-seed known spell textures for tracked abilities
+-- Call this at addon enable (outside combat) to build fallback lookup
+function Manager:PreSeedKnownSpells()
+    wipe(knownTextureToSpellID)
+    local categories = {
+        Enum.CooldownViewerCategory and Enum.CooldownViewerCategory.TrackedBuff,
+        Enum.CooldownViewerCategory and Enum.CooldownViewerCategory.TrackedBar,
+    }
+    local count = 0
+    for _, cat in ipairs(categories) do
+        if cat then
+            local ids = self:GetCooldownIDsForCategory(cat)
+            for _, cooldownID in ipairs(ids) do
+                local info = self:GetCooldownInfoForID(cooldownID)
+                if info and info.spellID then
+                    local texture = Utils.GetSpellTextureSafe(info.spellID)
+                    if texture then
+                        knownTextureToSpellID[texture] = info.spellID
+                        count = count + 1
+                    end
+                    -- Also seed linked spellIDs
+                    if info.linkedSpellIDs then
+                        for _, linkedID in ipairs(info.linkedSpellIDs) do
+                            local linkedTexture = Utils.GetSpellTextureSafe(linkedID)
+                            if linkedTexture then
+                                knownTextureToSpellID[linkedTexture] = linkedID
+                                count = count + 1
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
+    addon:Log(string.format("PreSeedKnownSpells: Seeded %d texture->spellID mappings", count), "discovery")
+end
+
+-- Get known spellID for a texture (fallback for secret spellId)
+function Manager:GetKnownSpellIDForTexture(texture)
+    if not texture then return nil end
+    return knownTextureToSpellID[texture]
 end
 
 function Manager:AuraCache_Add(auraData)
-    if not auraData then return end
-    if auraData.auraInstanceID then auraByInstanceID[auraData.auraInstanceID] = auraData end
-    if auraData.spellId then auraBySpellID[auraData.spellId] = auraData end
-    if auraData.name then auraByName[auraData.name] = auraData end
+    if not auraData or not auraData.auraInstanceID or Utils.IsValueSecret(auraData.auraInstanceID) then return end
+    
+    local id = auraData.auraInstanceID
+    local existing = auraByInstanceID[id]
+
+    -- Preserve known spellId/name/icon if new ones are secret (common in combat)
+    if not Utils.IsValueSecret(auraData.spellId) then
+        auraData._spellId = auraData.spellId
+    elseif existing then
+        auraData._spellId = existing._spellId
+    end
+    
+    if not Utils.IsValueSecret(auraData.name) then
+        auraData._name = auraData.name
+    elseif existing then
+        auraData._name = existing._name
+    end
+
+    if not Utils.IsValueSecret(auraData.icon) then
+        auraData._icon = auraData.icon
+    elseif existing then
+        auraData._icon = existing._icon
+    end
+    
+    -- Fallback: If spellId is still unknown but icon is readable, use pre-seeded lookup
+    if not auraData._spellId and auraData._icon then
+        local knownSpellID = knownTextureToSpellID[auraData._icon]
+        if knownSpellID then
+            auraData._spellId = knownSpellID
+        end
+    end
+    
+    auraByInstanceID[id] = auraData
+    
+    if auraData._spellId then
+        auraBySpellID[auraData._spellId] = auraData
+    end
+    if auraData._name then
+        auraByName[auraData._name] = auraData
+    end
+    if auraData._icon then
+        auraByIcon[auraData._icon] = auraData
+    end
 end
 
 function Manager:AuraCache_Remove(auraInstanceID)
+    if not auraInstanceID or Utils.IsValueSecret(auraInstanceID) then return end
     local existing = auraByInstanceID[auraInstanceID]
+    
+    -- #region agent log
+    addon:Log(string.format("AuraCache_Remove[%s]: existing=%s", tostring(auraInstanceID), tostring(existing ~= nil)), "discovery")
+    -- #endregion
+
     if not existing then return end
+    
     auraByInstanceID[auraInstanceID] = nil
-    if existing.spellId and auraBySpellID[existing.spellId] == existing then auraBySpellID[existing.spellId] = nil end
-    if existing.name and auraByName[existing.name] == existing then auraByName[existing.name] = nil end
+    
+    -- Use preserved metadata to clear specific caches
+    if existing._spellId and auraBySpellID[existing._spellId] == existing then 
+        auraBySpellID[existing._spellId] = nil 
+    end
+    if existing._name and auraByName[existing._name] == existing then 
+        auraByName[existing._name] = nil 
+    end
+    if existing._icon and auraByIcon[existing._icon] == existing then
+        auraByIcon[existing._icon] = nil
+    end
 end
 
 function Manager:AuraCache_RebuildFull()
+    -- Don't wipe cache during combat - values will be secret and we'll lose lookup keys
+    if InCombatLockdown() then
+        self.needsCacheRebuild = true
+        addon:Log("AuraCache_RebuildFull: Deferred (in combat)", "discovery")
+        return
+    end
+    self.needsCacheRebuild = false
+    
     self:AuraCache_Clear()
     for i = 1, 40 do
         local aura = C_UnitAuras.GetAuraDataByIndex("player", i, "HELPFUL")
@@ -438,6 +611,7 @@ function Manager:AuraCache_RebuildFull()
         if not aura then break end
         self:AuraCache_Add(aura)
     end
+    addon:Log("AuraCache_RebuildFull: Completed", "discovery")
 end
 
 function Manager:AuraCache_ApplyUpdateInfo(unitAuraUpdateInfo)
@@ -464,11 +638,18 @@ function Manager:AuraCache_ApplyUpdateInfo(unitAuraUpdateInfo)
 end
 
 function Manager:GetAuraBySpellID(spellID)
+    if not spellID or Utils.IsValueSecret(spellID) then return nil end
     return auraBySpellID[spellID]
 end
 
 function Manager:GetAuraByName(name)
+    if not name or Utils.IsValueSecret(name) then return nil end
     return auraByName[name]
+end
+
+function Manager:GetAuraByIcon(icon)
+    if not icon or Utils.IsValueSecret(icon) then return nil end
+    return auraByIcon[icon]
 end
 
 -- ============================================================================

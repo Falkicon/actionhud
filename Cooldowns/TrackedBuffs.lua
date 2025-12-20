@@ -27,6 +27,7 @@ function TrackedBuffs:OnInitialize()
 end
 
 function TrackedBuffs:OnEnable()
+    addon:Log("TrackedBuffs:OnEnable called", "discovery")
     Manager:CreateContainer("buffs", "ActionHudBuffContainer")
     self:UpdateLayout()
     
@@ -90,13 +91,21 @@ function TrackedBuffs:ApplyLayoutPosition()
 end
 
 function TrackedBuffs:UpdateLayout()
+    addon:Log("TrackedBuffs:UpdateLayout START", "discovery")
     local main = _G["ActionHudFrame"]
-    if not main then return end
+    if not main then 
+        addon:Log("TrackedBuffs:UpdateLayout: No main frame", "discovery")
+        return 
+    end
     local p = self.db.profile
     local container = Manager:GetContainer("buffs")
-    if not container then return end
+    if not container then 
+        addon:Log("TrackedBuffs:UpdateLayout: No container", "discovery")
+        return 
+    end
     
     local blizzEnabled = Manager:IsBlizzardCooldownViewerEnabled()
+    addon:Log(string.format("TrackedBuffs:UpdateLayout: enabled=%s, blizzEnabled=%s", tostring(p.buffsEnabled), tostring(blizzEnabled)), "discovery")
     
     -- Report height to LayoutManager
     local LM = addon:GetModule("LayoutManager", true)
@@ -125,9 +134,13 @@ end
 
 function TrackedBuffs:RenderBuffProxies(container, p)
     local category = GetTrackedBuffCategory()
-    if not category then return end
+    if not category then 
+        addon:Log("TrackedBuffs: No category available", "discovery")
+        return 
+    end
     
     local cooldownIDs = Manager:GetCooldownIDsForCategory(category, "TrackedBuff")
+    addon:Log(string.format("TrackedBuffs:RenderBuffProxies: %d cooldownIDs", #cooldownIDs), "discovery")
     local gap = p.buffsSpacing
     local hideInactive = p.buffsHideInactive
     local inactiveAlpha = p.buffsInactiveOpacity or 0.5
@@ -177,6 +190,7 @@ function TrackedBuffs:RenderBuffProxies(container, p)
             table_insert(visibleProxiesCache, proxy)
         end
     end
+    
     
     -- PASS 3: Position and show visible proxies, hide inactive ones
     local numVisible = #visibleProxiesCache
@@ -258,6 +272,7 @@ end
 
 -- Called by Manager after aura cache update
 function TrackedBuffs:OnAuraUpdate()
+    addon:Log("TrackedBuffs:OnAuraUpdate", "discovery")
     local container = Manager:GetContainer("buffs")
     if container and container:IsShown() then
         -- Use lightweight refresh instead of full re-render

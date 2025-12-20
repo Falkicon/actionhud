@@ -217,9 +217,22 @@ function ActionHud:Log(msg, debugType)
     
     if not enabled then return end
 
-    -- Add to debug buffer (no chat output - buffer only)
+    -- Safe tostring that handles secret values (they error on tostring/format)
+    local function SafeToString(v)
+        if ns.Utils.IsValueSecret(v) then return "<secret>" end
+        return tostring(v)
+    end
+
     local timestamp = date("%H:%M:%S")
-    table.insert(debugBuffer, string.format("[%s][%s] %s", timestamp, debugType or "General", tostring(msg)))
+    local safeMsg = SafeToString(msg)
+    
+    -- Print to chat if discovery is on so it shows in BugSack
+    if p.debugDiscovery then
+        print(string.format("|cff33ff99AH[%s]|r %s", debugType or "Debug", safeMsg))
+    end
+
+    -- Add to debug buffer (no chat output - buffer only)
+    table.insert(debugBuffer, string.format("[%s][%s] %s", timestamp, debugType or "General", safeMsg))
     
     -- Check buffer cap and auto-stop if reached
     if #debugBuffer >= DEBUG_BUFFER_CAP then
@@ -321,12 +334,33 @@ function ActionHud:ClearDebugBuffer()
 end
 
 function ActionHud:SlashHandler(msg)
+    msg = msg and msg:trim():lower() or ""
+    
     if msg == "debug" then
         self.db.profile.debugDiscovery = not self.db.profile.debugDiscovery
-        print("ActionHud Debug: " .. tostring(self.db.profile.debugDiscovery))
+        print("|cff33ff99ActionHud:|r Debug Discovery is now " .. (self.db.profile.debugDiscovery and "|cff00ff00ON|r" or "|cffff0000OFF|r"))
+        return
+    end
+
+    if msg == "record" then
+        if debugRecording then
+            self:StopDebugRecording()
+        else
+            self:StartDebugRecording()
+        end
         return
     end
     
+    if msg == "log" then
+        self:ShowDebugExport()
+        return
+    end
+    
+    if msg == "clear" then
+        self:ClearDebugBuffer()
+        return
+    end
+
     if msg == "dump" then
         local Manager = ns.CooldownManager
         if Manager and Manager.DumpTrackedBuffInfo then

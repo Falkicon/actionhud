@@ -26,6 +26,7 @@ function TrackedBars:OnInitialize()
 end
 
 function TrackedBars:OnEnable()
+    addon:Log("TrackedBars:OnEnable called", "discovery")
     Manager:CreateContainer("bars", "ActionHudTrackedBarsContainer")
     self:UpdateLayout()
     
@@ -47,13 +48,21 @@ function TrackedBars:OnDisable()
 end
 
 function TrackedBars:UpdateLayout()
+    addon:Log("TrackedBars:UpdateLayout START", "discovery")
     local main = _G["ActionHudFrame"]
-    if not main then return end
+    if not main then 
+        addon:Log("TrackedBars:UpdateLayout: No main frame", "discovery")
+        return 
+    end
     local p = self.db.profile
     local container = Manager:GetContainer("bars")
-    if not container then return end
+    if not container then 
+        addon:Log("TrackedBars:UpdateLayout: No container", "discovery")
+        return 
+    end
     
     local blizzEnabled = Manager:IsBlizzardCooldownViewerEnabled()
+    addon:Log(string.format("TrackedBars:UpdateLayout: enabled=%s, blizzEnabled=%s", tostring(p.tbEnabled), tostring(blizzEnabled)), "discovery")
     
     container:ClearAllPoints()
     container:SetPoint("CENTER", main, "CENTER", p.tbXOffset or 100, p.tbYOffset or 0)
@@ -78,9 +87,13 @@ end
 
 function TrackedBars:RenderTrackedBarProxies(container, p)
     local category = GetTrackedBarCategory()
-    if not category then return end
+    if not category then 
+        addon:Log("TrackedBars: No category available", "discovery")
+        return 
+    end
     
     local cooldownIDs = Manager:GetCooldownIDsForCategory(category, "TrackedBar")
+    addon:Log(string.format("TrackedBars:RenderTrackedBarProxies: %d cooldownIDs", #cooldownIDs), "discovery")
     local gap = p.tbGap
     local hideInactive = p.tbHideInactive
     local inactiveAlpha = p.tbInactiveOpacity or 0.5
@@ -130,7 +143,6 @@ function TrackedBars:RenderTrackedBarProxies(container, p)
             proxy:ClearAllPoints()
             proxy:SetPoint("TOP", container, "TOP", 0, -yOffset)
             proxy:Show()
-            -- Debug logging removed from hot path to avoid string.format garbage
             yOffset = yOffset + p.tbHeight + gap
         end
     end
@@ -203,6 +215,7 @@ end
 
 -- Called by Manager after aura cache update
 function TrackedBars:OnAuraUpdate()
+    addon:Log("TrackedBars:OnAuraUpdate", "discovery")
     local container = Manager:GetContainer("bars")
     if container and container:IsShown() then
         -- Use lightweight refresh instead of full re-render
