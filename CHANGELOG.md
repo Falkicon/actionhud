@@ -3,6 +3,25 @@
 All notable changes to this project will be documented in this file.
 
 
+## [Unreleased - Midnight Branch]
+
+### Changed
+- **TrackedBuffs/TrackedBars Reskin**: Complete rewrite using a "reskin" approach for Midnight (12.0) compatibility.
+    - Now hooks into Blizzard's native `BuffIconCooldownViewer` and `BuffBarCooldownViewer` frames instead of creating custom proxies.
+    - Blizzard's code handles all protected API calls (e.g., `C_UnitAuras.GetPlayerAuraBySpellID`) which are inaccessible to addons in Midnight.
+    - ActionHud reparents Blizzard frames to its container and applies custom styling (scale, opacity, fonts, positioning).
+    - Resolves "secret value" errors during combat in instanced content.
+
+### Removed
+- **PopulateBuffProxy**: Removed ~140 lines of dead code from Manager.lua (no longer needed with reskin approach).
+
+### Technical
+- Added hook points on `RefreshLayout`, `OnAcquireItemFrame`, and `UpdateShownState` for Blizzard frame restyling.
+- Preserved original frame state for restoration when feature is disabled.
+- Added reload warning to Tracked Buffs/Bars settings.
+
+---
+
 ## [2.5.5] - 2025-12-19
 
 ### Changed

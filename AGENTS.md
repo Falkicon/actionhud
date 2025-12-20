@@ -31,14 +31,14 @@ A compact action bar HUD overlay that displays ability icons, cooldowns, and pro
 | File | Purpose |
 |------|---------|
 | `Core.lua` | Addon initialization, debug system, slash commands |
-| `Utils.lua` | Shared utility functions (safe API wrappers, fonts) |
+| `Utils.lua` | Shared utility functions (safe API wrappers, fonts, Midnight compatibility) |
 | `LayoutManager.lua` | Centralized module positioning and stack management |
 | `ActionBars.lua` | Action bar grid (6×4 button frames) |
 | `Resources.lua` | Health, Power, and Class Resource bars |
 | `Cooldowns/Manager.lua` | Centralized proxy pool, aura cache, Blizzard frame management |
-| `Cooldowns/Cooldowns.lua` | Essential/Utility cooldown icons |
-| `Cooldowns/TrackedBars.lua` | Tracked Bar proxies (status bar style, sidecar positioning) |
-| `Cooldowns/TrackedBuffs.lua` | Tracked Buff proxies (icon style) |
+| `Cooldowns/Cooldowns.lua` | Essential/Utility cooldown icons (custom proxies) |
+| `Cooldowns/TrackedBars.lua` | Tracked Bars reskin (hooks BuffBarCooldownViewer, sidecar positioning) |
+| `Cooldowns/TrackedBuffs.lua` | Tracked Buffs reskin (hooks BuffIconCooldownViewer) |
 | `SettingsUI.lua` | Blizzard Settings API integration (no external libs) |
 | `ActionHud.toc` | Addon metadata and load order |
 
@@ -87,7 +87,10 @@ Each stackable module implements:
 
 ### The Proxy System (Cooldowns/)
 
-ActionHud uses a **"hide-only" visibility model** for Blizzard's CooldownViewer frames:
+ActionHud uses different strategies for different CooldownViewer components:
+
+#### Cooldowns Module (Essential/Utility)
+Uses a **"hide-only" visibility model** with custom proxy frames:
 
 | Blizzard CVar | ActionHud Module | Result |
 |---------------|------------------|--------|
@@ -99,6 +102,28 @@ ActionHud uses a **"hide-only" visibility model** for Blizzard's CooldownViewer 
 1. Only call `SetShown(false)` on Blizzard frames - no reparenting
 2. Query data directly from `C_Spell.GetSpellCooldown()`, `CooldownViewerSettings:GetDataProvider()`
 3. Watch `cooldownViewerEnabled` CVar via `CVAR_UPDATE` for real-time toggling
+
+#### TrackedBuffs/TrackedBars (Reskin Approach)
+
+**Midnight (12.0) Compatibility:** These modules use a "reskin" approach because aura-tracking requires `C_UnitAuras.GetPlayerAuraBySpellID()` which is protected in Midnight.
+
+| Blizzard Frame | ActionHud Module |
+|----------------|------------------|
+| `BuffIconCooldownViewer` | TrackedBuffs |
+| `BuffBarCooldownViewer` | TrackedBars |
+
+**Reskin Design:**
+1. Hook into Blizzard's native frames (they can call protected APIs)
+2. Reparent frames to ActionHud container
+3. Apply custom styling via `hooksecurefunc`:
+   - `RefreshLayout` → Re-apply scale, padding, force re-layout
+   - `OnAcquireItemFrame` → Style individual icons/bars
+   - `UpdateShownState` → Sync container visibility
+4. Save original state (parent, points, scale) for restoration
+
+**Toggle Behavior:**
+- Enable: Reparent Blizzard frame → Apply styling
+- Disable: Restore original parent/position → Blizzard works normally
 
 For detailed Blizzard frame structure and API reference, see `Docs/proxy-system.md`.
 
