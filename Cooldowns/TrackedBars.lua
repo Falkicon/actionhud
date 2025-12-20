@@ -340,10 +340,8 @@ function TrackedBars:SetupReskin()
     -- Reparent Blizzard frame to our container
     blizzFrame:SetParent(container)
     
-    -- Remove from any managed frame system to prevent conflicts
-    if blizzFrame.layoutParent then
-        blizzFrame.layoutParent = nil
-    end
+    -- Tell UIParent to ignore this frame (don't nil layoutParent - Blizzard code needs it)
+    blizzFrame.ignoreFramePositionManager = true
     
     -- Position and style
     self:PositionBlizzardFrame()
