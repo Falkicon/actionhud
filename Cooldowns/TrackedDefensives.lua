@@ -103,16 +103,17 @@ function TrackedDefensives:StyleItemFrame(itemFrame)
     self:StripBlizzardDecorations(itemFrame)
     
     -- Apply custom timer font size if specified
+    -- SetCountdownFont requires a font NAME string
     local timerSize = p.defensivesTimerFontSize or "medium"
     if timerSize then
-        local fontObject = Utils.GetTimerFont(timerSize)
-        if fontObject then
+        local fontName = Utils.GetTimerFont(timerSize)
+        if fontName then
             -- Try common cooldown locations
             if itemFrame.Cooldown then
-                itemFrame.Cooldown:SetCountdownFont(fontObject)
+                itemFrame.Cooldown:SetCountdownFont(fontName)
             end
             if itemFrame.cooldown then
-                itemFrame.cooldown:SetCountdownFont(fontObject)
+                itemFrame.cooldown:SetCountdownFont(fontName)
             end
         end
     end
@@ -131,9 +132,9 @@ function TrackedDefensives:StyleItemFrame(itemFrame)
 end
 
 -- Remove Blizzard's decorative textures
+-- Called every time to ensure decorations stay hidden
 function TrackedDefensives:StripBlizzardDecorations(itemFrame)
     if not itemFrame then return end
-    if itemFrame._ahStripped then return end -- Only strip once
     
     -- Hide MaskTextures and overlay textures
     local regions = {itemFrame:GetRegions()}
@@ -156,8 +157,6 @@ function TrackedDefensives:StripBlizzardDecorations(itemFrame)
     if itemFrame.icon then
         itemFrame.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
     end
-    
-    itemFrame._ahStripped = true
 end
 
 -- Main setup function

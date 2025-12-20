@@ -39,7 +39,7 @@ end
 
 -- Install hooks on the Blizzard frame (only once, can't be removed)
 function TrackedBuffs:InstallHooks()
-    if hooksInstalled then return end
+    if hooksInstalled then return true end
     
     local blizzFrame = self:GetBlizzardFrame()
     if not blizzFrame then 
@@ -71,8 +71,6 @@ function TrackedBuffs:ApplyStyling()
     local blizzFrame = self:GetBlizzardFrame()
     if not blizzFrame then return end
     
-    local p = self.db.profile
-    
     -- Style existing item frames
     if blizzFrame.itemFramePool then
         for itemFrame in blizzFrame.itemFramePool:EnumerateActive() do
@@ -87,20 +85,20 @@ function TrackedBuffs:StyleItemFrame(itemFrame)
     
     local p = self.db.profile
     
-    -- Remove Blizzard's decorative elements (mask, overlay, shadows)
+    -- Always strip decorations (Blizzard may re-apply them)
     self:StripBlizzardDecorations(itemFrame)
     
     -- Apply custom timer font size if specified
-    local timerSize = p.buffsTimerFontSize or p.trackedTimerFontSize or "medium"
+    local timerSize = p.buffsTimerFontSize or "medium"
     if timerSize and itemFrame.Cooldown then
-        local fontObject = Utils.GetTimerFont(timerSize)
-        if fontObject then
-            itemFrame.Cooldown:SetCountdownFont(fontObject)
+        local fontName = Utils.GetTimerFont(timerSize)
+        if fontName then
+            itemFrame.Cooldown:SetCountdownFont(fontName)
         end
     end
     
     -- Apply custom count font size if specified (numeric)
-    local countSize = p.buffsCountFontSize or p.trackedCountFontSize or 10
+    local countSize = p.buffsCountFontSize or 10
     if countSize and type(countSize) == "number" then
         local applicationsFrame = itemFrame.Applications
         if applicationsFrame and applicationsFrame.Applications then
@@ -110,9 +108,9 @@ function TrackedBuffs:StyleItemFrame(itemFrame)
 end
 
 -- Remove Blizzard's decorative textures (mask, overlay, shadow)
+-- Called every time to ensure decorations stay hidden
 function TrackedBuffs:StripBlizzardDecorations(itemFrame)
     if not itemFrame then return end
-    if itemFrame._ahStripped then return end -- Only strip once
     
     -- Hide MaskTextures and overlay textures
     local regions = {itemFrame:GetRegions()}
@@ -128,8 +126,6 @@ function TrackedBuffs:StripBlizzardDecorations(itemFrame)
     if itemFrame.Icon then
         itemFrame.Icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
     end
-    
-    itemFrame._ahStripped = true
 end
 
 -- Main setup function
@@ -165,4 +161,9 @@ end
 -- Update styling (called when settings change)
 function TrackedBuffs:UpdateLayout()
     self:SetupStyling()
+    
+    -- Force re-apply styling to all existing frames
+    if isStylingActive then
+        self:ApplyStyling()
+    end
 end

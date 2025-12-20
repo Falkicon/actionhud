@@ -338,8 +338,18 @@ Enable it in Gameplay Enhancements to use these features.]]
                 type = "description", order = 1,
                 name = [[ActionHud applies custom styling to Blizzard's Tracked Abilities frames, removing rounded corners and adjusting fonts.
 
-|cffffcc00Positioning:|r Use Blizzard's |cff00ff00EditMode|r (ESC → Edit Mode) to move and resize these frames.
+|cffffcc00Positioning:|r Use Blizzard's |cff00ff00EditMode|r to move and resize these frames.
 ]],
+            },
+            openEditMode = {
+                name = "Open EditMode",
+                desc = "Open Blizzard's EditMode to position and resize Tracked Abilities frames.",
+                type = "execute", order = 2, width = "normal",
+                func = function()
+                    if EditModeManagerFrame then
+                        EditModeManagerFrame:Show()
+                    end
+                end,
             },
             
             -- Tracked Buffs Section

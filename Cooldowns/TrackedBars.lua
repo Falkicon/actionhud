@@ -38,7 +38,7 @@ end
 
 -- Install hooks on the Blizzard frame (only once, can't be removed)
 function TrackedBars:InstallHooks()
-    if hooksInstalled then return end
+    if hooksInstalled then return true end
     
     local blizzFrame = self:GetBlizzardFrame()
     if not blizzFrame then 
@@ -70,8 +70,6 @@ function TrackedBars:ApplyStyling()
     local blizzFrame = self:GetBlizzardFrame()
     if not blizzFrame then return end
     
-    local p = self.db.profile
-    
     -- Style existing item frames
     if blizzFrame.itemFramePool then
         for itemFrame in blizzFrame.itemFramePool:EnumerateActive() do
@@ -86,13 +84,15 @@ function TrackedBars:StyleItemFrame(itemFrame)
     
     local p = self.db.profile
     
-    -- Remove Blizzard's decorative elements
+    -- Always strip decorations (Blizzard may re-apply them)
     self:StripBlizzardDecorations(itemFrame)
     
     -- Apply custom timer font size if specified
-    local timerSize = p.barsTimerFontSize or p.trackedTimerFontSize or "medium"
+    -- SetFontObject requires an actual font object (global), not a string
+    local timerSize = p.barsTimerFontSize or "medium"
     if timerSize then
-        local fontObject = Utils.GetTimerFont(timerSize)
+        local fontName = Utils.GetTimerFont(timerSize)
+        local fontObject = fontName and _G[fontName]
         if fontObject then
             if itemFrame.Bar and itemFrame.Bar.Duration then
                 itemFrame.Bar.Duration:SetFontObject(fontObject)
@@ -104,7 +104,7 @@ function TrackedBars:StyleItemFrame(itemFrame)
     end
     
     -- Apply custom count font size if specified (numeric)
-    local countSize = p.barsCountFontSize or p.trackedCountFontSize or 10
+    local countSize = p.barsCountFontSize or 10
     if countSize and type(countSize) == "number" then
         local iconFrame = itemFrame.Icon
         if iconFrame and iconFrame.Applications then
@@ -114,9 +114,9 @@ function TrackedBars:StyleItemFrame(itemFrame)
 end
 
 -- Remove Blizzard's decorative textures (mask, overlay, shadow, bar background)
+-- Called every time to ensure decorations stay hidden
 function TrackedBars:StripBlizzardDecorations(itemFrame)
     if not itemFrame then return end
-    if itemFrame._ahStripped then return end -- Only strip once
     
     -- Strip decorations from the Icon frame
     if itemFrame.Icon then
@@ -150,8 +150,6 @@ function TrackedBars:StripBlizzardDecorations(itemFrame)
             barFrame.Pip:Hide()
         end
     end
-    
-    itemFrame._ahStripped = true
 end
 
 -- Main setup function
@@ -187,4 +185,9 @@ end
 -- Update styling (called when settings change)
 function TrackedBars:UpdateLayout()
     self:SetupStyling()
+    
+    -- Force re-apply styling to all existing frames
+    if isStylingActive then
+        self:ApplyStyling()
+    end
 end
