@@ -116,13 +116,35 @@ Uses a **"hide-only" visibility model** with custom proxy frames:
 1. Hook into Blizzard's native frames (they can call protected APIs)
 2. Reparent frames to ActionHud container
 3. Apply custom styling via `hooksecurefunc`:
-   - `RefreshLayout` → Re-apply scale, padding, force re-layout
-   - `OnAcquireItemFrame` → Style individual icons/bars
+   - `RefreshLayout` → Re-apply frame-level scale (safe)
+   - `OnAcquireItemFrame` → Style individual icons/bars (decoration stripping)
    - `UpdateShownState` → Sync container visibility
 4. Save original state (parent, points, scale) for restoration
 
+**Critical: Safe vs Unsafe Operations**
+
+| Safe Operations | Unsafe Operations (trigger Blizzard refresh) |
+|-----------------|---------------------------------------------|
+| `blizzFrame:SetScale(x)` | `blizzFrame.iconScale = x` |
+| `blizzFrame:SetAlpha(x)` | `blizzFrame:SetHideWhenInactive(x)` |
+| `blizzFrame.childXPadding = x` | `itemContainerFrame:Layout()` |
+| `blizzFrame.ignoreFramePositionManager = true` | `blizzFrame.layoutParent = nil` |
+| `itemFrame:SetScale(x)` in OnAcquireItemFrame hook | Iterating itemFramePool in ApplyCustomStyling |
+
+**Current Settings Status (Midnight PTR):**
+
+| Setting | TrackedBuffs | TrackedBars | Notes |
+|---------|--------------|-------------|-------|
+| Icon Height | ✅ Works | ❌ | Uses frame SetScale() |
+| Icon Width | ❌ | ❌ | Only frame scale, not individual |
+| Icon Spacing | ❌ | ❌ | Padding doesn't trigger relayout |
+| Hide Inactive | ❌ | ❌ | SetHideWhenInactive unsafe |
+| Timer Font Size | ❌ | ❌ | Need safe StyleItemFrame path |
+| Stack Count Font | ❌ | ❌ | Need safe StyleItemFrame path |
+| X/Y Offset | N/A | ✅ Works | Sidecar positioning |
+
 **Toggle Behavior:**
-- Enable: Reparent Blizzard frame → Apply styling
+- Enable: Reparent Blizzard frame → Apply safe styling only
 - Disable: Restore original parent/position → Blizzard works normally
 
 For detailed Blizzard frame structure and API reference, see `Docs/proxy-system.md`.
