@@ -49,7 +49,9 @@ local defaults = {
         barsCountFontSize = 10,
         barsTimerFontSize = "medium",
         
-        -- styleExternalDefensives = true,  -- Future: when Blizzard adds the frame
+        styleExternalDefensives = true,  -- 12.0+ (Midnight)
+        defensivesCountFontSize = 10,
+        defensivesTimerFontSize = "medium",
 
         -- Minimap Icon (LibDBIcon)
         minimap = {

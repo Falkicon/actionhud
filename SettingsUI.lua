@@ -418,25 +418,58 @@ Enable it in Gameplay Enhancements to use these features.]]
                 end,
             },
             
-            -- External Defensives Section
+            -- External Defensives Section (12.0+ only)
             defensivesHeader = { name = "External Defensives", type = "header", order = 30 },
             defensivesNote = {
                 type = "description", order = 31,
-                name = "|cffaaaaaa(Coming soon - pending Blizzard API availability)|r",
+                name = function()
+                    if not ExternalDefensivesFrame then
+                        return "|cffaaaaaa(Requires WoW 12.0 Midnight or later)|r"
+                    end
+                    return ""
+                end,
+                hidden = function() return ExternalDefensivesFrame ~= nil end,
             },
-            --[[
             styleExternalDefensives = {
                 name = "Enable Styling", 
                 desc = "Apply ActionHud styling to the External Defensives frame.", 
                 type = "toggle", order = 32, width = 1.0,
-                disabled = function() return not IsBlizzardCooldownViewerEnabled() end,
+                hidden = function() return not ExternalDefensivesFrame end,
                 get = function(info) return self.db.profile.styleExternalDefensives end,
                 set = function(info, val) 
                     self.db.profile.styleExternalDefensives = val
-                    -- ActionHud:GetModule("TrackedDefensives"):UpdateLayout() 
+                    local mod = ActionHud:GetModule("TrackedDefensives", true)
+                    if mod then mod:UpdateLayout() end
                 end,
             },
-            ]]
+            defensivesCountFontSize = {
+                name = "Stack Count Font", 
+                desc = "Font size for stack counts.",
+                type = "range", min = 6, max = 18, step = 1, order = 33, width = 1.0,
+                hidden = function() return not ExternalDefensivesFrame end,
+                disabled = function() return not self.db.profile.styleExternalDefensives end,
+                get = function(info) return self.db.profile.defensivesCountFontSize or 10 end,
+                set = function(info, val) 
+                    self.db.profile.defensivesCountFontSize = val
+                    local mod = ActionHud:GetModule("TrackedDefensives", true)
+                    if mod then mod:UpdateLayout() end
+                end,
+            },
+            defensivesTimerFontSize = {
+                name = "Timer Font", 
+                desc = "Font size for cooldown timers.",
+                type = "select", order = 34, width = 1.0,
+                values = { small = "Small", medium = "Medium", large = "Large", huge = "Huge" },
+                sorting = { "small", "medium", "large", "huge" },
+                hidden = function() return not ExternalDefensivesFrame end,
+                disabled = function() return not self.db.profile.styleExternalDefensives end,
+                get = function(info) return self.db.profile.defensivesTimerFontSize or "medium" end,
+                set = function(info, val) 
+                    self.db.profile.defensivesTimerFontSize = val
+                    local mod = ActionHud:GetModule("TrackedDefensives", true)
+                    if mod then mod:UpdateLayout() end
+                end,
+            },
         },
     }
 
@@ -458,29 +491,16 @@ Enable it in Gameplay Enhancements to use these features.]]
         local LM = GetLayoutManager()
         if not LM then return args end
         
-        -- EditMode Note
-        args.editModeNote = {
-            type = "description", order = 1,
-            name = [[|cffffcc00Tracked Abilities Positioning:|r
-Use Blizzard's |cff00ff00EditMode|r (ESC → Edit Mode) to position and resize:
-• Tracked Buffs
-• Tracked Bars  
-• External Defensives (when available)
-
-These frames are styled by ActionHud but positioned via EditMode.
-]],
-        }
-        
-        -- HUD Stack Section
-        args.stackHeader = { type = "header", name = "HUD Stack Order", order = 10 }
+        -- HUD Stack Section (first)
+        args.stackHeader = { type = "header", name = "HUD Stack Order", order = 1 }
         args.stackDesc = {
-            type = "description", order = 11,
+            type = "description", order = 2,
             name = "Arrange modules from top to bottom. Use arrows to reorder. Gap defines spacing after each module.\n ",
         }
         
         local stack = LM:GetStack()
         local gaps = LM:GetGaps()
-        local baseOrder = 20
+        local baseOrder = 10
         
         for i, moduleId in ipairs(stack) do
             local moduleName = LM:GetModuleName(moduleId)
@@ -544,15 +564,35 @@ These frames are styled by ActionHud but positioned via EditMode.
             }
         end
         
-        -- Reset button
-        args.resetHeader = { type = "header", name = "", order = 500 }
+        -- Reset button (inside HUD Stack section)
         args.resetBtn = {
             name = "Reset to Default Order",
             desc = "Restore the default module order and gap values.",
-            type = "execute", order = 501, width = "double",
+            type = "execute", order = 99, width = "double",
             func = function()
                 LM:ResetToDefault()
                 LibStub("AceConfigRegistry-3.0"):NotifyChange("ActionHud_Layout")
+            end,
+        }
+        
+        -- Tracked Abilities Section
+        args.trackedHeader = { type = "header", name = "Tracked Abilities", order = 100 }
+        args.trackedDesc = {
+            type = "description", order = 101,
+            name = [[These frames are styled by ActionHud but positioned via Blizzard's EditMode:
+• Tracked Buffs
+• Tracked Bars
+• External Defensives
+]],
+        }
+        args.openEditMode = {
+            name = "Open EditMode",
+            desc = "Open Blizzard's EditMode to position and resize Tracked Abilities frames.",
+            type = "execute", order = 102, width = "normal",
+            func = function()
+                if EditModeManagerFrame then
+                    EditModeManagerFrame:Show()
+                end
             end,
         }
         

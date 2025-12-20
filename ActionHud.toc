@@ -17,4 +17,5 @@ Cooldowns\Manager.lua
 Cooldowns\Cooldowns.lua
 Cooldowns\TrackedBars.lua
 Cooldowns\TrackedBuffs.lua
+Cooldowns\TrackedDefensives.lua
 SettingsUI.lua

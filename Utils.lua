@@ -150,10 +150,10 @@ function Utils.InvalidateTextureCache()
     wipe(textureCache)
 end
 
--- Timer font helper - maps numeric slider values to Blizzard font names
--- SetCountdownFont requires named fonts, so we map ranges to the 4 available sizes
+-- Timer font helper - maps string values to Blizzard font objects
+-- SetCountdownFont requires actual font objects, not strings
 -- Pre-allocated table to avoid garbage creation
-local legacyFontMap = {
+local fontNameMap = {
     ["small"] = "GameFontHighlightSmallOutline",
     ["medium"] = "GameFontHighlightOutline",
     ["large"] = "GameFontHighlightLargeOutline",
@@ -161,22 +161,26 @@ local legacyFontMap = {
 }
 
 function Utils.GetTimerFont(size)
+    local fontName
     if type(size) == "string" then
-        -- Legacy support for old string values
-        return legacyFontMap[size] or "GameFontHighlightOutline"
+        -- String value like "small", "medium", "large", "huge"
+        fontName = fontNameMap[size] or "GameFontHighlightOutline"
+    else
+        -- Numeric size mapping (6-18 range) - legacy support
+        size = size or 10
+        if size <= 9 then
+            fontName = "GameFontHighlightSmallOutline"
+        elseif size <= 12 then
+            fontName = "GameFontHighlightOutline"
+        elseif size <= 15 then
+            fontName = "GameFontHighlightLargeOutline"
+        else
+            fontName = "GameFontHighlightHugeOutline"
+        end
     end
     
-    -- Numeric size mapping (6-18 range)
-    size = size or 10
-    if size <= 9 then
-        return "GameFontHighlightSmallOutline"
-    elseif size <= 12 then
-        return "GameFontHighlightOutline"
-    elseif size <= 15 then
-        return "GameFontHighlightLargeOutline"
-    else
-        return "GameFontHighlightHugeOutline"
-    end
+    -- Return the actual font object (global), not just the name
+    return _G[fontName]
 end
 
 -- Helper to get totem data for a spell
