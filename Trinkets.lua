@@ -8,11 +8,11 @@ local trinketFrames = {}
 local TRINKET_SLOTS = { 13, 14 }
 
 -- Local upvalues for performance
-local GetInventoryItemLink = GetInventoryItemLink
 local GetInventoryItemID = GetInventoryItemID
 local C_Item = C_Item
 local C_Spell = C_Spell
 local InCombatLockdown = InCombatLockdown
+local GetInventoryItemCooldown = Utils.GetInventoryItemCooldownSafe
 
 function Trinkets:OnInitialize()
     self.db = addon.db
@@ -27,8 +27,11 @@ function Trinkets:OnEnable()
     self:RegisterEvent("PLAYER_REGEN_DISABLED", "OnCombatStart")
     self:RegisterEvent("PLAYER_REGEN_ENABLED", "OnCombatEnd")
     
-    self:UpdateTrinkets()
-    self:UpdateLayout()
+    -- Ensure we update on load
+    C_Timer.After(0.5, function()
+        self:UpdateTrinkets()
+        self:UpdateLayout()
+    end)
 end
 
 function Trinkets:CreateFrames()
@@ -69,12 +72,12 @@ function Trinkets:UpdateTrinkets()
     for i = 1, 2 do
         local f = trinketFrames[i]
         local itemID = GetInventoryItemID("player", f.slot)
-        local itemLink = GetInventoryItemLink("player", f.slot)
         
-        if itemID then
-            local itemSpellName, itemSpellID = Utils.GetItemSpellSafe(itemLink or itemID)
+        -- In 11.0+, GetInventoryItemID might return 0 instead of nil
+        if itemID and itemID > 0 then
+            local itemSpellName, itemSpellID = Utils.GetItemSpellSafe(itemID)
             
-            addon:Log(string.format("Trinket slot %d: ID=%d, SpellID=%s", f.slot, itemID, tostring(itemSpellID)), "discovery")
+            addon:Log(string.format("Trinket slot %d: ID=%d, SpellID=%s", f.slot, itemID, tostring(itemSpellID or "nil")), "discovery")
             
             if itemSpellID then
                 local itemIcon = C_Item.GetItemIconByID(itemID)
@@ -86,9 +89,11 @@ function Trinkets:UpdateTrinkets()
                 visibleCount = visibleCount + 1
             else
                 f:Hide()
+                f.itemSpellID = nil
             end
         else
             f:Hide()
+            f.itemSpellID = nil
         end
     end
     
@@ -105,14 +110,19 @@ end
 function Trinkets:UpdateCooldowns()
     if not container or not container:IsShown() then return end
     
-    local inCombat = InCombatLockdown()
-    
     for i = 1, 2 do
         local f = trinketFrames[i]
         if f:IsShown() then
             local startTime, duration, enabled = GetInventoryItemCooldown("player", f.slot)
             
-            if enabled and duration > 0 then
+            -- In Midnight, if enabled is a secret value, assume it's true to show the swipe.
+            local isEnabled = enabled
+            if Utils.IsValueSecret(enabled) then isEnabled = true end
+            
+            -- Handle secret duration or normal comparison
+            local showSwipe = isEnabled and duration and (Utils.IsValueSecret(duration) or Utils.SafeCompare(duration, 0, ">"))
+            
+            if showSwipe then
                 f.cooldown:SetCooldown(startTime, duration)
                 f.cooldown:Show()
             else
@@ -122,7 +132,12 @@ function Trinkets:UpdateCooldowns()
             -- Alpha/Glow logic based on usability
             if f.itemSpellID then
                 local isUsable = C_Spell.IsSpellUsable(f.itemSpellID)
-                f:SetAlpha(isUsable and 1.0 or 0.6)
+                -- If usability is secret, keep at full alpha
+                local alpha = 1.0
+                if not Utils.IsValueSecret(isUsable) and isUsable == false then
+                    alpha = 0.6
+                end
+                f:SetAlpha(alpha)
             else
                 f:SetAlpha(1.0)
             end

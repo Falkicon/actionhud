@@ -43,11 +43,16 @@ function Utils.SafeCompare(a, b, op)
     -- Wrap everything in pcall including nil checks
     local ok, result = pcall(function()
         if a == nil or b == nil then return nil end
+        
+        -- If either is secret, comparison is impossible
+        if Utils.IsValueSecret(a) or Utils.IsValueSecret(b) then return nil end
+
         if op == ">" then return a > b
         elseif op == "<" then return a < b
         elseif op == ">=" then return a >= b
         elseif op == "<=" then return a <= b
         elseif op == "==" then return a == b
+        elseif op == "~=" then return a ~= b
         end
         return nil
     end)
@@ -368,9 +373,42 @@ function Utils.GetItemSpellSafe(itemInfo)
     
     local ok, name, spellID = pcall(C_Item.GetItemSpell, itemInfo)
     if ok then
+        -- Handle table return in 11.0+ / 12.0
+        if type(name) == "table" then
+            return name.name or name.spellName, name.spellID or name.id
+        end
         return name, spellID
     end
     return nil
+end
+
+function Utils.GetInventoryItemCooldownSafe(unit, slot)
+    if not unit or not slot then return 0, 0, false end
+    
+    -- In 11.0+ / 12.0, try C_Item.GetItemCooldown if we have an item ID
+    if C_Item and C_Item.GetItemCooldown then
+        local itemID = GetInventoryItemID(unit, slot)
+        if itemID and itemID > 0 then
+            local ok, info = pcall(C_Item.GetItemCooldown, itemID)
+            if ok and info and type(info) == "table" then
+                return info.startTime or 0, info.duration or 0, info.isEnabled
+            end
+        end
+    end
+    
+    -- Fallback to global
+    if GetInventoryItemCooldown then
+        local ok, start, duration, enabled = pcall(GetInventoryItemCooldown, unit, slot)
+        if ok then
+            -- Handle potential table return from global in newer versions
+            if type(start) == "table" then
+                return start.startTime or 0, start.duration or 0, start.isEnabled
+            end
+            return start or 0, duration or 0, enabled
+        end
+    end
+    
+    return 0, 0, false
 end
 
 function Utils.IsSpellOverlayedSafe(spellID)

@@ -3,6 +3,13 @@
 All notable changes to this project will be documented in this file.
 
 
+## [2.7.1] - 2025-12-21
+
+### Fixed
+- **Trinket Logic**: Fixed an issue where trinkets were not showing on Retail 11.2.7+ and Midnight 12.0.0+.
+- **Midnight Readiness**: Added `Utils.GetInventoryItemCooldownSafe` to handle table-based return signatures and secret values for item cooldowns.
+- **Improved Trinket Initialization**: Added a safety delay on enable to ensure item data is loaded from the server before rendering.
+
 ## [2.7.0] - 2025-12-21
 
 ### Added
