@@ -9,6 +9,9 @@ local LSM = LibStub("LibSharedMedia-3.0")
 local isStylingActive = false
 local hooksInstalled = false
 
+-- Track one-time anchor setup per frame (to avoid taint from repeated calls)
+local anchorsApplied = {}
+
 -- Flat bar texture (solid color, no gradient)
 local FLAT_BAR_TEXTURE = "Interface\\Buttons\\WHITE8x8"
 
@@ -472,6 +475,13 @@ function UnitFrames:StyleTargetFrame()
         if main.ManaBar then
             main.ManaBar:SetWidth(scaledWidth)
             main.ManaBar:SetHeight(manaHeight)
+            
+            -- One-time anchor fix: Blizzard default has x=8 offset, realign to left edge
+            if not anchorsApplied["TargetMana"] then
+                main.ManaBar:ClearAllPoints()
+                main.ManaBar:SetPoint("TOPLEFT", healthContainer, "BOTTOMLEFT", 0, 0)
+                anchorsApplied["TargetMana"] = true
+            end
         end
     end
     
@@ -598,6 +608,13 @@ function UnitFrames:StyleFocusFrame()
         if main.ManaBar then
             main.ManaBar:SetWidth(scaledWidth)
             main.ManaBar:SetHeight(manaHeight)
+            
+            -- One-time anchor fix: Blizzard default has offset, realign to left edge
+            if not anchorsApplied["FocusMana"] then
+                main.ManaBar:ClearAllPoints()
+                main.ManaBar:SetPoint("TOPLEFT", healthContainer, "BOTTOMLEFT", 0, 0)
+                anchorsApplied["FocusMana"] = true
+            end
         end
     end
     
@@ -736,6 +753,9 @@ end
 -- Update layout (called when settings change)
 function UnitFrames:UpdateLayout()
     local p = self.db.profile
+    
+    -- Reset anchor tracking so they can be reapplied
+    wipe(anchorsApplied)
     
     if p.ufEnabled then
         isStylingActive = true
