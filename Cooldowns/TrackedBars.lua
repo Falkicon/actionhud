@@ -87,18 +87,52 @@ function TrackedBars:StyleItemFrame(itemFrame)
     -- Always strip decorations (Blizzard may re-apply them)
     self:StripBlizzardDecorations(itemFrame)
     
-    -- Apply custom timer font size if specified
-    -- SetFontObject requires an actual font object (global), not a string
-    local timerSize = p.barsTimerFontSize or "medium"
-    if timerSize then
-        local fontName = Utils.GetTimerFont(timerSize)
-        local fontObject = fontName and _G[fontName]
-        if fontObject then
-            if itemFrame.Bar and itemFrame.Bar.Duration then
-                itemFrame.Bar.Duration:SetFontObject(fontObject)
+    -- Compact mode: Hide the bar, keep the icon
+    if p.barsCompactMode then
+        if itemFrame.Bar then
+            itemFrame.Bar:Hide()
+        end
+        
+        -- Timer on icon: Reparent Duration FontString to the Icon frame
+        if p.barsTimerOnIcon and itemFrame.Bar and itemFrame.Bar.Duration then
+            local duration = itemFrame.Bar.Duration
+            -- Reparent to Icon so it displays on top of the icon
+            duration:SetParent(itemFrame.Icon)
+            duration:ClearAllPoints()
+            duration:SetPoint("CENTER", itemFrame.Icon, "CENTER", 0, 0)
+            duration:SetJustifyH("CENTER")
+            duration:SetJustifyV("MIDDLE")
+            duration:Show()
+            -- Use a readable font with outline for visibility on icon
+            duration:SetFont("Fonts\\FRIZQT__.TTF", 12, "OUTLINE")
+            duration:SetDrawLayer("OVERLAY", 7)
+            
+            -- Move stack count to bottom-right corner to avoid overlap with centered timer
+            if itemFrame.Icon and itemFrame.Icon.Applications then
+                local apps = itemFrame.Icon.Applications
+                apps:ClearAllPoints()
+                apps:SetPoint("BOTTOMRIGHT", itemFrame.Icon, "BOTTOMRIGHT", -1, 1)
+                apps:SetJustifyH("RIGHT")
             end
-            if itemFrame.Bar and itemFrame.Bar.Name then
-                itemFrame.Bar.Name:SetFontObject(fontObject)
+        end
+    else
+        -- Normal mode: Show the bar
+        if itemFrame.Bar then
+            itemFrame.Bar:Show()
+        end
+        
+        -- Apply custom timer font size if specified
+        local timerSize = p.barsTimerFontSize or "medium"
+        if timerSize then
+            local fontName = Utils.GetTimerFont(timerSize)
+            local fontObject = fontName and _G[fontName]
+            if fontObject then
+                if itemFrame.Bar and itemFrame.Bar.Duration then
+                    itemFrame.Bar.Duration:SetFontObject(fontObject)
+                end
+                if itemFrame.Bar and itemFrame.Bar.Name then
+                    itemFrame.Bar.Name:SetFontObject(fontObject)
+                end
             end
         end
     end

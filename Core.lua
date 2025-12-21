@@ -46,12 +46,14 @@ local defaults = {
         buffsTimerFontSize = "medium",
         
         styleTrackedBars = true,
-        barsCountFontSize = 10,
-        barsTimerFontSize = "medium",
+        barsCountFontSize = 8,
+        barsTimerFontSize = "small",
+        barsCompactMode = true,       -- Hide bars, show icons only
+        barsTimerOnIcon = true,       -- Move timer text on top of icon
         
         styleExternalDefensives = true,  -- 12.0+ (Midnight)
-        defensivesCountFontSize = 10,
-        defensivesTimerFontSize = "medium",
+        defensivesCountFontSize = 9,
+        defensivesTimerFontSize = "small",
 
         -- Minimap Icon (LibDBIcon)
         minimap = {

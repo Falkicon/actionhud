@@ -430,6 +430,28 @@ Enable it in Gameplay Enhancements to use these features.]]
                     ActionHud:GetModule("TrackedBars"):UpdateLayout()
                 end,
             },
+            barsCompactMode = {
+                name = "Compact Mode (Icons Only)", 
+                desc = "Hide the cooldown bars, showing only icons. Useful for a more compact display.",
+                type = "toggle", order = 24, width = 1.5,
+                disabled = function() return not IsBlizzardCooldownViewerEnabled() or not self.db.profile.styleTrackedBars end,
+                get = function(info) return self.db.profile.barsCompactMode end,
+                set = function(info, val) 
+                    self.db.profile.barsCompactMode = val
+                    ActionHud:GetModule("TrackedBars"):UpdateLayout()
+                end,
+            },
+            barsTimerOnIcon = {
+                name = "Timer on Icon", 
+                desc = "Display the countdown timer centered on the icon instead of on the bar.",
+                type = "toggle", order = 25, width = 1.0,
+                disabled = function() return not IsBlizzardCooldownViewerEnabled() or not self.db.profile.styleTrackedBars end,
+                get = function(info) return self.db.profile.barsTimerOnIcon end,
+                set = function(info, val) 
+                    self.db.profile.barsTimerOnIcon = val
+                    ActionHud:GetModule("TrackedBars"):UpdateLayout()
+                end,
+            },
             
             -- External Defensives Section (12.0+ only)
             defensivesHeader = { name = "External Defensives", type = "header", order = 30 },

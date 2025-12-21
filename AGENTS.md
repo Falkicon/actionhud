@@ -130,8 +130,13 @@ Uses a **"hide-only" visibility model** with custom proxy frames:
 | Style Tracked Bars | Toggle styling on/off |
 | Stack Count Font Size | Numeric font size for stack counts |
 | Timer Font Size | Font size for cooldown timers (small/medium/large/huge) |
+| Compact Mode (Bars) | Hide cooldown bars, show icons only |
+| Timer on Icon (Bars) | Display timer text centered on icon (stack count moves to bottom-right) |
 
 **Note:** Sizing and positioning are controlled via Blizzard's EditMode (ESC → Edit Mode). ActionHud does not manage placement for these frames.
+
+**Midnight Compatibility Notes:**
+- Compact Mode and Timer on Icon are style-only operations (LOW risk) - tested and working
 
 For detailed Blizzard frame structure and API reference, see `Docs/proxy-system.md`.
 
@@ -165,6 +170,10 @@ Stored in `ActionHudDB.profile`:
   styleTrackedBars = true,
   trackedCountFontSize = 10,
   trackedTimerFontSize = "medium",
+  
+  -- TrackedBars Compact Mode
+  barsCompactMode = false,    -- Hide bars, show icons only
+  barsTimerOnIcon = false,    -- Move timer text on top of icon
 }
 ```
 
