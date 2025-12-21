@@ -2,6 +2,7 @@ local addonName, ns = ...
 local addon = LibStub("AceAddon-3.0"):GetAddon("ActionHud")
 local UnitFrames = addon:NewModule("UnitFrames", "AceEvent-3.0")
 local LSM = LibStub("LibSharedMedia-3.0")
+local Utils = ns.Utils
 
 -- Style-only approach: We hook into Blizzard's unit frames (PlayerFrame, TargetFrame, FocusFrame)
 -- and apply custom styling. This is Midnight-safe as we only modify visual properties.
@@ -50,51 +51,13 @@ ApplyFlatTexture = function(bar, unit, barType)
     bar:SetStatusBarTexture(FLAT_BAR_TEXTURE)
     
     -- Force color based on bar type
-    if barType == "health" then
-        -- For health bars, use class color or green (with multiplier)
-        if unit and UnitIsPlayer(unit) then
-            local _, class = UnitClass(unit)
-            if class then
-                local color = RAID_CLASS_COLORS[class]
-                if color then
-                    bar:SetStatusBarColor(color.r * COLOR_MULT, color.g * COLOR_MULT, color.b * COLOR_MULT)
-                    return
-                end
-            end
-        end
-        -- Default green for health
-        bar:SetStatusBarColor(0, 0.8 * COLOR_MULT, 0)
-    elseif barType == "mana" then
-        -- Get power type and color appropriately (with multiplier to match Resources module)
-        if unit then
-            local powerType = UnitPowerType(unit)
-            local color = PowerBarColor[powerType]
-            if color then
-                bar:SetStatusBarColor(color.r * COLOR_MULT, color.g * COLOR_MULT, color.b * COLOR_MULT)
-                return
-            end
-        end
-        -- Default blue for mana
-        bar:SetStatusBarColor(0, 0.5 * COLOR_MULT, 1 * COLOR_MULT)
-    end
+    local r, g, b = Utils.GetUnitColor(unit, barType:upper(), COLOR_MULT)
+    bar:SetStatusBarColor(r, g, b)
     
     -- Hide power bar animations (FullPowerFrame = gate animation, Spark = moving glow)
     if bar.FullPowerFrame then bar.FullPowerFrame:Hide() end
     if bar.Spark then bar.Spark:Hide() end
     if bar.FeedbackFrame then bar.FeedbackFrame:Hide() end
-end
-
--- Aggressively hide a texture (try multiple methods)
-local function HideTexture(texture)
-    if not texture then return end
-    texture:SetAlpha(0)
-    texture:Hide()
-    if texture.SetTexture then
-        texture:SetTexture(nil)
-    end
-    if texture.SetAtlas then
-        texture:SetAtlas(nil)
-    end
 end
 
 -- Apply font to a FontString element
@@ -145,6 +108,14 @@ function UnitFrames:InstallHooks()
     
     if PlayerFrame_UpdateArt then
         hooksecurefunc("PlayerFrame_UpdateArt", function()
+            if isStylingActive and self.db.profile.ufStylePlayer then
+                self:StylePlayerFrame()
+            end
+        end)
+    end
+    
+    if PlayerFrame_UpdateStatus then
+        hooksecurefunc("PlayerFrame_UpdateStatus", function()
             if isStylingActive and self.db.profile.ufStylePlayer then
                 self:StylePlayerFrame()
             end
@@ -352,7 +323,7 @@ function UnitFrames:ApplyPlayerPowerBarFlat()
     local main = PlayerFrame.PlayerFrameContent and PlayerFrame.PlayerFrameContent.PlayerFrameContentMain
     local manaBar = main and main.ManaBarArea and main.ManaBarArea.ManaBar
     if manaBar then
-        ApplyFlatTexture(manaBar, "player", "mana")
+        ApplyFlatTexture(manaBar, "player", "power")
     end
 end
 
@@ -383,12 +354,18 @@ function UnitFrames:StylePlayerFrame()
         -- Portrait-area contextual elements
         if contextual then
             -- The yellow corner arrow/embellishment
-            HideTexture(contextual.PlayerPortraitCornerIcon)
-            -- Combat sword icon and Zzz rest animation are repositioned below
+            Utils.HideTexture(contextual.PlayerPortraitCornerIcon)
+            -- Combat sword icon and Zzz rest animation are repositioned/replaced below
             -- PVP icons (appear near portrait)
-            HideTexture(contextual.PVPIcon)
-            HideTexture(contextual.PrestigePortrait)
-            HideTexture(contextual.PrestigeBadge)
+            Utils.HideTexture(contextual.PVPIcon)
+            Utils.HideTexture(contextual.PrestigePortrait)
+            Utils.HideTexture(contextual.PrestigeBadge)
+        end
+
+        -- Hide the healing/damage text (HitIndicator)
+        if main and main.HitIndicator then
+            main.HitIndicator:Hide()
+            main.HitIndicator:SetAlpha(0)
         end
     end
     
@@ -396,23 +373,23 @@ function UnitFrames:StylePlayerFrame()
     if p.ufHideBorders then
         if container then
             -- Main frame textures - these include portrait ring AND bar decorations
-            HideTexture(container.FrameTexture)
-            HideTexture(container.VehicleFrameTexture)
-            HideTexture(container.AlternatePowerFrameTexture)
-            HideTexture(container.FrameFlash)
+            Utils.HideTexture(container.FrameTexture)
+            Utils.HideTexture(container.VehicleFrameTexture)
+            Utils.HideTexture(container.AlternatePowerFrameTexture)
+            Utils.HideTexture(container.FrameFlash)
         end
         
         -- Group/leader indicators (part of frame decoration)
         if contextual then
             if contextual.GroupIndicator then contextual.GroupIndicator:Hide() end
-            HideTexture(contextual.LeaderIcon)
-            HideTexture(contextual.GuideIcon)
-            HideTexture(contextual.RoleIcon)
+            Utils.HideTexture(contextual.LeaderIcon)
+            Utils.HideTexture(contextual.GuideIcon)
+            Utils.HideTexture(contextual.RoleIcon)
         end
         
         -- Status texture (resting flash on portrait area)
         if main and main.StatusTexture then
-            HideTexture(main.StatusTexture)
+            Utils.HideTexture(main.StatusTexture)
         end
         
         -- Hide the bar masks (these create curved edges)
@@ -439,7 +416,7 @@ function UnitFrames:StylePlayerFrame()
             ApplyFlatTexture(healthContainer.HealthBar, "player", "health")
         end
         if manaBar then
-            ApplyFlatTexture(manaBar, "player", "mana")
+            ApplyFlatTexture(manaBar, "player", "power")
         end
     end
     
@@ -484,19 +461,44 @@ function UnitFrames:StylePlayerFrame()
     ApplyFontToText(PlayerName, fontPath, fontSize, "OUTLINE", "CENTER")
     ApplyFontToText(PlayerLevelText, fontPath, fontSize, "OUTLINE", "LEFT")
 
-    -- Reposition Status/Resting Icon (Screenshot 2 style)
+    -- Handle Resting and Combat Icons
     if contextual then
-        -- Resting icon (Zzz)
+        -- Hide the modern animated Zzz
         if contextual.PlayerRestLoop then
-            contextual.PlayerRestLoop:ClearAllPoints()
-            contextual.PlayerRestLoop:SetPoint("TOPLEFT", PlayerFrame, "TOPLEFT", 0, 0)
-            contextual.PlayerRestLoop:SetScale(0.7)
+            contextual.PlayerRestLoop:SetAlpha(0)
+            contextual.PlayerRestLoop:Hide()
         end
-        -- Combat icon (Swords)
+
+        -- Create/Update old school resting icon
+        if not contextual.OldRestingIcon then
+            contextual.OldRestingIcon = contextual:CreateTexture(nil, "OVERLAY")
+            contextual.OldRestingIcon:SetTexture("Interface\\CharacterFrame\\UI-StateIcon")
+            contextual.OldRestingIcon:SetTexCoord(0, 0.5, 0, 0.421875)
+            contextual.OldRestingIcon:SetSize(22, 22)
+        end
+
+        local healthContainer = main and main.HealthBarsContainer
+        if healthContainer then
+            contextual.OldRestingIcon:ClearAllPoints()
+            -- Position in the top right corner of the plate (health bar)
+            contextual.OldRestingIcon:SetPoint("CENTER", healthContainer, "TOPRIGHT", -2, -2)
+        end
+
+        if IsResting() then
+            contextual.OldRestingIcon:Show()
+        else
+            contextual.OldRestingIcon:Hide()
+        end
+        
+        -- Combat icon (Swords) - repositioning it as well to be consistent
         if contextual.AttackIcon then
             contextual.AttackIcon:ClearAllPoints()
-            contextual.AttackIcon:SetPoint("TOPLEFT", PlayerFrame, "TOPLEFT", 0, 0)
-            contextual.AttackIcon:SetScale(0.7)
+            if healthContainer then
+                contextual.AttackIcon:SetPoint("CENTER", healthContainer, "TOPRIGHT", -2, -2)
+            else
+                contextual.AttackIcon:SetPoint("TOPLEFT", PlayerFrame, "TOPLEFT", 0, 0)
+            end
+            contextual.AttackIcon:SetScale(0.6)
         end
     end
 end
@@ -522,26 +524,32 @@ function UnitFrames:StyleTargetFrame()
             if container.Portrait then container.Portrait:SetAlpha(0) end
             if container.PortraitMask then container.PortraitMask:Hide() end
         end
+
+        -- Hide the healing/damage text (HitIndicator)
+        if main and main.HitIndicator then
+            main.HitIndicator:Hide()
+            main.HitIndicator:SetAlpha(0)
+        end
     end
     
     -- Hide borders/frame textures
     if p.ufHideBorders then
         if container then
-            HideTexture(container.FrameTexture)
-            HideTexture(container.Flash)
-            HideTexture(container.BossPortraitFrameTexture)
+            Utils.HideTexture(container.FrameTexture)
+            Utils.HideTexture(container.Flash)
+            Utils.HideTexture(container.BossPortraitFrameTexture)
         end
         
         -- Contextual elements
         if contextual then
-            HideTexture(contextual.HighLevelTexture)
-            HideTexture(contextual.PetBattleIcon)
-            HideTexture(contextual.PvpIcon)
-            HideTexture(contextual.PrestigePortrait)
-            HideTexture(contextual.PrestigeBadge)
+            Utils.HideTexture(contextual.HighLevelTexture)
+            Utils.HideTexture(contextual.PetBattleIcon)
+            Utils.HideTexture(contextual.PvpIcon)
+            Utils.HideTexture(contextual.PrestigePortrait)
+            Utils.HideTexture(contextual.PrestigeBadge)
             if contextual.NumericalThreat then contextual.NumericalThreat:Hide() end
-            HideTexture(contextual.QuestIcon)
-            HideTexture(contextual.RaidTargetIcon)
+            Utils.HideTexture(contextual.QuestIcon)
+            Utils.HideTexture(contextual.RaidTargetIcon)
         end
         
         -- Hide the bar masks
@@ -555,7 +563,7 @@ function UnitFrames:StyleTargetFrame()
             end
             
             -- Hide ReputationColor (the blue/green bar showing unit type)
-            HideTexture(main.ReputationColor)
+            Utils.HideTexture(main.ReputationColor)
         end
     end
     
@@ -566,7 +574,7 @@ function UnitFrames:StyleTargetFrame()
             ApplyFlatTexture(healthContainer.HealthBar, "target", "health")
         end
         if main.ManaBar then
-            ApplyFlatTexture(main.ManaBar, "target", "mana")
+            ApplyFlatTexture(main.ManaBar, "target", "power")
         end
     end
     
@@ -627,26 +635,32 @@ function UnitFrames:StyleFocusFrame()
             if container.Portrait then container.Portrait:SetAlpha(0) end
             if container.PortraitMask then container.PortraitMask:Hide() end
         end
+
+        -- Hide the healing/damage text (HitIndicator)
+        if main and main.HitIndicator then
+            main.HitIndicator:Hide()
+            main.HitIndicator:SetAlpha(0)
+        end
     end
     
     -- Hide borders/frame textures
     if p.ufHideBorders then
         if container then
-            HideTexture(container.FrameTexture)
-            HideTexture(container.Flash)
-            HideTexture(container.BossPortraitFrameTexture)
+            Utils.HideTexture(container.FrameTexture)
+            Utils.HideTexture(container.Flash)
+            Utils.HideTexture(container.BossPortraitFrameTexture)
         end
         
         -- Contextual elements
         if contextual then
-            HideTexture(contextual.HighLevelTexture)
-            HideTexture(contextual.PetBattleIcon)
-            HideTexture(contextual.PvpIcon)
-            HideTexture(contextual.PrestigePortrait)
-            HideTexture(contextual.PrestigeBadge)
+            Utils.HideTexture(contextual.HighLevelTexture)
+            Utils.HideTexture(contextual.PetBattleIcon)
+            Utils.HideTexture(contextual.PvpIcon)
+            Utils.HideTexture(contextual.PrestigePortrait)
+            Utils.HideTexture(contextual.PrestigeBadge)
             if contextual.NumericalThreat then contextual.NumericalThreat:Hide() end
-            HideTexture(contextual.QuestIcon)
-            HideTexture(contextual.RaidTargetIcon)
+            Utils.HideTexture(contextual.QuestIcon)
+            Utils.HideTexture(contextual.RaidTargetIcon)
         end
         
         -- Hide the bar masks
@@ -660,7 +674,7 @@ function UnitFrames:StyleFocusFrame()
             end
             
             -- Hide ReputationColor (the blue/green bar showing unit type)
-            HideTexture(main.ReputationColor)
+            Utils.HideTexture(main.ReputationColor)
         end
     end
     
@@ -671,7 +685,7 @@ function UnitFrames:StyleFocusFrame()
             ApplyFlatTexture(healthContainer.HealthBar, "focus", "health")
         end
         if main.ManaBar then
-            ApplyFlatTexture(main.ManaBar, "focus", "mana")
+            ApplyFlatTexture(main.ManaBar, "focus", "power")
         end
     end
     

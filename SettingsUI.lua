@@ -86,7 +86,7 @@ function ActionHud:SetupOptions()
             divider = { type = "header", name = "Info & Prerequisites", order = 10 },
             readme = {
                 type = "description",
-                name = [[|cff33ff99ActionHud 2.5.0|r
+                name = [[|cff33ff99ActionHud 2.6.2|r
 
 A minimalist HUD mirroring Action Bars 1 & 2 in a 6x4 grid.
 
@@ -109,6 +109,21 @@ Use |cffffffffAdvanced Cooldown Settings|r to configure which spells are tracked
                 width = "double",
                 func = function() OpenGameplayEnhancements() end,
                 order = 12,
+            },
+            helpHeader = { type = "header", name = "Help & Slash Commands", order = 20 },
+            helpCommands = {
+                type = "description",
+                name = [[|cffffcc00Slash Commands:|r
+  - |cffffffff/ah|r: Open settings.
+  - |cffffffff/ah debug|r: Toggle debug recording.
+  - |cffffffff/ah clear|r: Clear debug buffer.
+  - |cffffffff/ah dump|r: Dump tracked spell info to chat.
+
+|cffffcc00Debugging & Layout:|r
+Use the |cffffffffLayout|r tab to enable |cffffffffShow Layout Outlines|r. This helps position frames when they are empty or out of combat.
+]],
+                fontSize = "medium",
+                order = 21,
             },
         },
     }
@@ -170,18 +185,6 @@ Use |cffffffffAdvanced Cooldown Settings|r to configure which spells are tracked
                 set = function(info, val) self.db.profile.countFontSize = val; ActionHud:GetModule("ActionBars"):UpdateLayout() end,
             },
             mirrorHeader = { name = "Layout Mirroring", type = "header", order = 40 },
-            syncWithEditMode = {
-                name = "Sync with WoW Edit Mode",
-                desc = "Mirror the number of rows and icons from your WoW Action Bar settings (Bars 1 and 6).",
-                type = "toggle", order = 41, width = "full",
-                get = function(info) return self.db.profile.syncWithEditMode end,
-                set = function(info, val) 
-                    self.db.profile.syncWithEditMode = val
-                    local AB = ActionHud:GetModule("ActionBars")
-                    if AB.ClearLayoutCache then AB:ClearLayoutCache() end
-                    AB:UpdateLayout() 
-                end,
-            },
             barPriority = {
                 name = "Top Bar Priority",
                 desc = "Choose which bar appears at the top of the HUD stack.",
@@ -651,6 +654,11 @@ Due to Blizzard's API changes in Midnight (12.0), traditional unit frame customi
             
             -- Typography Section
             typographyHeader = { name = "Typography", type = "header", order = 15 },
+            statusTextTip = {
+                type = "description", order = 15.1,
+                name = [[|cffffcc00Pro Tip:|r To show health and resource numbers on your frames, use the built-in Blizzard setting: |cff00ff00Options|r > |cff00ff00Gameplay|r > |cff00ff00Interface|r > |cff00ff00Status Text|r and select |cff00ff00Numeric Value|r.
+]],
+            },
             fontName = {
                 name = "Font",
                 desc = "Font for health and power bar text.",
@@ -674,10 +682,6 @@ Due to Blizzard's API changes in Midnight (12.0), traditional unit frame customi
                     self.db.profile.ufFontSize = val
                     ActionHud:GetModule("UnitFrames"):UpdateLayout()
                 end,
-            },
-            textNote = {
-                type = "description", order = 18.1,
-                name = "|cffaaaaaa(Note: Health/power values show on hover. 'Always show' is unavailable due to Midnight API restrictions.)|r",
             },
             
             -- Sizing Section
@@ -772,6 +776,53 @@ Due to Blizzard's API changes in Midnight (12.0), traditional unit frame customi
         },
     }
 
+    -- SUB: Trinkets
+    local trinketOptions = {
+        name = "Trinkets",
+        handler = ActionHud,
+        type = "group",
+        args = {
+            enable = {
+                name = "Enable",
+                desc = "Enable the sidecar Trinket module.",
+                type = "toggle", order = 1,
+                get = function(info) return self.db.profile.trinketsEnabled end,
+                set = function(info, val) 
+                    self.db.profile.trinketsEnabled = val
+                    ActionHud:GetModule("Trinkets"):UpdateLayout()
+                end,
+            },
+            sizingHeader = { name = "Sizing & Positioning", type = "header", order = 10 },
+            iconWidth = {
+                name = "Icon Width", type = "range", min = 10, max = 100, step = 1, order = 11,
+                get = function(info) return self.db.profile.trinketsIconWidth end,
+                set = function(info, val) 
+                    self.db.profile.trinketsIconWidth = val
+                    ActionHud:GetModule("Trinkets"):UpdateLayout()
+                end,
+            },
+            iconHeight = {
+                name = "Icon Height", type = "range", min = 10, max = 100, step = 1, order = 12,
+                get = function(info) return self.db.profile.trinketsIconHeight end,
+                set = function(info, val) 
+                    self.db.profile.trinketsIconHeight = val
+                    ActionHud:GetModule("Trinkets"):UpdateLayout()
+                end,
+            },
+            fontHeader = { name = "Typography", type = "header", order = 20 },
+            timerFontSize = {
+                name = "Timer Font Size", type = "select", order = 21,
+                values = { small = "Small", medium = "Medium", large = "Large", huge = "Huge" },
+                sorting = { "small", "medium", "large", "huge" },
+                get = function(info) return self.db.profile.trinketsTimerFontSize or "medium" end,
+                set = function(info, val) 
+                    self.db.profile.trinketsTimerFontSize = val
+                    ActionHud:GetModule("Trinkets"):UpdateLayout()
+                end,
+            },
+        },
+    }
+
     -- SUB: Layout
     -- Helper to get LayoutManager
     local function GetLayoutManager()
@@ -792,6 +843,16 @@ Due to Blizzard's API changes in Midnight (12.0), traditional unit frame customi
         
         -- HUD Stack Section (first)
         args.stackHeader = { type = "header", name = "HUD Stack Order", order = 1 }
+        args.showOutlines = {
+            name = "Show Layout Outlines",
+            desc = "Show semi-transparent boxes and labels for all HUD modules to help with positioning.",
+            type = "toggle", order = 1.5, width = "full",
+            get = function() return ActionHud.db.profile.showLayoutOutlines end,
+            set = function(_, val)
+                ActionHud.db.profile.showLayoutOutlines = val
+                ActionHud:RefreshLayout()
+            end,
+        }
         args.stackDesc = {
             type = "description", order = 2,
             name = "Arrange modules from top to bottom. Use arrows to reorder. Gap defines spacing after each module.\n ",
@@ -899,11 +960,30 @@ Due to Blizzard's API changes in Midnight (12.0), traditional unit frame customi
                 LibStub("AceConfigRegistry-3.0"):NotifyChange("ActionHud_Layout")
             end,
         }
+
+        -- Trinkets Positioning Section
+        args.trinketsHeader = { type = "header", name = "Trinkets Positioning", order = 100 }
+        args.trinketsXOffset = {
+            name = "X Offset", desc = "Horizontal position relative to HUD center.", type = "range", min = -400, max = 400, step = 1, order = 101,
+            get = function() return ActionHud.db.profile.trinketsXOffset end,
+            set = function(_, val) 
+                ActionHud.db.profile.trinketsXOffset = val
+                ActionHud:GetModule("Trinkets"):UpdateLayout()
+            end,
+        }
+        args.trinketsYOffset = {
+            name = "Y Offset", desc = "Vertical position relative to HUD center.", type = "range", min = -400, max = 400, step = 1, order = 102,
+            get = function() return ActionHud.db.profile.trinketsYOffset end,
+            set = function(_, val) 
+                ActionHud.db.profile.trinketsYOffset = val
+                ActionHud:GetModule("Trinkets"):UpdateLayout()
+            end,
+        }
         
         -- Tracked Abilities Section
-        args.trackedHeader = { type = "header", name = "Tracked Abilities", order = 100 }
+        args.trackedHeader = { type = "header", name = "Tracked Abilities", order = 120 }
         args.trackedDesc = {
-            type = "description", order = 101,
+            type = "description", order = 121,
             name = [[These frames are styled by ActionHud but positioned via Blizzard's EditMode:
 • Tracked Buffs
 • Tracked Bars
@@ -913,7 +993,7 @@ Due to Blizzard's API changes in Midnight (12.0), traditional unit frame customi
         args.openEditMode = {
             name = "Open EditMode",
             desc = "Open Blizzard's EditMode to position and resize Tracked Abilities frames.",
-            type = "execute", order = 102, width = "normal",
+            type = "execute", order = 122, width = "normal",
             func = function()
                 if EditModeManagerFrame then
                     EditModeManagerFrame:Show()
@@ -940,102 +1020,11 @@ Due to Blizzard's API changes in Midnight (12.0), traditional unit frame customi
         handler = ActionHud,
         type = "group",
         args = {
-            desc = {
-                type = "description",
-                name = "Tools for troubleshooting and frame discovery.",
-                order = 1,
-            },
-            discovery = {
-                name = "Debug Discovery", desc = "Logs when new Blizzard widgets are found and hijacked.", type = "toggle", order = 10,
-                get = function(info) return self.db.profile.debugDiscovery end,
-                set = function(info, val) self.db.profile.debugDiscovery = val end,
-            },
-            frames = {
-                name = "Debug Frames", desc = "Logs detailed information about frame hierarchies and children.", type = "toggle", order = 11,
-                get = function(info) return self.db.profile.debugFrames end,
-                set = function(info, val) self.db.profile.debugFrames = val end,
-            },
-            events = {
-                name = "Debug Events", desc = "Logs key HUD events to the chat window.", type = "toggle", order = 12,
-                get = function(info) return self.db.profile.debugEvents end,
-                set = function(info, val) self.db.profile.debugEvents = val end,
-            },
-            proxy = {
-                name = "Debug Proxies", desc = "Logs detailed information about tracked buff/bar population and aura changes.", type = "toggle", order = 12.5,
-                get = function(info) return self.db.profile.debugProxy end,
-                set = function(info, val) self.db.profile.debugProxy = val end,
-            },
-            layout = {
-                name = "Debug Layout", desc = "Logs layout positioning calculations including stack order, heights, gaps, and Y offsets.", type = "toggle", order = 12.55,
-                get = function(info) return self.db.profile.debugLayout end,
-                set = function(info, val) self.db.profile.debugLayout = val end,
-            },
-            containers = {
-                name = "Debug Containers", desc = "Shows colored backgrounds behind the Hud containers to verify their positions.", type = "toggle", order = 12.6,
-                get = function(info) return self.db.profile.debugContainers end,
-                set = function(info, val) 
-                    self.db.profile.debugContainers = val
-                    for _, mName in ipairs({"Cooldowns", "TrackedBars", "TrackedBuffs"}) do
-                        local m = ActionHud:GetModule(mName, true)
-                        if m and m.UpdateLayout then m:UpdateLayout() end
-                    end
-                end,
-            },
-            showBlizzardFrames = {
-                name = "Show Native Blizzard Frames", desc = "Show both Blizzard's cooldown frames and ActionHud proxies side-by-side for comparison.", type = "toggle", order = 13,
-                get = function(info) return self.db.profile.debugShowBlizzardFrames end,
-                set = function(info, val) 
-                    self.db.profile.debugShowBlizzardFrames = val
-                    ActionHud:GetModule("Cooldowns"):UpdateLayout()
-                end,
-            },
-            recordingHeader = { type = "header", name = "Debug Recording", order = 14 },
-            recordingStatus = {
-                type = "description", order = 15,
-                name = function()
-                    local count = ActionHud:GetDebugBufferCount()
-                    if ActionHud:IsDebugRecording() then
-                        return "|cff00ff00Recording...|r (count updates on Stop/Export)"
-                    else
-                        return "|cffaaaaaa Stopped|r (" .. count .. " entries buffered)"
-                    end
-                end,
-            },
-            recordButton = {
-                name = "Record",
-                desc = "Start recording debug messages to the buffer.",
-                type = "execute", order = 16, width = "half",
-                hidden = function() return ActionHud:IsDebugRecording() end,
-                func = function() ActionHud:StartDebugRecording() end,
-            },
-            stopButton = {
-                name = "Stop",
-                desc = "Stop recording debug messages.",
-                type = "execute", order = 17, width = "half",
-                hidden = function() return not ActionHud:IsDebugRecording() end,
-                func = function() ActionHud:StopDebugRecording() end,
-            },
-            clearDebug = {
-                name = "Clear",
-                desc = "Clears the debug buffer without copying.",
-                type = "execute", order = 18, width = "half",
-                func = function() ActionHud:ClearDebugBuffer() end,
-            },
-            copyDebug = {
-                name = function() 
-                    local count = ActionHud:GetDebugBufferCount()
-                    return "Export (" .. count .. ")"
-                end,
-                desc = "Opens a popup with debug messages for copying (Ctrl+A, Ctrl+C).",
-                type = "execute", order = 19, width = "half",
-                disabled = function() return ActionHud:GetDebugBufferCount() == 0 end,
-                func = function() ActionHud:ShowDebugExport() end,
-            },
-            toolsHeader = { type = "header", name = "Tools", order = 25 },
+            toolsHeader = { type = "header", name = "Tools", order = 1 },
             refresh = {
-                name = "Force Layout Update", type = "execute", order = 26,
+                name = "Force Layout Update", type = "execute", order = 2,
                 func = function() 
-                    for _, mName in ipairs({"ActionBars", "Resources", "Cooldowns", "TrackedBars", "TrackedBuffs"}) do
+                    for _, mName in ipairs({"ActionBars", "Resources", "Cooldowns", "TrackedBars", "TrackedBuffs", "Trinkets"}) do
                         local m = ActionHud:GetModule(mName, true)
                         if m and m.UpdateLayout then m:UpdateLayout() end
                     end
@@ -1043,7 +1032,7 @@ Due to Blizzard's API changes in Midnight (12.0), traditional unit frame customi
                 end,
             },
             scan = {
-                name = "Scan for New Frames", desc = "Scans all global frames for 'Viewer' or 'Tracked' names and logs them.", type = "execute", order = 27,
+                name = "Scan for New Frames", desc = "Scans all global frames for 'Viewer' or 'Tracked' names and logs them.", type = "execute", order = 3,
                 func = function()
                     local Manager = ns.CooldownManager
                     if Manager and Manager.FindPotentialTargets then Manager:FindPotentialTargets() end
@@ -1052,11 +1041,120 @@ Due to Blizzard's API changes in Midnight (12.0), traditional unit frame customi
             dumpBuffInfo = {
                 name = "Dump Buff/Bar Info",
                 desc = "Prints all tracked buff/bar spell IDs and linkedSpellIDs to chat. Use /ah dump as shortcut.",
-                type = "execute", order = 28,
+                type = "execute", order = 4,
                 func = function()
                     local Manager = ns.CooldownManager
                     if Manager and Manager.DumpTrackedBuffInfo then Manager:DumpTrackedBuffInfo() end
                 end,
+            },
+            showBlizzardFrames = {
+                name = "Show Native Blizzard Frames (Cooldown Manager)", 
+                desc = "Show both Blizzard's cooldown frames and ActionHud proxies side-by-side for comparison.", 
+                type = "toggle", order = 5, width = "full",
+                get = function(info) return self.db.profile.debugShowBlizzardFrames end,
+                set = function(info, val) 
+                    self.db.profile.debugShowBlizzardFrames = val
+                    ActionHud:GetModule("Cooldowns"):UpdateLayout()
+                end,
+            },
+            
+            filtersHeader = { type = "header", name = "Troubleshooting & Discovery Filters", order = 10 },
+            discovery = {
+                name = "Debug Discovery", desc = "Logs when new Blizzard widgets are found and hijacked.", type = "toggle", order = 11,
+                get = function(info) return self.db.profile.debugDiscovery end,
+                set = function(info, val) self.db.profile.debugDiscovery = val end,
+            },
+            frames = {
+                name = "Debug Frames", desc = "Logs detailed information about frame hierarchies and children.", type = "toggle", order = 12,
+                get = function(info) return self.db.profile.debugFrames end,
+                set = function(info, val) self.db.profile.debugFrames = val end,
+            },
+            events = {
+                name = "Debug Events", desc = "Logs key HUD events to the chat window.", type = "toggle", order = 13,
+                get = function(info) return self.db.profile.debugEvents end,
+                set = function(info, val) self.db.profile.debugEvents = val end,
+            },
+            proxy = {
+                name = "Debug Proxies", desc = "Logs detailed information about tracked buff/bar population and aura changes.", type = "toggle", order = 14,
+                get = function(info) return self.db.profile.debugProxy end,
+                set = function(info, val) self.db.profile.debugProxy = val end,
+            },
+            layout = {
+                name = "Debug Layout", desc = "Logs layout positioning calculations including stack order, heights, gaps, and Y offsets.", type = "toggle", order = 15,
+                get = function(info) return self.db.profile.debugLayout end,
+                set = function(info, val) self.db.profile.debugLayout = val end,
+            },
+            containers = {
+                name = "Debug Containers", desc = "Shows colored backgrounds behind the Hud containers to verify their positions.", type = "toggle", order = 16,
+                get = function(info) return self.db.profile.debugContainers end,
+                set = function(info, val) 
+                    self.db.profile.debugContainers = val
+                    local modules = {"ActionBars", "Resources", "Cooldowns", "TrackedBars", "TrackedBuffs", "TrackedDefensives"}
+                    for _, mName in ipairs(modules) do
+                        local m = ActionHud:GetModule(mName, true)
+                        if m and m.UpdateLayout then m:UpdateLayout() end
+                    end
+                end,
+            },
+            
+            recordingHeader = { type = "header", name = "Debug Recording", order = 30 },
+            recordingStatus = {
+                type = "description", order = 31,
+                name = function()
+                    local count = ActionHud:GetDebugBufferCount()
+                    local status = ActionHud:IsDebugRecording() and "|cff00ff00Recording...|r" or "|cffaaaaaaStopped|r"
+                    
+                    local activeTypes = {}
+                    local p = ActionHud.db.profile
+                    if p.debugDiscovery then table.insert(activeTypes, "Discovery") end
+                    if p.debugFrames then table.insert(activeTypes, "Frames") end
+                    if p.debugEvents then table.insert(activeTypes, "Events") end
+                    if p.debugProxy then table.insert(activeTypes, "Proxies") end
+                    if p.debugLayout then table.insert(activeTypes, "Layout") end
+                    
+                    local activeStr = #activeTypes > 0 and table.concat(activeTypes, ", ") or "|cffff4444None|r"
+                    
+                    return string.format("%s (%d entries buffered)\n|cffaaaaaaActive filters:|r %s", status, count, activeStr)
+                end,
+            },
+            recordButton = {
+                name = "Record",
+                desc = "Start recording debug messages to the buffer.",
+                type = "execute", order = 32, width = "half",
+                hidden = function() return ActionHud:IsDebugRecording() end,
+                func = function() 
+                    ActionHud:StartDebugRecording() 
+                    LibStub("AceConfigRegistry-3.0"):NotifyChange("ActionHud_Debug")
+                end,
+            },
+            stopButton = {
+                name = "Stop",
+                desc = "Stop recording debug messages.",
+                type = "execute", order = 33, width = "half",
+                hidden = function() return not ActionHud:IsDebugRecording() end,
+                func = function() 
+                    ActionHud:StopDebugRecording() 
+                    LibStub("AceConfigRegistry-3.0"):NotifyChange("ActionHud_Debug")
+                end,
+            },
+            clearDebug = {
+                name = "Clear",
+                desc = "Clears the debug buffer without copying.",
+                type = "execute", order = 34, width = "half",
+                func = function() 
+                    ActionHud:ClearDebugBuffer() 
+                    LibStub("AceConfigRegistry-3.0"):NotifyChange("ActionHud_Debug")
+                end,
+            },
+            logField = {
+                name = "Debug Log",
+                desc = "Recorded debug messages. Select all and copy to export.",
+                type = "input",
+                multiline = 15,
+                width = "full",
+                order = 40,
+                get = function() return ActionHud:GetDebugText() end,
+                set = function() end, -- Read-only
             },
         },
     }
@@ -1087,6 +1185,9 @@ Due to Blizzard's API changes in Midnight (12.0), traditional unit frame customi
     -- 7. Unit Frames (Player/Target/Focus)
     LibStub("AceConfig-3.0"):RegisterOptionsTable("ActionHud_UnitFrames", unitFrameOptions)
     LibStub("AceConfigDialog-3.0"):AddToBlizOptions("ActionHud_UnitFrames", "Unit Frames", "ActionHud")
+    
+    LibStub("AceConfig-3.0"):RegisterOptionsTable("ActionHud_Trinkets", trinketOptions)
+    LibStub("AceConfigDialog-3.0"):AddToBlizOptions("ActionHud_Trinkets", "Trinkets", "ActionHud")
     
     -- 9-10. Meta settings
     local profiles = LibStub("AceDBOptions-3.0"):GetOptionsTable(self.db)

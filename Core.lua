@@ -1,6 +1,7 @@
 local addonName, ns = ...
 local ActionHud = LibStub("AceAddon-3.0"):NewAddon("ActionHud", "AceEvent-3.0", "AceConsole-3.0")
 _G.ActionHud = ActionHud -- Global for debugging
+local Utils = ns.Utils
 
 -- Development mode detection (set by DevMarker.lua which is excluded from CurseForge packages)
 local IS_DEV_MODE = ns.IS_DEV_MODE or false
@@ -75,7 +76,6 @@ local defaults = {
         ufFontSize = 11,             -- Font size for bar text
 
         -- Dynamic Layout Settings
-        syncWithEditMode = false,
         barPriority = "bar1",
         barAlignment = "CENTER",
 
@@ -96,6 +96,15 @@ local defaults = {
         -- Layout (managed by LayoutManager)
         -- layout = { stack = {...}, gaps = {...} }
         -- Initialized by LayoutManager:EnsureLayoutData() or migration
+        showLayoutOutlines = false,
+
+        -- Trinkets Module
+        trinketsEnabled = true,
+        trinketsIconWidth = 32,
+        trinketsIconHeight = 32,
+        trinketsXOffset = 150,
+        trinketsYOffset = 0,
+        trinketsTimerFontSize = "medium",
     }
 }
 
@@ -106,7 +115,10 @@ function ActionHud:OnInitialize()
     self.db.RegisterCallback(self, "OnProfileReset", "OnProfileChanged")
     
     -- Migrate old position settings to new layout system
-    self:MigrateLayoutSettings()
+    local LM = self:GetModule("LayoutManager", true)
+    if LM and LM.MigrateOldSettings then
+        LM:MigrateOldSettings()
+    end
     
     -- Register with Addon Compartment (Blizzard's dropdown menu)
     if AddonCompartmentFrame and AddonCompartmentFrame.RegisterAddon then
@@ -121,83 +133,13 @@ function ActionHud:OnInitialize()
     self:SetupOptions() -- In SettingsUI.lua
 end
 
--- Migrate old position/gap settings to new unified layout system
-function ActionHud:MigrateLayoutSettings()
-    local p = self.db.profile
-    
-    -- If layout already exists, clean up trackedBuffs if present (moved to EditMode)
-    if p.layout then
-        local newStack = {}
-        local newGaps = {}
-        for i, id in ipairs(p.layout.stack) do
-            if id ~= "trackedBuffs" then
-                table.insert(newStack, id)
-                table.insert(newGaps, p.layout.gaps[i] or 0)
-            end
-        end
-        if #newStack ~= #p.layout.stack then
-            p.layout.stack = newStack
-            p.layout.gaps = newGaps
-        end
-        return
-    end
-    
-    -- Build new stack based on old position settings
-    local topModules = {}
-    local bottomModules = {}
-    
-    -- Resources
-    if p.resPosition == "TOP" or p.resPosition == nil then
-        table.insert(topModules, { id = "resources", gap = p.resOffset or 1 })
-    else
-        table.insert(bottomModules, { id = "resources", gap = p.resOffset or 1 })
-    end
-    
-    -- Cooldowns
-    if p.cdPosition == "TOP" then
-        table.insert(topModules, { id = "cooldowns", gap = p.cdGap or 4 })
-    else
-        table.insert(bottomModules, { id = "cooldowns", gap = p.cdGap or 4 })
-    end
-    
-    -- Build final stack: top modules (reversed so furthest is first), actionBars, bottom modules
-    local stack = {}
-    local gaps = {}
-    
-    -- Top modules: reverse order so furthest from center is at top of list
-    for i = #topModules, 1, -1 do
-        table.insert(stack, topModules[i].id)
-        table.insert(gaps, topModules[i].gap)
-    end
-    
-    -- ActionBars in the middle
-    table.insert(stack, "actionBars")
-    table.insert(gaps, 0)
-    
-    -- Bottom modules (closest to center first)
-    for _, mod in ipairs(bottomModules) do
-        table.insert(stack, mod.id)
-        table.insert(gaps, mod.gap)
-    end
-    
-    -- Store the new layout
-    p.layout = {
-        stack = stack,
-        gaps = gaps,
-    }
-    
-    self:Print("Layout migrated from legacy settings.")
-end
-
 function ActionHud:OnProfileChanged()
     self:UpdateLockState()
     
     -- Migrate layout if needed for new profile
-    self:MigrateLayoutSettings()
-    
-    -- Trigger LayoutManager to recalculate positions
     local LM = self:GetModule("LayoutManager", true)
     if LM then
+        if LM.MigrateOldSettings then LM:MigrateOldSettings() end
         LM:TriggerLayoutUpdate()
     else
         -- Fallback: notify modules directly
@@ -247,28 +189,44 @@ function ActionHud:Log(msg, debugType)
     
     -- Check if this specific debug type is enabled
     local enabled = false
-    if debugType == "discovery" and p.debugDiscovery then enabled = true
-    elseif debugType == "frames" and p.debugFrames then enabled = true
-    elseif debugType == "events" and p.debugEvents then enabled = true
-    elseif debugType == "proxy" and p.debugProxy then enabled = true
-    elseif debugType == "layout" and p.debugLayout then enabled = true
-    elseif debugType == "debug" and p.debugDiscovery then enabled = true  -- General debug piggybacks on discovery
-    elseif not debugType then enabled = true -- General logs
+    local shouldPrint = false
+    
+    if debugType == "discovery" then
+        enabled = p.debugDiscovery
+        shouldPrint = enabled
+    elseif debugType == "frames" then
+        enabled = p.debugFrames
+        shouldPrint = enabled
+    elseif debugType == "events" then
+        enabled = p.debugEvents
+        shouldPrint = enabled
+    elseif debugType == "proxy" then
+        enabled = p.debugProxy
+        shouldPrint = enabled
+    elseif debugType == "layout" then
+        enabled = p.debugLayout
+        shouldPrint = enabled
+    elseif debugType == "debug" then
+        enabled = p.debugDiscovery
+        shouldPrint = enabled
+    elseif not debugType then
+        enabled = true -- General logs
+        shouldPrint = p.debugDiscovery -- Only print general to chat if discovery is on
     end
     
     if not enabled then return end
 
     -- Safe tostring that handles secret values (they error on tostring/format)
     local function SafeToString(v)
-        if ns.Utils.IsValueSecret(v) then return "<secret>" end
+        if Utils.IsValueSecret(v) then return "<secret>" end
         return tostring(v)
     end
 
     local timestamp = date("%H:%M:%S")
     local safeMsg = SafeToString(msg)
     
-    -- Print to chat if discovery is on so it shows in BugSack
-    if p.debugDiscovery then
+    -- Print to chat if enabled for this type
+    if shouldPrint then
         print(string.format("|cff33ff99AH[%s]|r %s", debugType or "Debug", safeMsg))
     end
 
@@ -296,73 +254,8 @@ function ActionHud:IsDebugRecording()
     return debugRecording
 end
 
--- Debug export popup frame (created on demand)
-local debugExportFrame = nil
-
-local function CreateDebugExportFrame()
-    local frame = CreateFrame("Frame", "ActionHudDebugExportFrame", UIParent, "BasicFrameTemplateWithInset")
-    frame:SetSize(600, 400)
-    frame:SetPoint("CENTER")
-    frame:SetMovable(true)
-    frame:EnableMouse(true)
-    frame:RegisterForDrag("LeftButton")
-    frame:SetScript("OnDragStart", frame.StartMoving)
-    frame:SetScript("OnDragStop", frame.StopMovingOrSizing)
-    frame:SetFrameStrata("DIALOG")
-    frame:SetClampedToScreen(true)
-    
-    -- Title
-    frame.TitleText:SetText("ActionHud Debug Export")
-    
-    -- Instructions
-    local instructions = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    instructions:SetPoint("TOPLEFT", frame.InsetBg, "TOPLEFT", 10, -5)
-    instructions:SetText("Press Ctrl+A to select all, then Ctrl+C to copy:")
-    
-    -- ScrollFrame with EditBox
-    local scrollFrame = CreateFrame("ScrollFrame", nil, frame, "UIPanelScrollFrameTemplate")
-    scrollFrame:SetPoint("TOPLEFT", frame.InsetBg, "TOPLEFT", 10, -25)
-    scrollFrame:SetPoint("BOTTOMRIGHT", frame.InsetBg, "BOTTOMRIGHT", -30, 10)
-    
-    local editBox = CreateFrame("EditBox", nil, scrollFrame)
-    editBox:SetMultiLine(true)
-    editBox:SetFontObject(GameFontHighlightSmall)
-    editBox:SetWidth(scrollFrame:GetWidth())
-    editBox:SetAutoFocus(false)
-    editBox:EnableMouse(true)
-    editBox:SetScript("OnEscapePressed", function() frame:Hide() end)
-    
-    scrollFrame:SetScrollChild(editBox)
-    frame.editBox = editBox
-    
-    -- Close with Escape
-    tinsert(UISpecialFrames, "ActionHudDebugExportFrame")
-    
-    return frame
-end
-
-function ActionHud:ShowDebugExport()
-    local count = #debugBuffer
-    if count == 0 then
-        print("|cff33ff99ActionHud:|r Debug buffer is empty. Start recording and perform some actions first.")
-        return
-    end
-    
-    -- Create frame if needed
-    if not debugExportFrame then
-        debugExportFrame = CreateDebugExportFrame()
-    end
-    
-    -- Set text
-    local text = table.concat(debugBuffer, "\n")
-    debugExportFrame.editBox:SetText(text)
-    
-    -- Show and focus
-    debugExportFrame:Show()
-    debugExportFrame.editBox:SetFocus()
-    debugExportFrame.editBox:HighlightText()
-    
-    print("|cff33ff99ActionHud:|r Debug export opened (" .. count .. " entries). Use Ctrl+A, Ctrl+C to copy.")
+function ActionHud:GetDebugText()
+    return table.concat(debugBuffer, "\n")
 end
 
 function ActionHud:GetDebugBufferCount()
@@ -374,63 +267,63 @@ function ActionHud:ClearDebugBuffer()
     print("|cff33ff99ActionHud:|r Debug buffer cleared.")
 end
 
-function ActionHud:SlashHandler(msg)
-    msg = msg and msg:trim():lower() or ""
+function ActionHud:UpdateFrameDebug(frame, color)
+    if not frame then return end
     
-    if msg == "debug" then
-        self.db.profile.debugDiscovery = not self.db.profile.debugDiscovery
-        print("|cff33ff99ActionHud:|r Debug Discovery is now " .. (self.db.profile.debugDiscovery and "|cff00ff00ON|r" or "|cffff0000OFF|r"))
-        return
-    end
-
-    if msg == "record" then
-        if debugRecording then
-            self:StopDebugRecording()
-        else
-            self:StartDebugRecording()
+    local p = self.db.profile
+    if p.debugContainers then
+        if not frame.debugBg then
+            frame.debugBg = frame:CreateTexture(nil, "BACKGROUND")
+            frame.debugBg:SetAllPoints()
         end
-        return
+        frame.debugBg:SetColorTexture(color.r, color.g, color.b, 0.5)
+        frame.debugBg:Show()
+        -- Ensure size is visible for empty containers
+        if frame:GetWidth() <= 1 then frame:SetSize(100, 100) end
+    elseif frame.debugBg then
+        frame.debugBg:Hide()
     end
-    
-    if msg == "log" then
-        self:ShowDebugExport()
-        return
-    end
-    
-    if msg == "clear" then
-        self:ClearDebugBuffer()
-        return
-    end
+end
 
-    if msg == "dump" then
-        local Manager = ns.CooldownManager
-        if Manager and Manager.DumpTrackedBuffInfo then
-            Manager:DumpTrackedBuffInfo()
-        else
-            print("|cff33ff99ActionHud:|r Cooldown Manager not available.")
-        end
-        return
-    end
-
-    if Settings and Settings.OpenToCategory then
-        -- Try to find the category ID explicitly (most reliable in 11.0)
-        local categoryID
-        if SettingsPanel and SettingsPanel.GetAllCategories then
-             for _, cat in ipairs(SettingsPanel:GetAllCategories()) do
-                 if cat.name == "ActionHud" then
-                     categoryID = cat:GetID()
-                     break
-                 end
-             end
+function ActionHud:UpdateLayoutOutline(frame, labelText)
+    if not frame then return end
+    
+    local p = self.db.profile
+    if p.showLayoutOutlines then
+        if not frame.layoutOutline then
+            local outline = CreateFrame("Frame", nil, frame, "BackdropTemplate")
+            outline:SetAllPoints()
+            outline:SetBackdrop({
+                bgFile = "Interface\\Buttons\\WHITE8x8",
+                edgeFile = "Interface\\Buttons\\WHITE8x8",
+                edgeSize = 1,
+            })
+            outline:SetBackdropColor(0, 0, 0, 0.4)
+            outline:SetBackdropBorderColor(1, 1, 1, 0.6)
+            outline:SetFrameLevel(frame:GetFrameLevel() + 50)
+            
+            local label = outline:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+            label:SetPoint("CENTER")
+            label:SetText(labelText or "")
+            outline.label = label
+            
+            frame.layoutOutline = outline
         end
         
-        if categoryID then
-             Settings.OpenToCategory(categoryID)
-        else
-             Settings.OpenToCategory("ActionHud")
+        -- Update label if changed
+        if labelText and frame.layoutOutline.label then
+            frame.layoutOutline.label:SetText(labelText)
         end
-    else
-        InterfaceOptionsFrame_OpenToCategory("ActionHud")
+        
+        -- Force visibility and sizing for configuration
+        if frame:GetWidth() <= 1 or frame:GetHeight() <= 1 then
+            frame:SetSize(120, 40) -- Minimum visible size
+        end
+        
+        frame.layoutOutline:Show()
+        frame:Show() -- Ensure the parent is shown so the outline is visible
+    elseif frame.layoutOutline then
+        frame.layoutOutline:Hide()
     end
 end
 
@@ -496,4 +389,97 @@ function ActionHud:UpdateLockState()
     local locked = self.db.profile.locked
     self.frame:EnableMouse(not locked)
     if locked then self.frame.dragBg:Hide() else self.frame.dragBg:Show() end
+end
+
+-- Helper to open specific settings categories
+function ActionHud:OpenSettings(categoryName)
+    if InCombatLockdown() then
+        print("|cff33ff99ActionHud:|r Settings cannot be opened while in combat.")
+        return false
+    end
+
+    if Settings and Settings.OpenToCategory then
+        local targetName = categoryName or "ActionHud"
+        local categoryID
+        
+        -- Try to find the numeric category ID explicitly
+        if SettingsPanel and SettingsPanel.GetAllCategories then
+             local categories = SettingsPanel:GetAllCategories()
+             
+             -- First pass: exact match on name
+             for _, cat in ipairs(categories) do
+                 if cat.GetName and cat:GetName() == targetName then
+                     categoryID = cat:GetID()
+                     break
+                 end
+             end
+             
+             -- Second pass: fuzzy match if sub-category
+             if not categoryID and categoryName then
+                 for _, cat in ipairs(categories) do
+                     local name = cat.GetName and cat:GetName()
+                     if name and name:find(targetName) then
+                         categoryID = cat:GetID()
+                         break
+                     end
+                 end
+             end
+        end
+        
+        -- Fallback to root ActionHud if sub-category not found
+        if not categoryID and targetName ~= "ActionHud" then
+             if SettingsPanel and SettingsPanel.GetAllCategories then
+                 for _, cat in ipairs(SettingsPanel:GetAllCategories()) do
+                     if cat.GetName and cat:GetName() == "ActionHud" then
+                         categoryID = cat:GetID()
+                         break
+                     end
+                 end
+             end
+        end
+
+        if categoryID then
+             local ok = pcall(Settings.OpenToCategory, categoryID)
+             return ok
+        end
+    end
+    
+    -- Fallback for older clients or if numeric ID lookup failed
+    if InterfaceOptionsFrame_OpenToCategory then
+        pcall(InterfaceOptionsFrame_OpenToCategory, categoryName or "ActionHud")
+    elseif Settings and Settings.OpenToCategory then
+        pcall(Settings.OpenToCategory, categoryName or "ActionHud")
+    end
+end
+
+function ActionHud:SlashHandler(msg)
+    msg = msg and msg:trim():lower() or ""
+    
+    -- /ah debug or /ah record now both toggle debug recording
+    if msg == "debug" or msg == "record" then
+        if debugRecording then
+            self:StopDebugRecording()
+        else
+            self:StartDebugRecording()
+        end
+        return
+    end
+    
+    if msg == "clear" then
+        self:ClearDebugBuffer()
+        return
+    end
+
+    if msg == "dump" then
+        local Manager = ns.CooldownManager
+        if Manager and Manager.DumpTrackedBuffInfo then
+            Manager:DumpTrackedBuffInfo()
+        else
+            print("|cff33ff99ActionHud:|r Cooldown Manager not available.")
+        end
+        return
+    end
+
+    -- Default: open main settings
+    self:OpenSettings()
 end

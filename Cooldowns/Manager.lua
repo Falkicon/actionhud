@@ -253,20 +253,11 @@ end
 function Manager:UpdateContainerDebug(containerType, color)
     local container = containers[containerType]
     if not container then return end
-    
-    local p = addon.db.profile
-    if p.debugContainers then
-        if not container.debugBg then
-            container.debugBg = container:CreateTexture(nil, "BACKGROUND")
-            container.debugBg:SetAllPoints()
-        end
-        container.debugBg:SetColorTexture(color.r, color.g, color.b, 0.5)
-        container.debugBg:Show()
-        -- Ensure size is visible
-        if container:GetWidth() <= 1 then container:SetSize(100, 100) end
-    elseif container.debugBg then
-        container.debugBg:Hide()
-    end
+    addon:UpdateFrameDebug(container, color)
+end
+
+function Manager:UpdateFrameDebug(frame, color)
+    addon:UpdateFrameDebug(frame, color)
 end
 
 -- ============================================================================

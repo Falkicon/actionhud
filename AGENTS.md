@@ -43,6 +43,7 @@ A compact action bar HUD overlay that displays ability icons, cooldowns, and pro
 | `Cooldowns/TrackedBuffs.lua` | Tracked Buffs reskin (hooks BuffIconCooldownViewer) |
 | `Cooldowns/TrackedDefensives.lua` | External Defensives reskin (hooks ExternalDefensivesFrame) |
 | `UnitFrames/UnitFrames.lua` | Unit Frame reskin (PlayerFrame, TargetFrame, FocusFrame) |
+| `Trinkets.lua` | Dedicated module for tracking equipped trinket cooldowns |
 | `SettingsUI.lua` | Blizzard Settings API integration (no external libs) |
 | `ActionHud.toc` | Addon metadata and load order |
 
@@ -256,14 +257,10 @@ Stored in `ActionHudDB.profile`:
 
 ## Slash Commands
 
-- `/actionhud` – Outputs all button states to the error frame
-
----
-
-## Debugging
-
-- **Slash Command**: `/actionhud` outputs diagnostic info
-- **Globals**: `ActionHudFrame` (main window), `ActionHudDB` (saved variables)
+- `/ah` or `/actionhud` – Opens the settings panel.
+- `/ah debug` or `/ah record` – Toggles debug recording (logs buffered in memory).
+- `/ah clear` – Clears the debug log buffer.
+- `/ah dump` – Outputs tracked aura info to chat (if Cooldown Manager is active).
 
 ---
 

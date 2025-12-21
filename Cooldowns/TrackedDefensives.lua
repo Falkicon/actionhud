@@ -139,26 +139,14 @@ end
 function TrackedDefensives:StripBlizzardDecorations(itemFrame)
     if not itemFrame then return end
     
-    -- Hide MaskTextures and overlay textures
-    local regions = {itemFrame:GetRegions()}
-    for _, region in ipairs(regions) do
-        if region:IsObjectType("MaskTexture") then
-            region:Hide()
-        elseif region:IsObjectType("Texture") then
-            -- Hide non-icon textures (borders, overlays)
-            local name = region:GetDebugName() or ""
-            if name:find("Border") or name:find("Overlay") or name:find("Highlight") then
-                region:Hide()
-            end
-        end
-    end
+    Utils.StripBlizzardDecorations(itemFrame)
     
     -- Apply standard icon crop to the icon texture
     if itemFrame.Icon then
-        itemFrame.Icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+        Utils.ApplyIconCrop(itemFrame.Icon, 1, 1)
     end
     if itemFrame.icon then
-        itemFrame.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+        Utils.ApplyIconCrop(itemFrame.icon, 1, 1)
     end
 end
 
@@ -194,6 +182,13 @@ end
 -- Update styling (called when settings change)
 function TrackedDefensives:UpdateLayout()
     self:SetupStyling()
+    
+    -- Debug Container Visual
+    local blizzFrame = self:GetBlizzardFrame()
+    if blizzFrame then
+        addon:UpdateFrameDebug(blizzFrame, {r=1, g=0, b=1}) -- Magenta for Defensives
+        addon:UpdateLayoutOutline(blizzFrame, "External Defensives")
+    end
     
     -- Force re-apply styling to all existing frames if active
     if isStylingActive then

@@ -65,9 +65,6 @@ function Cooldowns:OnDisable()
     end
 end
 
--- Cache for calculated height
-local cachedHeight = 0
-
 -- Calculate the height of this module for LayoutManager
 function Cooldowns:CalculateHeight()
     local p = self.db.profile
@@ -167,6 +164,7 @@ function Cooldowns:UpdateLayout()
         end
         container:Show()
         Manager:UpdateContainerDebug("cd", {r=0, g=0, b=1}) -- Blue for CDs
+        addon:UpdateLayoutOutline(container, "Cooldowns")
         self:RenderCooldownProxies(container, p)
     else
         container:Hide()
@@ -392,6 +390,7 @@ function Cooldowns:ReleaseCooldownProxies()
 end
 
 function Cooldowns:OnSpellUpdateCooldown()
+    addon:Log("Cooldowns: OnSpellUpdateCooldown", "events")
     local container = Manager:GetContainer("cd")
     if container and container:IsShown() then
         for key, proxy in pairs(activeProxies) do
@@ -403,6 +402,7 @@ function Cooldowns:OnSpellUpdateCooldown()
 end
 
 function Cooldowns:OnPlayerEnteringWorld()
+    addon:Log("Cooldowns: OnPlayerEnteringWorld", "events")
     -- Direct call - data provider should be ready for zone transitions
     self:UpdateLayout()
 end

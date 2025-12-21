@@ -12,8 +12,6 @@ local UnitPowerMax = UnitPowerMax
 local UnitPowerType = UnitPowerType
 local UnitExists = UnitExists
 local UnitIsPlayer = UnitIsPlayer
-local UnitIsEnemy = UnitIsEnemy
-local UnitIsFriend = UnitIsFriend
 
 local main
 local container
@@ -201,39 +199,8 @@ end
 local function UpdateBarColor(bar, unit)
     if not bar or not UnitExists(unit) then return end
     
-    local mult = 0.85 
-    
-    if bar.type == "HEALTH" then
-        if UnitIsPlayer(unit) then
-            local _, class = UnitClass(unit)
-            local c = RAID_CLASS_COLORS[class]
-            if c then
-                bar:SetStatusBarColor(c.r * mult, c.g * mult, c.b * mult)
-            else
-                bar:SetStatusBarColor(0, 0.8, 0)
-            end
-        else
-             if UnitIsEnemy("player", unit) then
-                bar:SetStatusBarColor(0.8, 0, 0)
-             elseif UnitIsFriend("player", unit) then
-                bar:SetStatusBarColor(0, 0.8, 0)
-             else
-                bar:SetStatusBarColor(0.8, 0.8, 0)
-             end
-        end
-    elseif bar.type == "POWER" then
-        local pType, pToken, altR, altG, altB = UnitPowerType(unit)
-        local info = PowerBarColor[pToken]
-        if info then
-             bar:SetStatusBarColor(info.r * mult, info.g * mult, info.b * mult)
-        else
-             if altR then
-                bar:SetStatusBarColor(altR * mult, altG * mult, altB * mult)
-             else
-                bar:SetStatusBarColor(0, 0, 0.8)
-             end
-        end
-    end
+    local r, g, b = Utils.GetUnitColor(unit, bar.type, 0.85)
+    bar:SetStatusBarColor(r, g, b)
 end
 
 local function UpdateBarValue(bar, unit)
@@ -302,6 +269,7 @@ end
 
 function Resources:OnEvent(event, unit)
     if not RCFG.enabled then return end
+    addon:Log(string.format("Resources: %s (unit=%s)", event, tostring(unit)), "events")
     
     if event == "PLAYER_ENTERING_WORLD" then
         UpdateClassPower()
@@ -421,6 +389,11 @@ function Resources:UpdateLayout()
     if not container or not addon then return end
     
     local db = addon.db.profile
+    
+    -- Debug Container Visual
+    addon:UpdateFrameDebug(container, {r=1, g=0, b=0}) -- Red for Resources
+    addon:UpdateLayoutOutline(container, "Resource Bars")
+
     RCFG.enabled = db.resEnabled == true
     RCFG.healthEnabled = db.resHealthEnabled ~= false
     RCFG.powerEnabled = db.resPowerEnabled ~= false

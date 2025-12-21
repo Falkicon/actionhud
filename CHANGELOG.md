@@ -3,6 +3,41 @@
 All notable changes to this project will be documented in this file.
 
 
+## [2.6.2] - 2025-12-21
+
+### Added
+- **Trinkets Module**: New sidecar module for tracking equipped on-use trinket cooldowns.
+    - Synchronizes with Blizzard's native cooldown numbers.
+    - Adjustable icon sizing and font typography settings.
+    - Automatically hides passive trinkets and empty slots.
+    - Defensive API wrappers to prevent crashes with new Blizzard item APIs on PTR.
+
+### Fixed
+- **Settings Panel Combat Block**: Resolved an `ADDON_ACTION_BLOCKED` error when attempting to open settings while in combat or via secure macros.
+- **Trinket Logic Crash**: Fixed a Lua error on the PTR where `C_Item.GetItemSpell` was called with invalid arguments.
+- **Trinket Timer Text**: Switched to native Blizzard countdown numbers for trinket icons to ensure accurate timers that work in combat and respond to HUD scaling.
+
+## [2.6.1] - 2025-12-21
+
+### Added
+- **Layout Visualization Outlines**: New configuration tool to see the bounds of every HUD module.
+    - Shows semi-transparent boxes with identifying labels for all components.
+    - Forces a minimum size for empty/inactive modules so they can be positioned out of combat.
+    - Controlled via a new toggle at the top of the **Layout** settings tab.
+- **Debugging System Overhaul**: Complete rewrite of the logging and troubleshooting tools for better performance and insight.
+    - **Integrated Log Field**: Replaced the export popup with a selectable, multi-line text field directly in the settings panel.
+    - **Debug Events**: Added event tracking for Action Bars, Resource Bars, and Cooldowns.
+    - **Debug Containers**: Solid color-coded backgrounds for troubleshooting rendering issues.
+- **In-Game Help**: Added a new **Help & Slash Commands** section to the main settings page.
+
+### Changed
+- **Slash Commands**: 
+    - `/ah debug` now immediately toggles debug recording on/off with chat confirmation.
+    - `/ah log` has been removed (logs are now integrated into the main settings).
+    - `/ah clear` remains for clearing the buffer.
+- **Settings UI Reliability**: Improved the module's ability to find correct numeric category IDs in the modern WoW settings panel, resolving potential crashes and navigation issues.
+- **Debugging Panel Layout**: Reordered for better workflow: Tools at the top, Troubleshooting Filters in the middle, and Recording/Logs at the bottom.
+
 ## [2.6.0] - 2025-12-20
 
 ### Added

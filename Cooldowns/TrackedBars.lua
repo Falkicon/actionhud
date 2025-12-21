@@ -160,35 +160,15 @@ function TrackedBars:StripBlizzardDecorations(itemFrame)
     
     -- Strip decorations from the Icon frame
     if itemFrame.Icon then
-        local iconFrame = itemFrame.Icon
-        local regions = {iconFrame:GetRegions()}
-        for _, region in ipairs(regions) do
-            if region:IsObjectType("MaskTexture") then
-                region:Hide()
-            elseif region:IsObjectType("Texture") and region ~= iconFrame.Icon then
-                region:Hide()
-            end
-        end
-        if iconFrame.Icon then
-            iconFrame.Icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+        Utils.StripBlizzardDecorations(itemFrame.Icon)
+        if itemFrame.Icon.Icon then
+            Utils.ApplyIconCrop(itemFrame.Icon.Icon, 1, 1)
         end
     end
     
     -- Strip decorations from the Bar frame
     if itemFrame.Bar then
-        local barFrame = itemFrame.Bar
-        local regions = {barFrame:GetRegions()}
-        for _, region in ipairs(regions) do
-            if region:IsObjectType("Texture") then
-                local barTexture = barFrame:GetStatusBarTexture()
-                if region ~= barTexture then
-                    region:Hide()
-                end
-            end
-        end
-        if barFrame.Pip then
-            barFrame.Pip:Hide()
-        end
+        Utils.StripBlizzardDecorations(itemFrame.Bar)
     end
 end
 
@@ -227,6 +207,13 @@ end
 -- Update styling (called when settings change)
 function TrackedBars:UpdateLayout()
     self:SetupStyling()
+    
+    -- Debug Container Visual
+    local blizzFrame = self:GetBlizzardFrame()
+    if blizzFrame then
+        Manager:UpdateFrameDebug(blizzFrame, {r=0, g=1, b=0}) -- Green for Bars
+        addon:UpdateLayoutOutline(blizzFrame, "Tracked Bars")
+    end
     
     -- Force re-apply styling to all existing frames if active
     if isStylingActive then

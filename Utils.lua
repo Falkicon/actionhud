@@ -7,6 +7,11 @@ local Utils = ns.Utils
 local GetTime = GetTime
 local pcall = pcall
 local wipe = wipe
+local UnitClass = UnitClass
+local UnitIsPlayer = UnitIsPlayer
+local UnitPowerType = UnitPowerType
+local RAID_CLASS_COLORS = RAID_CLASS_COLORS
+local PowerBarColor = PowerBarColor
 
 -- Midnight (12.0) compatibility (per Secret Values guide 13)
 Utils.IS_MIDNIGHT = (select(4, GetBuildInfo()) >= 120000)
@@ -32,6 +37,96 @@ function Utils.SafeCompare(a, b, op)
     elseif op == "==" then return a == b
     end
     return nil
+end
+
+-- ============================================================================
+-- UI Helpers
+-- ============================================================================
+
+-- Aggressively hide a texture
+function Utils.HideTexture(texture)
+    if not texture then return end
+    texture:SetAlpha(0)
+    texture:Hide()
+    if texture.SetTexture then texture:SetTexture(nil) end
+    if texture.SetAtlas then texture:SetAtlas(nil) end
+end
+
+-- Apply standardized icon crop
+function Utils.ApplyIconCrop(texture, w, h)
+    if not texture then return end
+    local ratio = w / h
+    if ratio > 1 then
+         local scale = h / w
+         local range = 0.84 * scale
+         local mid = 0.5
+         texture:SetTexCoord(0.08, 0.92, mid - range/2, mid + range/2)
+    elseif ratio < 1 then
+         local scale = w / h
+         local range = 0.84 * scale
+         local mid = 0.5
+         texture:SetTexCoord(mid - range/2, mid + range/2, 0.08, 0.92)
+    else
+         texture:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+    end
+end
+
+-- Remove Blizzard decorations (masks, borders, etc)
+function Utils.StripBlizzardDecorations(frame)
+    if not frame then return end
+    
+    local regions = {frame:GetRegions()}
+    for _, region in ipairs(regions) do
+        if region:IsObjectType("MaskTexture") then
+            region:Hide()
+        elseif region:IsObjectType("Texture") then
+            -- Hide based on object name/purpose if not the main icon/bar
+            local name = region:GetDebugName()
+            if name and not Utils.IsValueSecret(name) then
+                if name:find("Border") or name:find("Overlay") or name:find("Highlight") or name:find("Shadow") or name:find("Mask") then
+                    region:Hide()
+                end
+            end
+        end
+    end
+    
+    -- Hide explicit pips or decorations if they exist as children
+    if frame.Pip then frame.Pip:Hide() end
+    if frame.HealthBarMask then frame.HealthBarMask:Hide() end
+    if frame.ManaBarMask then frame.ManaBarMask:Hide() end
+end
+
+-- Unified color lookup for health/power bars
+function Utils.GetUnitColor(unit, barType, mult)
+    mult = mult or 1
+    if barType == "HEALTH" then
+        if UnitIsPlayer(unit) then
+            local _, class = UnitClass(unit)
+            local c = RAID_CLASS_COLORS[class]
+            if c then
+                return c.r * mult, c.g * mult, c.b * mult
+            end
+        else
+            if UnitIsEnemy("player", unit) then
+                return 0.8 * mult, 0, 0
+            elseif UnitIsFriend("player", unit) then
+                return 0, 0.8 * mult, 0
+            else
+                return 0.8 * mult, 0.8 * mult, 0
+            end
+        end
+        return 0, 0.8 * mult, 0 -- Default green
+    elseif barType == "POWER" or barType == "MANA" then
+        local pType, pToken, altR, altG, altB = UnitPowerType(unit)
+        local info = PowerBarColor[pToken]
+        if info then
+            return info.r * mult, info.g * mult, info.b * mult
+        elseif altR then
+            return altR * mult, altG * mult, altB * mult
+        end
+        return 0, 0, 0.8 * mult -- Default blue
+    end
+    return 1, 1, 1
 end
 
 -- ============================================================================
@@ -114,6 +209,17 @@ function Utils.GetSpellTextureSafe(spellID)
         return texture
     end
     textureCache[spellID] = false  -- Cache negative results too
+    return nil
+end
+
+function Utils.GetItemSpellSafe(itemInfo)
+    if not itemInfo then return nil end
+    if not C_Item or not C_Item.GetItemSpell then return nil end
+    
+    local ok, name, spellID = pcall(C_Item.GetItemSpell, itemInfo)
+    if ok then
+        return name, spellID
+    end
     return nil
 end
 

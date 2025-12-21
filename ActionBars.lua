@@ -5,7 +5,6 @@ local AB = ActionHud:NewModule("ActionBars", "AceEvent-3.0")
 local Utils = ns.Utils
 
 -- Local upvalues for performance (hot-path optimization)
-local pairs = pairs
 local ipairs = ipairs
 local GetTime = GetTime
 local GetActionBarPage = GetActionBarPage
@@ -27,8 +26,6 @@ local layoutCache = {} -- Cache for Edit Mode settings to avoid frequent API cal
 function AB:GetEditModeSettings(barID)
     -- Default to 6x2 (compact) if not syncing or API fails
     local settings = { numRows = 2, numIcons = 12, orientation = 0 }
-    
-    if not ActionHud.db.profile.syncWithEditMode then return settings end
     
     -- In Midnight, avoid C_EditMode in instances/combat to prevent secret value errors and taint
     if Utils.IS_MIDNIGHT then
@@ -276,6 +273,10 @@ function AB:UpdateLayout()
     local p = ActionHud.db.profile
     if not container then return end
 
+    -- Debug Container Visual
+    ActionHud:UpdateFrameDebug(container, {r=1, g=1, b=0}) -- Yellow for ActionBars
+    ActionHud:UpdateLayoutOutline(container, "Action Bars")
+
     -- Hide all buttons initially
     for _, btn in ipairs(buttons) do btn:Hide() end
 
@@ -283,9 +284,7 @@ function AB:UpdateLayout()
     local bar1 = self:GetEditModeSettings(1)
     local bar6 = self:GetEditModeSettings(2)
 
-    if ActionHud.db.profile.syncWithEditMode then
-        ActionHud:Log(string.format("Layout Sync: Bar1(%dx%d) Bar6(%dx%d)", bar1.numIcons, bar1.numRows, bar6.numIcons, bar6.numRows), "layout")
-    end
+    ActionHud:Log(string.format("Layout Sync: Bar1(%dx%d) Bar6(%dx%d)", bar1.numIcons, bar1.numRows, bar6.numIcons, bar6.numRows), "layout")
 
     local blocks = {}
     if p.barPriority == "bar6" then
@@ -332,7 +331,7 @@ function AB:UpdateLayout()
                 btn:SetSize(p.iconWidth, p.iconHeight)
                 
                 local col = (i - 1) % iconsPerRow
-                local row = math.floor((i - 1) / iconsPerRow)
+                local row = math_floor((i - 1) / iconsPerRow)
                 
                 local visualRow = numRows - 1 - row
                 local slotOffset = i - 1
@@ -346,7 +345,7 @@ function AB:UpdateLayout()
                 btn.actionID = btn.baseSlot 
                 
                 -- Visuals
-                self:ApplyIconCrop(btn, p.iconWidth, p.iconHeight)
+                Utils.ApplyIconCrop(btn.icon, p.iconWidth, p.iconHeight)
                 local font = "Fonts\\FRIZQT__.TTF"
                 if btn.count then btn.count:SetFont(font, p.countFontSize, "OUTLINE") end
                 if btn.cd then
@@ -373,23 +372,6 @@ function AB:UpdateLayout()
     end
 end
 
-function AB:ApplyIconCrop(btn, w, h)
-    local ratio = w / h
-    if ratio > 1 then
-         local scale = h / w
-         local range = 0.84 * scale
-         local mid = 0.5
-         btn.icon:SetTexCoord(0.08, 0.92, mid - range/2, mid + range/2)
-    elseif ratio < 1 then
-         local scale = w / h
-         local range = 0.84 * scale
-         local mid = 0.5
-         btn.icon:SetTexCoord(mid - range/2, mid + range/2, 0.08, 0.92)
-    else
-         btn.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
-    end
-end
-
 function AB:UpdateOpacity()
     local alpha = ActionHud.db.profile.opacity
     for _, btn in ipairs(buttons) do
@@ -408,6 +390,7 @@ end
 
 function AB:RefreshAll()
     if not self:IsEnabled() then return end
+    ActionHud:Log("ActionBars: RefreshAll", "events")
     for _, btn in ipairs(buttons) do
         if btn:IsShown() then
             self:UpdateAction(btn)
@@ -418,6 +401,7 @@ function AB:RefreshAll()
 end
 
 function AB:ACTIONBAR_SLOT_CHANGED(event, arg1)
+    ActionHud:Log(string.format("ActionBars: %s (slot=%s)", event, tostring(arg1)), "events")
     for _, btn in ipairs(buttons) do
         if btn.baseSlot == arg1 or btn.actionID == arg1 or arg1 == 0 then
             self:UpdateAction(btn)
@@ -437,6 +421,7 @@ function AB:SPELL_UPDATE_COOLDOWN()
 end
 
 function AB:UpdateStateAll()
+    ActionHud:Log("ActionBars: UpdateStateAll", "events")
     -- Only update buttons with actions (skip empty slots to reduce overhead)
     for _, btn in ipairs(buttons) do
         if btn.hasAction then
@@ -485,7 +470,7 @@ function AB:UpdateAction(btn)
         btn.icon:SetTexture(texture)
         btn.icon:Show()
         btn:SetAlpha(1)
-        self:ApplyIconCrop(btn, ActionHud.db.profile.iconWidth, ActionHud.db.profile.iconHeight)
+        Utils.ApplyIconCrop(btn.icon, ActionHud.db.profile.iconWidth, ActionHud.db.profile.iconHeight)
     else
         btn.hasAction = false
         btn.icon:Hide()

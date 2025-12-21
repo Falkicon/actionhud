@@ -117,19 +117,11 @@ end
 function TrackedBuffs:StripBlizzardDecorations(itemFrame)
     if not itemFrame then return end
     
-    -- Hide MaskTextures and overlay textures
-    local regions = {itemFrame:GetRegions()}
-    for _, region in ipairs(regions) do
-        if region:IsObjectType("MaskTexture") then
-            region:Hide()
-        elseif region:IsObjectType("Texture") and region ~= itemFrame.Icon then
-            region:Hide()
-        end
-    end
+    Utils.StripBlizzardDecorations(itemFrame)
     
     -- Apply standard icon crop
     if itemFrame.Icon then
-        itemFrame.Icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+        Utils.ApplyIconCrop(itemFrame.Icon, 1, 1)
     end
 end
 
@@ -167,6 +159,13 @@ end
 -- Update styling (called when settings change)
 function TrackedBuffs:UpdateLayout()
     self:SetupStyling()
+    
+    -- Debug Container Visual
+    local blizzFrame = self:GetBlizzardFrame()
+    if blizzFrame then
+        Manager:UpdateFrameDebug(blizzFrame, {r=1, g=0.5, b=0}) -- Orange for Buffs
+        addon:UpdateLayoutOutline(blizzFrame, "Tracked Buffs")
+    end
     
     -- Force re-apply styling to all existing frames
     if isStylingActive then
