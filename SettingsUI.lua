@@ -514,9 +514,10 @@ Enable it in Gameplay Enhancements to use these features.]]
         handler = ActionHud,
         type = "group",
         args = {
-            infoNote = {
-                type = "description", order = 0,
-                name = [[Apply clean styling to Blizzard's default nameplates.
+            experimentalNote = {
+                type = "description", order = 0.1,
+                name = [[|cffffcc00Experimental Feature:|r
+Applying modern styling to Blizzard nameplates is subject to Midnight's (12.0) API restrictions. This feature balances technical constraints with a clean aesthetic and will evolve as Blizzard provides more robust customization hooks.
 
 |cffffcc00Note:|r Changes take effect on new nameplates. Use |cff00ff00/reload|r to apply to all existing nameplates.
 ]],
@@ -619,11 +620,12 @@ Enable it in Gameplay Enhancements to use these features.]]
         handler = ActionHud,
         type = "group",
         args = {
-            infoNote = {
-                type = "description", order = 0,
-                name = [[Reskin the default Player, Target, and Focus frames.
+            experimentalNote = {
+                type = "description", order = 0.1,
+                name = [[|cffffcc00Experimental Feature:|r
+Due to Blizzard's API changes in Midnight (12.0), traditional unit frame customization is significantly restricted. ActionHud's styling approach balances these technical limitations with a modern, minimalist aesthetic. This feature will continue to evolve as new APIs become available.
 
-|cffffcc00Note:|r Use |cff00ff00/reload|r after changing settings to fully apply styling.
+|cffffcc00Note:|r High-impact changes (like bar heights or width) require |cff00ff00/reload|r to properly synchronize anchors and prevent combat taint.
 ]],
             },
             enable = {

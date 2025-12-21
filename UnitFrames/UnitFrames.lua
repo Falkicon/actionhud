@@ -233,10 +233,13 @@ local function EnsureBarLayout(main, frameKey, p)
             local left = healthContainer:GetLeft()
             local top = healthContainer:GetTop()
             if left and top then
-                healthContainer:ClearAllPoints()
-                -- Anchor to UIParent temporarily or its parent using absolute coordinates to switch anchor type
-                healthContainer:SetPoint("TOPLEFT", healthContainer:GetParent(), "BOTTOMLEFT", left, top)
-                anchorsApplied[frameKey .. "HealthContainer"] = true
+                -- Calculate position relative to parent's BOTTOMLEFT
+                local pLeft, pBottom = healthContainer:GetParent():GetRect()
+                if pLeft and pBottom then
+                    healthContainer:ClearAllPoints()
+                    healthContainer:SetPoint("TOPLEFT", healthContainer:GetParent(), "BOTTOMLEFT", left - pLeft, top - pBottom)
+                    anchorsApplied[frameKey .. "HealthContainer"] = true
+                end
             end
         else
             -- Player frame is already TOPLEFT by default
