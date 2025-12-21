@@ -3,6 +3,11 @@
 All notable changes to this project will be documented in this file.
 
 
+## [2.7.2] - 2025-12-21
+
+### Changed
+- **CurseForge Deployment**: Re-release to trigger updated CurseForge packaging.
+
 ## [2.7.1] - 2025-12-21
 
 ### Fixed
