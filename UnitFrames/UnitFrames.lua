@@ -39,7 +39,6 @@ function UnitFrames:InstallHooks()
                 self:StylePlayerFrame()
             end
         end)
-        addon:Log("UnitFrames: Hooked PlayerFrame_Update", "discovery")
     end
     
     if PlayerFrame_UpdateArt then
@@ -48,7 +47,6 @@ function UnitFrames:InstallHooks()
                 self:StylePlayerFrame()
             end
         end)
-        addon:Log("UnitFrames: Hooked PlayerFrame_UpdateArt", "discovery")
     end
     
     -- TargetFrame hooks - these are MIXIN methods, hook on the frame object
@@ -58,7 +56,6 @@ function UnitFrames:InstallHooks()
                 self:StyleTargetFrame()
             end
         end)
-        addon:Log("UnitFrames: Hooked TargetFrame:Update", "discovery")
     end
     
     -- FocusFrame hooks - also mixin methods
@@ -68,7 +65,6 @@ function UnitFrames:InstallHooks()
                 self:StyleFocusFrame()
             end
         end)
-        addon:Log("UnitFrames: Hooked FocusFrame:Update", "discovery")
     end
     
     -- Register for target changed event to catch initial styling
@@ -89,15 +85,24 @@ function UnitFrames:InstallHooks()
     return true
 end
 
+-- Apply flat texture to a status bar and preserve/reapply color
+local function ApplyFlatTexture(bar)
+    if not bar then return end
+    bar:SetStatusBarTexture(FLAT_BAR_TEXTURE)
+    
+    -- Force the bar to re-color itself
+    -- Health bars are colored by UnitFrameHealthBar functions
+    if bar.lockColor then
+        -- Bar has a locked color, get and reapply it
+        local r, g, b = bar:GetStatusBarColor()
+        if r and g and b then
+            bar:SetStatusBarColor(r, g, b)
+        end
+    end
+end
+
 -- Style the Player Frame
--- Exact paths from Blizzard's PlayerFrame.xml:
---   Portrait: PlayerFrame.PlayerFrameContainer.PlayerPortrait
---   PortraitMask: PlayerFrame.PlayerFrameContainer.PlayerPortraitMask
---   FrameTexture: PlayerFrame.PlayerFrameContainer.FrameTexture
---   HealthBar: PlayerFrame.PlayerFrameContent.PlayerFrameContentMain.HealthBarsContainer.HealthBar
---   HealthBarMask: PlayerFrame.PlayerFrameContent.PlayerFrameContentMain.HealthBarsContainer.HealthBarMask
---   ManaBar: PlayerFrame.PlayerFrameContent.PlayerFrameContentMain.ManaBar
---   ManaBarMask: PlayerFrame.PlayerFrameContent.PlayerFrameContentMain.ManaBar.ManaBarMask
+-- Exact paths from Blizzard's PlayerFrame.xml
 function UnitFrames:StylePlayerFrame()
     if not PlayerFrame then return end
     
@@ -105,6 +110,7 @@ function UnitFrames:StylePlayerFrame()
     local container = PlayerFrame.PlayerFrameContainer
     local content = PlayerFrame.PlayerFrameContent
     local main = content and content.PlayerFrameContentMain
+    local contextual = content and content.PlayerFrameContentContextual
     
     -- Hide portrait
     if p.ufHidePortraits then
@@ -119,10 +125,36 @@ function UnitFrames:StylePlayerFrame()
     -- Hide borders/frame textures
     if p.ufHideBorders then
         if container then
+            -- Main frame textures
             if container.FrameTexture then container.FrameTexture:SetAlpha(0) end
             if container.VehicleFrameTexture then container.VehicleFrameTexture:SetAlpha(0) end
             if container.AlternatePowerFrameTexture then container.AlternatePowerFrameTexture:SetAlpha(0) end
             if container.FrameFlash then container.FrameFlash:SetAlpha(0) end
+        end
+        
+        -- Contextual elements (corner icon, rest indicator, etc.)
+        if contextual then
+            -- The yellow corner arrow/embellishment
+            if contextual.PlayerPortraitCornerIcon then contextual.PlayerPortraitCornerIcon:SetAlpha(0) end
+            -- Combat sword icon
+            if contextual.AttackIcon then contextual.AttackIcon:SetAlpha(0) end
+            -- Zzz rest animation
+            if contextual.PlayerRestLoop then contextual.PlayerRestLoop:Hide() end
+            -- PVP icons
+            if contextual.PVPIcon then contextual.PVPIcon:SetAlpha(0) end
+            if contextual.PrestigePortrait then contextual.PrestigePortrait:SetAlpha(0) end
+            if contextual.PrestigeBadge then contextual.PrestigeBadge:SetAlpha(0) end
+            -- Group indicator
+            if contextual.GroupIndicator then contextual.GroupIndicator:SetAlpha(0) end
+            -- Leader/Guide icons
+            if contextual.LeaderIcon then contextual.LeaderIcon:SetAlpha(0) end
+            if contextual.GuideIcon then contextual.GuideIcon:SetAlpha(0) end
+            if contextual.RoleIcon then contextual.RoleIcon:SetAlpha(0) end
+        end
+        
+        -- Status texture (resting flash on portrait area)
+        if main and main.StatusTexture then
+            main.StatusTexture:SetAlpha(0)
         end
         
         -- Hide the bar masks (these create curved edges)
@@ -141,10 +173,10 @@ function UnitFrames:StylePlayerFrame()
     if p.ufFlatBars and main then
         local healthContainer = main.HealthBarsContainer
         if healthContainer and healthContainer.HealthBar then
-            healthContainer.HealthBar:SetStatusBarTexture(FLAT_BAR_TEXTURE)
+            ApplyFlatTexture(healthContainer.HealthBar)
         end
         if main.ManaBar then
-            main.ManaBar:SetStatusBarTexture(FLAT_BAR_TEXTURE)
+            ApplyFlatTexture(main.ManaBar)
         end
     end
     
@@ -165,14 +197,7 @@ function UnitFrames:StylePlayerFrame()
 end
 
 -- Style the Target Frame
--- Exact paths from Blizzard's TargetFrame.xml (TargetFrameTemplate):
---   Portrait: TargetFrame.TargetFrameContainer.Portrait
---   PortraitMask: TargetFrame.TargetFrameContainer.PortraitMask
---   FrameTexture: TargetFrame.TargetFrameContainer.FrameTexture
---   HealthBar: TargetFrame.TargetFrameContent.TargetFrameContentMain.HealthBarsContainer.HealthBar
---   HealthBarMask: TargetFrame.TargetFrameContent.TargetFrameContentMain.HealthBarsContainer.HealthBarMask
---   ManaBar: TargetFrame.TargetFrameContent.TargetFrameContentMain.ManaBar
---   ManaBarMask: TargetFrame.TargetFrameContent.TargetFrameContentMain.ManaBar.ManaBarMask
+-- Exact paths from Blizzard's TargetFrame.xml (TargetFrameTemplate)
 function UnitFrames:StyleTargetFrame()
     if not TargetFrame then return end
     
@@ -180,6 +205,7 @@ function UnitFrames:StyleTargetFrame()
     local container = TargetFrame.TargetFrameContainer
     local content = TargetFrame.TargetFrameContent
     local main = content and content.TargetFrameContentMain
+    local contextual = content and content.TargetFrameContentContextual
     
     -- Hide portrait
     if p.ufHidePortraits then
@@ -199,6 +225,18 @@ function UnitFrames:StyleTargetFrame()
             if container.BossPortraitFrameTexture then container.BossPortraitFrameTexture:SetAlpha(0) end
         end
         
+        -- Contextual elements
+        if contextual then
+            if contextual.HighLevelTexture then contextual.HighLevelTexture:SetAlpha(0) end
+            if contextual.PetBattleIcon then contextual.PetBattleIcon:SetAlpha(0) end
+            if contextual.PvpIcon then contextual.PvpIcon:SetAlpha(0) end
+            if contextual.PrestigePortrait then contextual.PrestigePortrait:SetAlpha(0) end
+            if contextual.PrestigeBadge then contextual.PrestigeBadge:SetAlpha(0) end
+            if contextual.NumericalThreat then contextual.NumericalThreat:SetAlpha(0) end
+            if contextual.QuestIcon then contextual.QuestIcon:SetAlpha(0) end
+            if contextual.RaidTargetIcon then contextual.RaidTargetIcon:SetAlpha(0) end
+        end
+        
         -- Hide the bar masks
         if main then
             local healthContainer = main.HealthBarsContainer
@@ -215,10 +253,10 @@ function UnitFrames:StyleTargetFrame()
     if p.ufFlatBars and main then
         local healthContainer = main.HealthBarsContainer
         if healthContainer and healthContainer.HealthBar then
-            healthContainer.HealthBar:SetStatusBarTexture(FLAT_BAR_TEXTURE)
+            ApplyFlatTexture(healthContainer.HealthBar)
         end
         if main.ManaBar then
-            main.ManaBar:SetStatusBarTexture(FLAT_BAR_TEXTURE)
+            ApplyFlatTexture(main.ManaBar)
         end
     end
     
@@ -246,6 +284,7 @@ function UnitFrames:StyleFocusFrame()
     local container = FocusFrame.TargetFrameContainer
     local content = FocusFrame.TargetFrameContent
     local main = content and content.TargetFrameContentMain
+    local contextual = content and content.TargetFrameContentContextual
     
     -- Hide portrait
     if p.ufHidePortraits then
@@ -265,6 +304,18 @@ function UnitFrames:StyleFocusFrame()
             if container.BossPortraitFrameTexture then container.BossPortraitFrameTexture:SetAlpha(0) end
         end
         
+        -- Contextual elements
+        if contextual then
+            if contextual.HighLevelTexture then contextual.HighLevelTexture:SetAlpha(0) end
+            if contextual.PetBattleIcon then contextual.PetBattleIcon:SetAlpha(0) end
+            if contextual.PvpIcon then contextual.PvpIcon:SetAlpha(0) end
+            if contextual.PrestigePortrait then contextual.PrestigePortrait:SetAlpha(0) end
+            if contextual.PrestigeBadge then contextual.PrestigeBadge:SetAlpha(0) end
+            if contextual.NumericalThreat then contextual.NumericalThreat:SetAlpha(0) end
+            if contextual.QuestIcon then contextual.QuestIcon:SetAlpha(0) end
+            if contextual.RaidTargetIcon then contextual.RaidTargetIcon:SetAlpha(0) end
+        end
+        
         -- Hide the bar masks
         if main then
             local healthContainer = main.HealthBarsContainer
@@ -281,10 +332,10 @@ function UnitFrames:StyleFocusFrame()
     if p.ufFlatBars and main then
         local healthContainer = main.HealthBarsContainer
         if healthContainer and healthContainer.HealthBar then
-            healthContainer.HealthBar:SetStatusBarTexture(FLAT_BAR_TEXTURE)
+            ApplyFlatTexture(healthContainer.HealthBar)
         end
         if main.ManaBar then
-            main.ManaBar:SetStatusBarTexture(FLAT_BAR_TEXTURE)
+            ApplyFlatTexture(main.ManaBar)
         end
     end
     
@@ -326,10 +377,19 @@ function UnitFrames:DebugPlayerFrame()
     if PlayerFrame.PlayerFrameContent then
         local content = PlayerFrame.PlayerFrameContent
         print("  .PlayerFrameContentMain:", content.PlayerFrameContentMain and "YES" or "NO")
+        print("  .PlayerFrameContentContextual:", content.PlayerFrameContentContextual and "YES" or "NO")
+        
+        if content.PlayerFrameContentContextual then
+            local ctx = content.PlayerFrameContentContextual
+            print("    .PlayerPortraitCornerIcon:", ctx.PlayerPortraitCornerIcon and "YES" or "NO")
+            print("    .AttackIcon:", ctx.AttackIcon and "YES" or "NO")
+            print("    .PlayerRestLoop:", ctx.PlayerRestLoop and "YES" or "NO")
+        end
         
         if content.PlayerFrameContentMain then
             local main = content.PlayerFrameContentMain
             print("    .HealthBarsContainer:", main.HealthBarsContainer and "YES" or "NO")
+            print("    .StatusTexture:", main.StatusTexture and "YES" or "NO")
             
             if main.HealthBarsContainer then
                 local hc = main.HealthBarsContainer
@@ -376,9 +436,6 @@ function UnitFrames:SetupStyling()
     self:InstallHooks()
     
     isStylingActive = true
-    
-    -- Debug: print frame structure
-    -- self:DebugPlayerFrame()
     
     -- Apply to all frames
     self:RefreshAllFrames()
