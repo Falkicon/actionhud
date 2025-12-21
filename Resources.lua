@@ -27,6 +27,9 @@ local Utils = ns.Utils
 -- Configuration Cache
 local RCFG = {
     enabled = true,
+    healthEnabled = true,
+    powerEnabled = true,
+    classEnabled = true,
     healthHeight = 6,
     powerHeight = 6,
     classHeight = 4,
@@ -241,8 +244,6 @@ local function UpdateBarValue(bar, unit)
     
     local cur, max
     if bar.type == "HEALTH" then
-        -- In Midnight, use helper API for readable percentage display if needed, 
-        -- but StatusBar:SetValue(secret) is supported for the bar itself.
         cur = UnitHealth(unit)
         max = UnitHealthMax(unit)
     else
@@ -366,9 +367,23 @@ function Resources:CalculateHeight()
     local classHeight = db.resClassHeight or 4
     local spacing = db.resSpacing or 1
     
-    local hasClassBar = CanShowClassPower()
-    local totalHeight = healthHeight + powerHeight + spacing
-    if hasClassBar then totalHeight = totalHeight + classHeight + spacing end
+    local totalHeight = 0
+    local visibleBars = 0
+    
+    if db.resHealthEnabled then
+        totalHeight = totalHeight + healthHeight
+        visibleBars = visibleBars + 1
+    end
+    
+    if db.resPowerEnabled then
+        totalHeight = totalHeight + (visibleBars > 0 and spacing or 0) + powerHeight
+        visibleBars = visibleBars + 1
+    end
+    
+    if db.resClassEnabled and CanShowClassPower() then
+        totalHeight = totalHeight + (visibleBars > 0 and spacing or 0) + classHeight
+        visibleBars = visibleBars + 1
+    end
     
     return totalHeight
 end
@@ -407,6 +422,9 @@ function Resources:UpdateLayout()
     
     local db = addon.db.profile
     RCFG.enabled = db.resEnabled == true
+    RCFG.healthEnabled = db.resHealthEnabled ~= false
+    RCFG.powerEnabled = db.resPowerEnabled ~= false
+    RCFG.classEnabled = db.resClassEnabled ~= false
     RCFG.healthHeight = db.resHealthHeight or 6
     RCFG.powerHeight = db.resPowerHeight or 6
     RCFG.classHeight = db.resClassHeight or 4
@@ -416,35 +434,40 @@ function Resources:UpdateLayout()
     
     if not RCFG.enabled then
         container:Hide()
-        -- Report zero height to LayoutManager
         local LM = addon:GetModule("LayoutManager", true)
         if LM then LM:SetModuleHeight("resources", 0) end
         return
     end
+    
+    local hasClassBar, _, _ = CanShowClassPower()
+    local showClass = RCFG.classEnabled and hasClassBar
+    
+    -- Calculate total height based on enabled bars
+    local totalHeight = self:CalculateHeight()
+    
+    if totalHeight <= 0 then
+        container:Hide()
+        local LM = addon:GetModule("LayoutManager", true)
+        if LM then LM:SetModuleHeight("resources", 0) end
+        return
+    end
+    
     container:Show()
     
     if not main then main = _G["ActionHudFrame"] end
     if not main then return end
     
-    -- Get width from LayoutManager or ActionBars
-    local LM = addon:GetModule("LayoutManager", true)
-    local hudWidth = 120  -- fallback
-    if LM then
-        local AB = addon:GetModule("ActionBars", true)
-        if AB and AB.GetLayoutWidth then
-            hudWidth = AB:GetLayoutWidth()
-        end
-    else
-        hudWidth = main:GetWidth()
+    -- Get width from ActionBars
+    local AB = addon:GetModule("ActionBars", true)
+    local hudWidth = 120
+    if AB and AB.GetLayoutWidth then
+        hudWidth = AB:GetLayoutWidth()
     end
-    
-    local hasClassBar, _, _ = CanShowClassPower()
-    local totalHeight = RCFG.healthHeight + RCFG.powerHeight + RCFG.spacing
-    if hasClassBar then totalHeight = totalHeight + RCFG.classHeight + RCFG.spacing end
     
     container:SetSize(hudWidth, totalHeight)
     
     -- Report height to LayoutManager
+    local LM = addon:GetModule("LayoutManager", true)
     if LM then
         LM:SetModuleHeight("resources", totalHeight)
     end
@@ -470,37 +493,83 @@ function Resources:UpdateLayout()
         playerGroup:SetPoint("CENTER", container, "CENTER", 0, 0)
     end
     
+    -- Positioning Bars
     playerHealth:ClearAllPoints()
     playerPower:ClearAllPoints()
     playerClassBar:ClearAllPoints()
     targetHealth:ClearAllPoints()
     targetPower:ClearAllPoints()
     
-    playerHealth:SetHeight(RCFG.healthHeight)
-    playerPower:SetHeight(RCFG.powerHeight)
-    targetHealth:SetHeight(RCFG.healthHeight)
-    targetPower:SetHeight(RCFG.powerHeight)
-    if hasClassBar then playerClassBar:SetHeight(RCFG.classHeight) end
-    
     local function FillWidth(f, p)
         f:SetPoint("LEFT", p, "LEFT", 0, 0)
         f:SetPoint("RIGHT", p, "RIGHT", 0, 0)
     end
-    
-    FillWidth(playerHealth, playerGroup)
-    FillWidth(playerPower, playerGroup)
-    if hasClassBar then FillWidth(playerClassBar, playerGroup) end
-    FillWidth(targetHealth, targetGroup)
-    FillWidth(targetPower, targetGroup)
-    
-    -- Layout bars from top to bottom within container
-    playerHealth:SetPoint("TOP", playerGroup, "TOP", 0, 0)
-    playerPower:SetPoint("TOP", playerHealth, "BOTTOM", 0, -RCFG.spacing)
-    targetHealth:SetPoint("TOP", targetGroup, "TOP", 0, 0)
-    targetPower:SetPoint("TOP", targetHealth, "BOTTOM", 0, -RCFG.spacing)
-    if hasClassBar then
+
+    local lastPlayerBar = nil
+    local lastTargetBar = nil
+
+    -- Health
+    if RCFG.healthEnabled then
+        playerHealth:Show()
+        playerHealth:SetHeight(RCFG.healthHeight)
+        playerHealth:SetPoint("TOP", playerGroup, "TOP", 0, 0)
+        FillWidth(playerHealth, playerGroup)
+        lastPlayerBar = playerHealth
+
+        if useSplit then
+            targetHealth:Show()
+            targetHealth:SetHeight(RCFG.healthHeight)
+            targetHealth:SetPoint("TOP", targetGroup, "TOP", 0, 0)
+            FillWidth(targetHealth, targetGroup)
+            lastTargetBar = targetHealth
+        else
+            targetHealth:Hide()
+        end
+    else
+        playerHealth:Hide()
+        targetHealth:Hide()
+    end
+
+    -- Power
+    if RCFG.powerEnabled then
+        playerPower:Show()
+        playerPower:SetHeight(RCFG.powerHeight)
+        if lastPlayerBar then
+            playerPower:SetPoint("TOP", lastPlayerBar, "BOTTOM", 0, -RCFG.spacing)
+        else
+            playerPower:SetPoint("TOP", playerGroup, "TOP", 0, 0)
+        end
+        FillWidth(playerPower, playerGroup)
+        lastPlayerBar = playerPower
+
+        if useSplit then
+            targetPower:Show()
+            targetPower:SetHeight(RCFG.powerHeight)
+            if lastTargetBar then
+                targetPower:SetPoint("TOP", lastTargetBar, "BOTTOM", 0, -RCFG.spacing)
+            else
+                targetPower:SetPoint("TOP", targetGroup, "TOP", 0, 0)
+            end
+            FillWidth(targetPower, targetGroup)
+            lastTargetBar = targetPower
+        else
+            targetPower:Hide()
+        end
+    else
+        playerPower:Hide()
+        targetPower:Hide()
+    end
+
+    -- Class
+    if showClass then
         playerClassBar:Show()
-        playerClassBar:SetPoint("TOP", playerPower, "BOTTOM", 0, -RCFG.spacing)
+        playerClassBar:SetHeight(RCFG.classHeight)
+        if lastPlayerBar then
+            playerClassBar:SetPoint("TOP", lastPlayerBar, "BOTTOM", 0, -RCFG.spacing)
+        else
+            playerClassBar:SetPoint("TOP", playerGroup, "TOP", 0, 0)
+        end
+        FillWidth(playerClassBar, playerGroup)
         UpdateClassPower()
     else
         playerClassBar:Hide()

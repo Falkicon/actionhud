@@ -82,14 +82,17 @@ function TrackedDefensives:ApplyStyling()
     local blizzFrame = self:GetBlizzardFrame()
     if not blizzFrame then return end
     
-    local p = self.db.profile
+    -- Main frame properties safe to set in hooks
+end
+
+-- Force style all active items (unsafe in hooks, call only from settings/enable)
+function TrackedDefensives:ForceStyleAllItems()
+    local blizzFrame = self:GetBlizzardFrame()
+    if not blizzFrame or not blizzFrame.AuraContainer then return end
     
-    -- Style icons in the AuraContainer
-    if blizzFrame.AuraContainer then
-        local children = {blizzFrame.AuraContainer:GetChildren()}
-        for _, child in ipairs(children) do
-            self:StyleItemFrame(child)
-        end
+    local children = {blizzFrame.AuraContainer:GetChildren()}
+    for _, child in ipairs(children) do
+        self:StyleItemFrame(child)
     end
 end
 
@@ -180,10 +183,11 @@ function TrackedDefensives:SetupStyling()
         return
     end
     
-    -- Apply initial styling
-    self:ApplyStyling()
-    
     isStylingActive = true
+    
+    -- Apply initial styling to existing items
+    self:ForceStyleAllItems()
+    
     addon:Log("TrackedDefensives: Styling active", "discovery")
 end
 
@@ -191,9 +195,9 @@ end
 function TrackedDefensives:UpdateLayout()
     self:SetupStyling()
     
-    -- Force re-apply styling to all existing frames
+    -- Force re-apply styling to all existing frames if active
     if isStylingActive then
-        self:ApplyStyling()
+        self:ForceStyleAllItems()
     end
 end
 

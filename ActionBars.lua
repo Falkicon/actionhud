@@ -19,16 +19,93 @@ local IsUsableAction = IsUsableAction
 local IsActionInRange = IsActionInRange
 local math_floor = math.floor
 
--- hardcoded slots for now
-local defaultSlots = {
-    7, 8, 9, 10, 11, 12,
-    1, 2, 3, 4, 5, 6,
-    67, 68, 69, 70, 71, 72,
-    61, 62, 63, 64, 65, 66
-}
-
 local buttons = {}
 local container = nil  -- ActionBars container frame
+local layoutCache = {} -- Cache for Edit Mode settings to avoid frequent API calls
+
+-- Helper to fetch Edit Mode settings for a bar
+function AB:GetEditModeSettings(barID)
+    -- Default to 6x2 (compact) if not syncing or API fails
+    local settings = { numRows = 2, numIcons = 12, orientation = 0 }
+    
+    if not ActionHud.db.profile.syncWithEditMode then return settings end
+    
+    -- In Midnight, avoid C_EditMode in instances/combat to prevent secret value errors and taint
+    if Utils.IS_MIDNIGHT then
+        local inInstance, instanceType = IsInInstance()
+        if InCombatLockdown() or (inInstance and (instanceType == "raid" or instanceType == "party" or instanceType == "arena")) then
+            if layoutCache[barID] then return layoutCache[barID] end
+            return settings
+        end
+    end
+
+    -- Primary method: Find the system frame directly from Edit Mode Manager
+    -- This is the most reliable way as it works for both Preset and User layouts.
+    if EditModeManagerFrame and EditModeManagerFrame.registeredSystemFrames then
+        for _, frame in ipairs(EditModeManagerFrame.registeredSystemFrames) do
+            if frame.system == Enum.EditModeSystem.ActionBar and frame.systemIndex == barID then
+                if frame.GetSettingValue then
+                    local rows = frame:GetSettingValue(Enum.EditModeActionBarSetting.NumRows)
+                    local icons = frame:GetSettingValue(Enum.EditModeActionBarSetting.NumIcons)
+                    local orient = frame:GetSettingValue(Enum.EditModeActionBarSetting.Orientation)
+                    
+                    if not Utils.IsValueSecret(rows) then settings.numRows = rows end
+                    if not Utils.IsValueSecret(icons) then settings.numIcons = icons end
+                    if not Utils.IsValueSecret(orient) then settings.orientation = orient end
+                    
+                    layoutCache[barID] = settings
+                    return settings
+                end
+            end
+        end
+    end
+
+    -- Secondary method: Parse GetLayouts()
+    if not C_EditMode or not C_EditMode.GetLayouts then return settings end
+
+    local ok, layouts = pcall(C_EditMode.GetLayouts)
+    if not ok or not layouts then return settings end
+    
+    -- Find the active layout (could be User or Preset)
+    local activeLayout
+    if layouts.activeLayoutType == Enum.EditModeLayoutType.Preset then
+        -- Presets are handled by the Manager, not returned in the layouts list
+        -- We'll try to find it in the manager's combined list if available
+        if EditModeManagerFrame and EditModeManagerFrame.layoutInfo then
+            activeLayout = EditModeManagerFrame.layoutInfo.layouts[layouts.activeLayoutIndex]
+        end
+    else
+        activeLayout = layouts.layouts[layouts.activeLayoutIndex]
+    end
+
+    if activeLayout then
+        for _, systemInfo in ipairs(activeLayout.systems) do
+            if systemInfo.system == Enum.EditModeSystem.ActionBar and systemInfo.systemIndex == barID then
+                for _, settingInfo in ipairs(systemInfo.settings) do
+                    local val = settingInfo.value
+                    if not Utils.IsValueSecret(val) then
+                        if settingInfo.setting == Enum.EditModeActionBarSetting.NumRows then
+                            settings.numRows = val
+                        elseif settingInfo.setting == Enum.EditModeActionBarSetting.NumIcons then
+                            settings.numIcons = val
+                        elseif settingInfo.setting == Enum.EditModeActionBarSetting.Orientation then
+                            settings.orientation = val
+                        end
+                    end
+                end
+                break
+            end
+        end
+    end
+    
+    -- Update cache
+    layoutCache[barID] = settings
+    return settings
+end
+
+function AB:ClearLayoutCache()
+    wipe(layoutCache)
+end
 
 function AB:OnEnable()
     -- Create container frame
@@ -45,6 +122,11 @@ function AB:OnEnable()
     end
     
     self:RegisterEvent("PLAYER_ENTERING_WORLD", "RefreshAll")
+    self:RegisterEvent("EDIT_MODE_LAYOUTS_UPDATED", function()
+        -- Clear cache and delay update to ensure Blizzard's internal state is fully saved
+        AB:ClearLayoutCache()
+        C_Timer.After(0.5, function() AB:UpdateLayout() end)
+    end)
     self:RegisterEvent("ACTIONBAR_SLOT_CHANGED")
     self:RegisterEvent("ACTIONBAR_PAGE_CHANGED", "RefreshAll")
     self:RegisterEvent("UPDATE_BONUS_ACTIONBAR", "RefreshAll")
@@ -55,6 +137,14 @@ function AB:OnEnable()
     self:RegisterEvent("ACTIONBAR_UPDATE_USABLE", "UpdateStateAll")
     self:RegisterEvent("SPELL_UPDATE_CHARGES", "UpdateStateAll")
     
+    -- Hook Edit Mode exit to force a layout refresh
+    if EditModeManagerFrame then
+        hooksecurefunc(EditModeManagerFrame, "ExitEditMode", function()
+            AB:ClearLayoutCache()
+            AB:UpdateLayout()
+        end)
+    end
+
     self:UpdateLayout()
     self:RefreshAll()
 end
@@ -66,16 +156,38 @@ end
 
 -- Calculate the height of this module for LayoutManager
 function AB:CalculateHeight()
+    if not self:IsEnabled() then return 0 end
     local p = ActionHud.db.profile
-    local rows = 4
-    return rows * p.iconHeight
+    
+    local bar1 = self:GetEditModeSettings(1)
+    local bar6 = self:GetEditModeSettings(2)
+    
+    local rows1 = math.max(tonumber(bar1.numRows) or 2, 1)
+    local rows6 = math.max(tonumber(bar6.numRows) or 2, 1)
+    
+    local h1 = rows1 * p.iconHeight
+    local h2 = rows6 * p.iconHeight
+    local gap = 0 -- No gap between blocks
+    
+    return h1 + h2 + gap
 end
 
 -- Get the width of this module for LayoutManager
 function AB:GetLayoutWidth()
     local p = ActionHud.db.profile
-    local cols = 6
-    return cols * p.iconWidth
+    
+    local bar1 = self:GetEditModeSettings(1)
+    local bar6 = self:GetEditModeSettings(2)
+    
+    local icons1 = tonumber(bar1.numIcons) or 12
+    local rows1 = math.max(tonumber(bar1.numRows) or 2, 1)
+    local icons6 = tonumber(bar6.numIcons) or 12
+    local rows6 = math.max(tonumber(bar6.numRows) or 2, 1)
+    
+    local w1 = math.ceil(icons1 / rows1) * p.iconWidth
+    local w2 = math.ceil(icons6 / rows6) * p.iconWidth
+    
+    return math.max(w1, w2)
 end
 
 -- Apply position from LayoutManager
@@ -94,7 +206,8 @@ function AB:ApplyLayoutPosition()
 end
 
 function AB:CreateButtons(parent)
-    for i, actionID in ipairs(defaultSlots) do
+    -- Create 24 buttons (max for 2 bars)
+    for i = 1, 24 do
         local btn = CreateFrame("Frame", nil, parent)
         
         -- Icon
@@ -120,8 +233,6 @@ function AB:CreateButtons(parent)
         btn.glow:SetFrameLevel(btn:GetFrameLevel() + 12)
         btn.glow:Hide()
         
-        btn.baseSlot = actionID
-        btn.actionID = actionID
         buttons[i] = btn
     end
     
@@ -129,7 +240,11 @@ function AB:CreateButtons(parent)
     if AssistedCombatManager then
         hooksecurefunc(AssistedCombatManager, "SetAssistedHighlightFrameShown", function(mgr, actionButton, shown)
             if not actionButton or not actionButton.action then return end
+            
             local targetID = actionButton.action
+            -- Handle secret value comparison in Midnight
+            if Utils.IsValueSecret(targetID) then return end
+
             for _, b in ipairs(buttons) do
                 if b.actionID == targetID then
                     if not b.assistGlow then
@@ -151,50 +266,111 @@ function AB:CreateButtons(parent)
     end
 end
 
+local lastUpdate = 0
 function AB:UpdateLayout()
+    -- Throttle updates to once per frame max, and avoid during sensitive Edit Mode events if possible
+    local now = GetTime()
+    if now == lastUpdate then return end
+    lastUpdate = now
+
     local p = ActionHud.db.profile
-    local cols = 6
-    local rows = 4
-    local padding = 0
-    
     if not container then return end
-    
-    local width = cols * p.iconWidth
-    local height = rows * p.iconHeight
-    container:SetSize(width, height)
-    
+
+    -- Hide all buttons initially
+    for _, btn in ipairs(buttons) do btn:Hide() end
+
+    -- Fetch settings for Bar 1 and Bar 6
+    local bar1 = self:GetEditModeSettings(1)
+    local bar6 = self:GetEditModeSettings(2)
+
+    if ActionHud.db.profile.syncWithEditMode then
+        ActionHud:Log(string.format("Layout Sync: Bar1(%dx%d) Bar6(%dx%d)", bar1.numIcons, bar1.numRows, bar6.numIcons, bar6.numRows), "layout")
+    end
+
+    local blocks = {}
+    if p.barPriority == "bar6" then
+        table.insert(blocks, { settings = bar6, startSlot = 61, id = "bar6" })
+        table.insert(blocks, { settings = bar1, startSlot = 1, id = "bar1" })
+    else
+        table.insert(blocks, { settings = bar1, startSlot = 1, id = "bar1" })
+        table.insert(blocks, { settings = bar6, startSlot = 61, id = "bar6" })
+    end
+
+    local totalHeight = self:CalculateHeight()
+    local totalWidth = self:GetLayoutWidth()
+    container:SetSize(totalWidth, totalHeight)
+
     -- Report height to LayoutManager
     local LM = ActionHud:GetModule("LayoutManager", true)
     if LM then
-        LM:SetModuleHeight("actionBars", height)
+        LM:SetModuleHeight("actionBars", totalHeight)
     end
-    
-    for i, btn in ipairs(buttons) do
-        btn:SetSize(p.iconWidth, p.iconHeight)
-        local col = (i - 1) % cols
-        local row = math.floor((i - 1) / cols)
-        btn:SetPoint("TOPLEFT", col * (p.iconWidth + padding), -row * (p.iconHeight + padding))
-        btn:EnableMouse(false)
+
+    local currentY = 0
+    local buttonIdx = 1
+    local gapBetweenBlocks = 0
+
+    for _, block in ipairs(blocks) do
+        local s = block.settings
+        local numIcons = tonumber(s.numIcons) or 12
+        local numRows = math.max(tonumber(s.numRows) or 2, 1)
+        local iconsPerRow = math.ceil(numIcons / numRows)
+        local blockWidth = iconsPerRow * p.iconWidth
+        local blockHeight = numRows * p.iconHeight
         
-        -- Crop
-        self:ApplyIconCrop(btn, p.iconWidth, p.iconHeight)
-        
-        -- Fonts
-        local font = "Fonts\\FRIZQT__.TTF"
-        if btn.count then btn.count:SetFont(font, p.countFontSize, "OUTLINE") end
-        if btn.cd then
-            for _, r in ipairs({btn.cd:GetRegions()}) do
-                if r:GetObjectType() == "FontString" then r:SetFont(font, p.cooldownFontSize, "OUTLINE") end
+        -- Alignment X Offset
+        local xOffset = 0
+        if p.barAlignment == "CENTER" then
+            xOffset = (totalWidth - blockWidth) / 2
+        elseif p.barAlignment == "RIGHT" then
+            xOffset = totalWidth - blockWidth
+        end
+
+        for i = 1, numIcons do
+            local btn = buttons[buttonIdx]
+            if btn then
+                btn:SetSize(p.iconWidth, p.iconHeight)
+                
+                local col = (i - 1) % iconsPerRow
+                local row = math.floor((i - 1) / iconsPerRow)
+                
+                local visualRow = numRows - 1 - row
+                local slotOffset = i - 1
+
+                btn:ClearAllPoints()
+                btn:SetPoint("TOPLEFT", container, "TOPLEFT", xOffset + (col * p.iconWidth), -(currentY + (visualRow * p.iconHeight)))
+                btn:Show()
+                btn:EnableMouse(false)
+
+                btn.baseSlot = block.startSlot + slotOffset
+                btn.actionID = btn.baseSlot 
+                
+                -- Visuals
+                self:ApplyIconCrop(btn, p.iconWidth, p.iconHeight)
+                local font = "Fonts\\FRIZQT__.TTF"
+                if btn.count then btn.count:SetFont(font, p.countFontSize, "OUTLINE") end
+                if btn.cd then
+                    for _, r in ipairs({btn.cd:GetRegions()}) do
+                        if r:GetObjectType() == "FontString" then r:SetFont(font, p.cooldownFontSize, "OUTLINE") end
+                    end
+                end
+                if btn.glow then btn.glow:SetBackdropBorderColor(1, 1, 0, p.procGlowAlpha) end
+                if btn.assistGlow then btn.assistGlow:SetBackdropBorderColor(0, 0.8, 1, p.assistGlowAlpha) end
+                
+                buttonIdx = buttonIdx + 1
             end
         end
-        
-        -- Glow Opacity
-        if btn.glow then btn.glow:SetBackdropBorderColor(1, 1, 0, p.procGlowAlpha) end
-        if btn.assistGlow then btn.assistGlow:SetBackdropBorderColor(0, 0.8, 1, p.assistGlowAlpha) end
+        currentY = currentY + blockHeight + gapBetweenBlocks
     end
-    
-    -- Sync Opacity on Layout update
+
+    -- Update action data for all shown buttons
+    self:RefreshAll()
     self:UpdateOpacity()
+
+    -- Trigger LayoutManager to reposition other modules if our height changed
+    if LM then
+        LM:TriggerLayoutUpdate()
+    end
 end
 
 function AB:ApplyIconCrop(btn, w, h)
@@ -233,10 +409,11 @@ end
 function AB:RefreshAll()
     if not self:IsEnabled() then return end
     for _, btn in ipairs(buttons) do
-        btn:Show()
-        self:UpdateAction(btn)
-        self:UpdateCooldown(btn)
-        self:UpdateState(btn)
+        if btn:IsShown() then
+            self:UpdateAction(btn)
+            self:UpdateCooldown(btn)
+            self:UpdateState(btn)
+        end
     end
 end
 
@@ -271,12 +448,19 @@ end
 -- Specific Update Functions
 function AB:UpdateAction(btn)
     local slot = btn.baseSlot
+    if not slot then return end
+    
     local actionID = slot
     
     -- Paging logic
     if slot >= 1 and slot <= 12 then
          local page = GetActionBarPage()
          local offset = GetBonusBarOffset()
+         
+         -- Handle secret values in Midnight
+         if Utils.IsValueSecret(page) then page = 1 end
+         if Utils.IsValueSecret(offset) then offset = 0 end
+
          if offset > 0 and page == 1 then
               if offset == 1 then page = 7
               elseif offset == 2 then page = 8

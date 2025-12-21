@@ -120,8 +120,11 @@ function LayoutManager:GetModulePosition(moduleId)
         if id == moduleId then
             return -yOffset  -- Return negative for TOPLEFT anchoring
         end
-        -- Add this module's height + the gap after it
-        yOffset = yOffset + self:GetModuleHeight(id) + (gaps[i] or 0)
+        -- Add this module's height + the gap after it (only if module has height)
+        local h = self:GetModuleHeight(id)
+        if h > 0 then
+            yOffset = yOffset + h + (gaps[i] or 0)
+        end
     end
     
     -- Module not found, return 0
@@ -135,9 +138,14 @@ function LayoutManager:GetStackHeight()
     
     local totalHeight = 0
     for i, id in ipairs(stack) do
-        totalHeight = totalHeight + self:GetModuleHeight(id)
-        if i < #stack then
-            totalHeight = totalHeight + (gaps[i] or 0)
+        local h = self:GetModuleHeight(id)
+        if h > 0 then
+            totalHeight = totalHeight + h
+            -- Only add gap if this isn't the last module in the stack
+            -- AND there's potentially another module coming after it
+            if i < #stack then
+                totalHeight = totalHeight + (gaps[i] or 0)
+            end
         end
     end
     
@@ -281,16 +289,19 @@ function LayoutManager:UpdateContainerSize()
     -- Width is determined by the widest module (typically ActionBars)
     local maxWidth = 0
     for _, id in ipairs(stack) do
-        local moduleName = id
-        if id == "actionBars" then moduleName = "ActionBars"
-        elseif id == "resources" then moduleName = "Resources"
-        elseif id == "cooldowns" then moduleName = "Cooldowns"
-        end
-        
-        local m = addon:GetModule(moduleName, true)
-        if m and m.GetLayoutWidth then
-            local w = m:GetLayoutWidth()
-            if w > maxWidth then maxWidth = w end
+        local h = self:GetModuleHeight(id)
+        if h > 0 then
+            local moduleName = id
+            if id == "actionBars" then moduleName = "ActionBars"
+            elseif id == "resources" then moduleName = "Resources"
+            elseif id == "cooldowns" then moduleName = "Cooldowns"
+            end
+            
+            local m = addon:GetModule(moduleName, true)
+            if m and m.GetLayoutWidth then
+                local w = m:GetLayoutWidth()
+                if w > maxWidth then maxWidth = w end
+            end
         end
     end
     

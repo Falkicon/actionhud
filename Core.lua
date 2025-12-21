@@ -17,6 +17,9 @@ local defaults = {
         cooldownFontSize = 8,
         countFontSize = 8,
         resEnabled = true,
+        resHealthEnabled = true,
+        resPowerEnabled = true,
+        resClassEnabled = true,
         resShowTarget = true,
         resPosition = "TOP",
         resHealthHeight = 6,
@@ -55,31 +58,26 @@ local defaults = {
         defensivesCountFontSize = 9,
         defensivesTimerFontSize = "small",
         
-        -- Nameplates Reskin
-        npEnabled = false,           -- Master toggle for nameplate styling
-        npHideBorders = true,        -- Hide frame borders for clean look
-        npFlatBars = true,           -- Use flat solid bar texture
-        npBarHeight = 4,             -- Health bar height in pixels
-        npBarScale = 1.0,            -- Width scale multiplier (0.5-1.5)
-        npClassBarHeight = 4,        -- Class resource bar height
-        npHidePlayerPortrait = false, -- Hide portrait on Player Frame
-        
         -- Unit Frames Reskin (Player/Target/Focus)
         ufEnabled = false,           -- Master toggle for unit frame styling
         ufHidePortraits = true,      -- Hide circular portrait images
         ufHideBorders = true,        -- Hide frame borders/decorations
         ufFlatBars = true,           -- Use flat solid bar texture
-        ufHealthHeight = 20,         -- Health bar height in pixels
+        ufHealthHeight = 30,         -- Health bar height in pixels
         ufManaHeight = 10,           -- Mana/power bar height in pixels
         ufBarScale = 1.0,            -- Width scale multiplier
-        ufClassBarHeight = 10,       -- Class resource bar height
+        ufClassBarHeight = 20,       -- Class resource bar height
         ufStylePlayer = true,        -- Style the Player Frame
         ufStyleTarget = true,        -- Style the Target Frame
         ufStyleFocus = true,         -- Style the Focus Frame
         ufShowBackground = true,     -- Show dark background behind bars
-        ufFontName = "Friz Quadrata TT",  -- Font for bar text (LibSharedMedia name)
-        ufFontSize = 10,             -- Font size for bar text
-        ufAlwaysShowText = true,     -- Always show health/mana text (not just on hover)
+        ufFontName = "Arial Narrow",  -- Font for bar text (LibSharedMedia name)
+        ufFontSize = 11,             -- Font size for bar text
+
+        -- Dynamic Layout Settings
+        syncWithEditMode = false,
+        barPriority = "bar1",
+        barAlignment = "CENTER",
 
         -- Minimap Icon (LibDBIcon)
         minimap = {
@@ -207,6 +205,20 @@ function ActionHud:OnProfileChanged()
             if module.UpdateLayout then module:UpdateLayout() end
             if module.RefreshAll then module:RefreshAll() end
         end
+    end
+end
+
+-- Refresh all modules and update the layout
+function ActionHud:RefreshLayout()
+    for name, module in self:IterateModules() do
+        if module.UpdateLayout then
+            module:UpdateLayout()
+        end
+    end
+    
+    local LM = self:GetModule("LayoutManager", true)
+    if LM then
+        LM:TriggerLayoutUpdate()
     end
 end
 

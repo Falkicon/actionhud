@@ -128,18 +128,19 @@ Use |cffffffffAdvanced Cooldown Settings|r to configure which spells are tracked
                 set = function(info, val) 
                     if val then ActionHud:GetModule("ActionBars"):Enable() 
                     else ActionHud:GetModule("ActionBars"):Disable() end 
+                    self:RefreshLayout()
                 end,
             },
             iconDimensions = { name = "Dimensions", type = "header", order = 10 },
             iconWidth = {
                 name = "Icon Width", desc = "Width of the action icons.", type = "range", min = 10, max = 50, step = 1, order = 11,
                 get = function(info) return self.db.profile.iconWidth end,
-                set = function(info, val) self.db.profile.iconWidth = val; ActionHud:GetModule("ActionBars"):UpdateLayout() end,
+                set = function(info, val) self.db.profile.iconWidth = val; self:RefreshLayout() end,
             },
             iconHeight = {
                 name = "Icon Height", desc = "Height of the action icons.", type = "range", min = 10, max = 50, step = 1, order = 12,
                 get = function(info) return self.db.profile.iconHeight end,
-                set = function(info, val) self.db.profile.iconHeight = val; ActionHud:GetModule("ActionBars"):UpdateLayout() end,
+                set = function(info, val) self.db.profile.iconHeight = val; self:RefreshLayout() end,
             },
             visuals = { name = "Visuals & Opacity", type = "header", order = 20 },
             opacity = {
@@ -168,6 +169,35 @@ Use |cffffffffAdvanced Cooldown Settings|r to configure which spells are tracked
                 get = function(info) return self.db.profile.countFontSize end,
                 set = function(info, val) self.db.profile.countFontSize = val; ActionHud:GetModule("ActionBars"):UpdateLayout() end,
             },
+            mirrorHeader = { name = "Layout Mirroring", type = "header", order = 40 },
+            syncWithEditMode = {
+                name = "Sync with WoW Edit Mode",
+                desc = "Mirror the number of rows and icons from your WoW Action Bar settings (Bars 1 and 6).",
+                type = "toggle", order = 41, width = "full",
+                get = function(info) return self.db.profile.syncWithEditMode end,
+                set = function(info, val) 
+                    self.db.profile.syncWithEditMode = val
+                    local AB = ActionHud:GetModule("ActionBars")
+                    if AB.ClearLayoutCache then AB:ClearLayoutCache() end
+                    AB:UpdateLayout() 
+                end,
+            },
+            barPriority = {
+                name = "Top Bar Priority",
+                desc = "Choose which bar appears at the top of the HUD stack.",
+                type = "select", order = 42, width = 1.2,
+                values = { bar1 = "Main Bar (Bar 1)", bar6 = "Bottom Left Bar (Bar 6)" },
+                get = function(info) return self.db.profile.barPriority end,
+                set = function(info, val) self.db.profile.barPriority = val; ActionHud:GetModule("ActionBars"):UpdateLayout() end,
+            },
+            barAlignment = {
+                name = "Row Alignment",
+                desc = "Horizontal alignment of the bars within the HUD container.",
+                type = "select", order = 43, width = 0.8,
+                values = { LEFT = "Left", CENTER = "Center", RIGHT = "Right" },
+                get = function(info) return self.db.profile.barAlignment end,
+                set = function(info, val) self.db.profile.barAlignment = val; ActionHud:GetModule("ActionBars"):UpdateLayout() end,
+            },
         },
     }
     
@@ -180,38 +210,77 @@ Use |cffffffffAdvanced Cooldown Settings|r to configure which spells are tracked
             enable = {
                 name = "Enable", type = "toggle", order = 1,
                 get = function(info) return self.db.profile.resEnabled end,
-                set = function(info, val) self.db.profile.resEnabled = val; ActionHud:GetModule("Resources"):UpdateLayout() end,
+                set = function(info, val) self.db.profile.resEnabled = val; self:RefreshLayout() end,
             },
             showTarget = {
                 name = "Show Target Stats", desc = "Split bars to show target health/power.", type = "toggle", order = 2,
                 get = function(info) return self.db.profile.resShowTarget end,
-                set = function(info, val) self.db.profile.resShowTarget = val; ActionHud:GetModule("Resources"):UpdateLayout() end,
+                set = function(info, val) self.db.profile.resShowTarget = val; self:RefreshLayout() end,
             },
-            layout = { name = "Layout Dimensions", type = "header", order = 10 },
-            healthHeight = {
-                name = "Health Bar Height", type = "range", min = 1, max = 30, step = 1, order = 11,
-                get = function(info) return self.db.profile.resHealthHeight end,
-                set = function(info, val) self.db.profile.resHealthHeight = val; ActionHud:GetModule("Resources"):UpdateLayout() end,
+            widthNote = {
+                type = "description", order = 3,
+                name = "|cffaaaaaaNote: The width of these bars is automatically matched to the Action Bar grid (Action Bars > Icon Width).|r",
             },
-            powerHeight = {
-                name = "Power Bar Height", type = "range", min = 1, max = 30, step = 1, order = 12,
-                get = function(info) return self.db.profile.resPowerHeight end,
-                set = function(info, val) self.db.profile.resPowerHeight = val; ActionHud:GetModule("Resources"):UpdateLayout() end,
+            commonHeader = { name = "Common Settings", type = "header", order = 10 },
+            commonGroup = {
+                type = "group", inline = true, name = "", order = 11,
+                args = {
+                    gap = {
+                        name = "Player-Target Gap", desc = "Space between player and target bars.", type = "range", min = 0, max = 50, step = 1, order = 1,
+                        get = function(info) return self.db.profile.resGap end,
+                        set = function(info, val) self.db.profile.resGap = val; self:RefreshLayout() end,
+                    },
+                    spacing = {
+                        name = "Bar Spacing", type = "range", min = 0, max = 10, step = 1, order = 2,
+                        get = function(info) return self.db.profile.resSpacing end,
+                        set = function(info, val) self.db.profile.resSpacing = val; self:RefreshLayout() end,
+                    },
+                }
             },
-            classHeight = {
-                name = "Class Resource Height", desc = "Height of Combo Points, Holy Power, etc.", type = "range", min = 1, max = 20, step = 1, order = 12.5,
-                get = function(info) return self.db.profile.resClassHeight end,
-                set = function(info, val) self.db.profile.resClassHeight = val; ActionHud:GetModule("Resources"):UpdateLayout() end,
+            healthGroup = {
+                name = "Health Bar", type = "group", inline = true, order = 20,
+                args = {
+                    enable = {
+                        name = "Enable", type = "toggle", order = 1,
+                        get = function(info) return self.db.profile.resHealthEnabled ~= false end,
+                        set = function(info, val) self.db.profile.resHealthEnabled = val; self:RefreshLayout() end,
+                    },
+                    height = {
+                        name = "Height", type = "range", min = 1, max = 30, step = 1, order = 2,
+                        get = function(info) return self.db.profile.resHealthHeight end,
+                        set = function(info, val) self.db.profile.resHealthHeight = val; self:RefreshLayout() end,
+                    },
+                }
             },
-            spacing = {
-                name = "Bar Spacing", type = "range", min = 0, max = 10, step = 1, order = 14,
-                get = function(info) return self.db.profile.resSpacing end,
-                set = function(info, val) self.db.profile.resSpacing = val; ActionHud:GetModule("Resources"):UpdateLayout() end,
+            powerGroup = {
+                name = "Power Bar", type = "group", inline = true, order = 30,
+                args = {
+                    enable = {
+                        name = "Enable", type = "toggle", order = 1,
+                        get = function(info) return self.db.profile.resPowerEnabled ~= false end,
+                        set = function(info, val) self.db.profile.resPowerEnabled = val; self:RefreshLayout() end,
+                    },
+                    height = {
+                        name = "Height", type = "range", min = 1, max = 30, step = 1, order = 2,
+                        get = function(info) return self.db.profile.resPowerHeight end,
+                        set = function(info, val) self.db.profile.resPowerHeight = val; self:RefreshLayout() end,
+                    },
+                }
             },
-            gap = {
-                name = "Player-Target Gap", desc = "Space between player and target bars.", type = "range", min = 0, max = 50, step = 1, order = 15,
-                get = function(info) return self.db.profile.resGap end,
-                set = function(info, val) self.db.profile.resGap = val; ActionHud:GetModule("Resources"):UpdateLayout() end,
+            classGroup = {
+                name = "Class Resource", type = "group", inline = true, order = 40,
+                args = {
+                    enable = {
+                        name = "Enable", type = "toggle", order = 1,
+                        get = function(info) return self.db.profile.resClassEnabled ~= false end,
+                        set = function(info, val) self.db.profile.resClassEnabled = val; self:RefreshLayout() end,
+                    },
+                    height = {
+                        name = "Height", type = "range", min = 1, max = 20, step = 1, order = 2,
+                        get = function(info) return self.db.profile.resClassHeight end,
+                        set = function(info, val) self.db.profile.resClassHeight = val; self:RefreshLayout() end,
+                    },
+                }
             },
         },
     }
@@ -253,59 +322,59 @@ All ActionHud cooldown features are unavailable until enabled.]]
                 get = function(info) return self.db.profile.cdEnabled end,
                 set = function(info, val)
                     self.db.profile.cdEnabled = val
-                    ActionHud:GetModule("Cooldowns"):UpdateLayout()
+                    self:RefreshLayout()
                 end,
             },
             spacing = {
                 name = "Bar Spacing", desc = "Space between Essential and Utility bars.", type = "range", min = 0, max = 50, step = 1, order = 4,
                 disabled = function() return not IsBlizzardCooldownViewerEnabled() end,
                 get = function(info) return self.db.profile.cdSpacing end,
-                set = function(info, val) self.db.profile.cdSpacing = val; ActionHud:GetModule("Cooldowns"):UpdateLayout() end,
+                set = function(info, val) self.db.profile.cdSpacing = val; self:RefreshLayout() end,
             },
             reverse = {
                 name = "Reverse Order", desc = "Swap the Essential and Utility bars.", type = "toggle", order = 5,
                 disabled = function() return not IsBlizzardCooldownViewerEnabled() end,
                 get = function(info) return self.db.profile.cdReverse end,
-                set = function(info, val) self.db.profile.cdReverse = val; ActionHud:GetModule("Cooldowns"):UpdateLayout() end,
+                set = function(info, val) self.db.profile.cdReverse = val; self:RefreshLayout() end,
             },
             itemGap = {
                 name = "Icon Spacing", desc = "Space between cooldown icons.", type = "range", min = 0, max = 20, step = 1, order = 6,
                 disabled = function() return not IsBlizzardCooldownViewerEnabled() end,
                 get = function(info) return self.db.profile.cdItemGap end,
-                set = function(info, val) self.db.profile.cdItemGap = val; ActionHud:GetModule("Cooldowns"):UpdateLayout() end,
+                set = function(info, val) self.db.profile.cdItemGap = val; self:RefreshLayout() end,
             },
             headerEssential = { type="header", name="Essential Bar", order=10 },
             essWidth = {
                 name = "Width", type = "range", min = 10, max = 100, step = 1, order = 11,
                 disabled = function() return not IsBlizzardCooldownViewerEnabled() end,
                 get = function(info) return self.db.profile.cdEssentialWidth end,
-                set = function(info, val) self.db.profile.cdEssentialWidth = val; ActionHud:GetModule("Cooldowns"):UpdateLayout() end,
+                set = function(info, val) self.db.profile.cdEssentialWidth = val; self:RefreshLayout() end,
             },
             essHeight = {
                 name = "Height", type = "range", min = 10, max = 100, step = 1, order = 12,
                 disabled = function() return not IsBlizzardCooldownViewerEnabled() end,
                 get = function(info) return self.db.profile.cdEssentialHeight end,
-                set = function(info, val) self.db.profile.cdEssentialHeight = val; ActionHud:GetModule("Cooldowns"):UpdateLayout() end,
+                set = function(info, val) self.db.profile.cdEssentialHeight = val; self:RefreshLayout() end,
             },
             headerUtility = { type="header", name="Utility Bar", order=20 },
             utilWidth = {
                 name = "Width", type = "range", min = 10, max = 100, step = 1, order = 21,
                 disabled = function() return not IsBlizzardCooldownViewerEnabled() end,
                 get = function(info) return self.db.profile.cdUtilityWidth end,
-                set = function(info, val) self.db.profile.cdUtilityWidth = val; ActionHud:GetModule("Cooldowns"):UpdateLayout() end,
+                set = function(info, val) self.db.profile.cdUtilityWidth = val; self:RefreshLayout() end,
             },
             utilHeight = {
                 name = "Height", type = "range", min = 10, max = 100, step = 1, order = 22,
                 disabled = function() return not IsBlizzardCooldownViewerEnabled() end,
                 get = function(info) return self.db.profile.cdUtilityHeight end,
-                set = function(info, val) self.db.profile.cdUtilityHeight = val; ActionHud:GetModule("Cooldowns"):UpdateLayout() end,
+                set = function(info, val) self.db.profile.cdUtilityHeight = val; self:RefreshLayout() end,
             },
             headerFont = { type="header", name="Typography", order=25 },
             fontSize = {
                 name = "Stack Font Size", type = "range", min=6, max=18, step=1, order=26,
                 disabled = function() return not IsBlizzardCooldownViewerEnabled() end,
                 get = function(info) return self.db.profile.cdCountFontSize end,
-                set = function(info, val) self.db.profile.cdCountFontSize = val; ActionHud:GetModule("Cooldowns"):UpdateLayout() end,
+                set = function(info, val) self.db.profile.cdCountFontSize = val; self:RefreshLayout() end,
             },
             timerFontSize = {
                 name = "Timer Font Size", type = "select", order = 27,
@@ -313,7 +382,7 @@ All ActionHud cooldown features are unavailable until enabled.]]
                 sorting = { "small", "medium", "large", "huge" },
                 disabled = function() return not IsBlizzardCooldownViewerEnabled() end,
                 get = function(info) return self.db.profile.cdTimerFontSize end,
-                set = function(info, val) self.db.profile.cdTimerFontSize = val; ActionHud:GetModule("Cooldowns"):UpdateLayout() end,
+                set = function(info, val) self.db.profile.cdTimerFontSize = val; self:RefreshLayout() end,
             },
         },
     }
@@ -508,112 +577,6 @@ Enable it in Gameplay Enhancements to use these features.]]
         },
     }
     
-    -- SUB: Nameplates
-    local nameplateOptions = {
-        name = "Nameplates",
-        handler = ActionHud,
-        type = "group",
-        args = {
-            experimentalNote = {
-                type = "description", order = 0.1,
-                name = [[|cffffcc00Experimental Feature:|r
-Applying modern styling to Blizzard nameplates is subject to Midnight's (12.0) API restrictions. This feature balances technical constraints with a clean aesthetic and will evolve as Blizzard provides more robust customization hooks.
-
-|cffffcc00Note:|r Changes take effect on new nameplates. Use |cff00ff00/reload|r to apply to all existing nameplates.
-]],
-            },
-            enable = {
-                name = "Enable Nameplate Styling",
-                desc = "Apply ActionHud styling to all nameplates (player, friendly, enemy).",
-                type = "toggle", order = 1, width = "full",
-                get = function(info) return self.db.profile.npEnabled end,
-                set = function(info, val) 
-                    self.db.profile.npEnabled = val
-                    ActionHud:GetModule("Nameplates"):UpdateLayout()
-                end,
-            },
-            
-            -- Appearance Section
-            appearanceHeader = { name = "Appearance", type = "header", order = 10 },
-            hideBorders = {
-                name = "Hide Borders",
-                desc = "Remove the frame borders for a clean, minimal look.",
-                type = "toggle", order = 11, width = 1.0,
-                disabled = function() return not self.db.profile.npEnabled end,
-                get = function(info) return self.db.profile.npHideBorders end,
-                set = function(info, val) 
-                    self.db.profile.npHideBorders = val
-                    ActionHud:GetModule("Nameplates"):UpdateLayout()
-                end,
-            },
-            flatBars = {
-                name = "Flat Bar Texture",
-                desc = "Use a solid flat texture instead of gradient bars.",
-                type = "toggle", order = 12, width = 1.0,
-                disabled = function() return not self.db.profile.npEnabled end,
-                get = function(info) return self.db.profile.npFlatBars end,
-                set = function(info, val) 
-                    self.db.profile.npFlatBars = val
-                    ActionHud:GetModule("Nameplates"):UpdateLayout()
-                end,
-            },
-            
-            -- Sizing Section
-            sizingHeader = { name = "Sizing", type = "header", order = 20 },
-            barHeight = {
-                name = "Health Bar Height",
-                desc = "Height of the health bar in pixels.",
-                type = "range", min = 2, max = 20, step = 1, order = 21,
-                disabled = function() return not self.db.profile.npEnabled end,
-                get = function(info) return self.db.profile.npBarHeight end,
-                set = function(info, val) 
-                    self.db.profile.npBarHeight = val
-                    ActionHud:GetModule("Nameplates"):UpdateLayout()
-                end,
-            },
-            barScale = {
-                name = "Bar Width Scale",
-                desc = "Scale the width of health bars (1.0 = default).",
-                type = "range", min = 0.5, max = 1.5, step = 0.05, order = 22,
-                disabled = function() return not self.db.profile.npEnabled end,
-                get = function(info) return self.db.profile.npBarScale end,
-                set = function(info, val) 
-                    self.db.profile.npBarScale = val
-                    ActionHud:GetModule("Nameplates"):UpdateLayout()
-                end,
-            },
-            classBarHeight = {
-                name = "Class Bar Height",
-                desc = "Height of the class resource bar (mana, runes, etc.).",
-                type = "range", min = 2, max = 20, step = 1, order = 23,
-                disabled = function() return not self.db.profile.npEnabled end,
-                get = function(info) return self.db.profile.npClassBarHeight end,
-                set = function(info, val) 
-                    self.db.profile.npClassBarHeight = val
-                    ActionHud:GetModule("Nameplates"):UpdateLayout()
-                end,
-            },
-            
-            -- Player Frame Section
-            playerFrameHeader = { name = "Player Frame", type = "header", order = 30 },
-            playerFrameNote = {
-                type = "description", order = 31,
-                name = "These options affect the fixed Player Frame UI, not nameplates.",
-            },
-            hidePlayerPortrait = {
-                name = "Hide Player Portrait",
-                desc = "Hide the circular portrait on the Player Frame.",
-                type = "toggle", order = 32, width = "full",
-                disabled = function() return not self.db.profile.npEnabled end,
-                get = function(info) return self.db.profile.npHidePlayerPortrait end,
-                set = function(info, val) 
-                    self.db.profile.npHidePlayerPortrait = val
-                    ActionHud:GetModule("Nameplates"):UpdateLayout()
-                end,
-            },
-        },
-    }
-    
     -- SUB: Unit Frames (Player/Target/Focus)
     local unitFrameOptions = {
         name = "Unit Frames",
@@ -712,16 +675,9 @@ Due to Blizzard's API changes in Midnight (12.0), traditional unit frame customi
                     ActionHud:GetModule("UnitFrames"):UpdateLayout()
                 end,
             },
-            alwaysShowText = {
-                name = "Always Show Text",
-                desc = "Always show health and power values (not just on hover).",
-                type = "toggle", order = 18, width = 1.0,
-                disabled = function() return not self.db.profile.ufEnabled end,
-                get = function(info) return self.db.profile.ufAlwaysShowText end,
-                set = function(info, val) 
-                    self.db.profile.ufAlwaysShowText = val
-                    ActionHud:GetModule("UnitFrames"):UpdateLayout()
-                end,
+            textNote = {
+                type = "description", order = 18.1,
+                name = "|cffaaaaaa(Note: Health/power values show on hover. 'Always show' is unavailable due to Midnight API restrictions.)|r",
             },
             
             -- Sizing Section
@@ -845,7 +801,33 @@ Due to Blizzard's API changes in Midnight (12.0), traditional unit frame customi
         local gaps = LM:GetGaps()
         local baseOrder = 10
         
+        -- Filter enabled modules for the UI list
+        local activeModules = {}
         for i, moduleId in ipairs(stack) do
+            local moduleName = moduleId
+            if moduleId == "actionBars" then moduleName = "ActionBars"
+            elseif moduleId == "resources" then moduleName = "Resources"
+            elseif moduleId == "cooldowns" then moduleName = "Cooldowns"
+            end
+            
+            local m = ActionHud:GetModule(moduleName, true)
+            local isEnabled = false
+            if moduleId == "resources" then
+                isEnabled = ActionHud.db.profile.resEnabled
+            elseif moduleId == "cooldowns" then
+                isEnabled = ActionHud.db.profile.cdEnabled and LibStub("AceAddon-3.0"):GetAddon("ActionHud"):GetModule("Cooldowns"):IsEnabled()
+            elseif m and m.IsEnabled then
+                isEnabled = m:IsEnabled()
+            end
+
+            if isEnabled then
+                table.insert(activeModules, { id = moduleId, stackIdx = i })
+            end
+        end
+
+        for i, modInfo in ipairs(activeModules) do
+            local moduleId = modInfo.id
+            local stackIdx = modInfo.stackIdx
             local moduleName = LM:GetModuleName(moduleId)
             local orderBase = baseOrder + (i * 10)
             
@@ -875,15 +857,15 @@ Due to Blizzard's API changes in Midnight (12.0), traditional unit frame customi
                 name = "Down",
                 desc = "Move " .. moduleName .. " down in the stack",
                 type = "execute", order = orderBase + 2, width = 0.4,
-                disabled = function() return i == #stack end,
+                disabled = function() return i == #activeModules end,
                 func = function()
                     LM:MoveModule(moduleId, "down")
                     LibStub("AceConfigRegistry-3.0"):NotifyChange("ActionHud_Layout")
                 end,
             }
             
-            -- Gap slider (not shown for last module)
-            if i < #stack then
+            -- Gap slider (not shown for last ACTIVE module)
+            if i < #activeModules then
                 args["mod_" .. i .. "_gap"] = {
                     name = "Gap After",
                     desc = string.format("Space between %s and the next module.", moduleName),
@@ -891,10 +873,10 @@ Due to Blizzard's API changes in Midnight (12.0), traditional unit frame customi
                     width = 1.0,
                     get = function() 
                         local g = LM:GetGaps()
-                        return g[i] or 0 
+                        return g[stackIdx] or 0 
                     end,
                     set = function(_, val)
-                        LM:SetGap(i, val)
+                        LM:SetGap(stackIdx, val)
                     end,
                 }
             end
@@ -1102,11 +1084,7 @@ Due to Blizzard's API changes in Midnight (12.0), traditional unit frame customi
     LibStub("AceConfig-3.0"):RegisterOptionsTable("ActionHud_Tracked", trackedOptions)
     LibStub("AceConfigDialog-3.0"):AddToBlizOptions("ActionHud_Tracked", "Tracked Abilities", "ActionHud")
     
-    -- 7. Nameplates (independent of HUD)
-    LibStub("AceConfig-3.0"):RegisterOptionsTable("ActionHud_Nameplates", nameplateOptions)
-    LibStub("AceConfigDialog-3.0"):AddToBlizOptions("ActionHud_Nameplates", "Nameplates", "ActionHud")
-    
-    -- 8. Unit Frames (Player/Target/Focus)
+    -- 7. Unit Frames (Player/Target/Focus)
     LibStub("AceConfig-3.0"):RegisterOptionsTable("ActionHud_UnitFrames", unitFrameOptions)
     LibStub("AceConfigDialog-3.0"):AddToBlizOptions("ActionHud_UnitFrames", "Unit Frames", "ActionHud")
     

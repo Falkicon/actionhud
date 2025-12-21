@@ -21,9 +21,32 @@ local ApplyFlatTexture
 -- Color multiplier to match Resources module (less saturated)
 local COLOR_MULT = 0.85
 
+-- Apply font to a status bar's text elements (font face and size only)
+-- Note: "Always show text" feature is shelved due to Midnight secret value limitations.
+-- Text visibility defaults to Blizzard's hover behavior.
+local function ApplyFontToBar(bar, fontPath, fontSize)
+    if not bar then return end
+    
+    -- Common text elements on status bars
+    local textElements = {
+        bar.TextString,      -- Main text
+        bar.LeftText,        -- Left-aligned text
+        bar.RightText,       -- Right-aligned text
+        bar.ManaBarText,     -- Mana bar specific
+        bar.HealthBarText,   -- Health bar specific
+    }
+    
+    for _, textEl in ipairs(textElements) do
+        if textEl and textEl.SetFont then
+            textEl:SetFont(fontPath, fontSize, "OUTLINE")
+        end
+    end
+end
+
 -- Apply flat texture to a status bar and force color update
 ApplyFlatTexture = function(bar, unit, barType)
     if not bar then return end
+    
     bar:SetStatusBarTexture(FLAT_BAR_TEXTURE)
     
     -- Force color based on bar type
@@ -75,78 +98,11 @@ local function HideTexture(texture)
 end
 
 -- Apply font to a FontString element
-local function ApplyFontToText(fontString, fontPath, fontSize, outline)
+local function ApplyFontToText(fontString, fontPath, fontSize, outline, justifyH)
     if fontString and fontString.SetFont then
         fontString:SetFont(fontPath, fontSize, outline or "OUTLINE")
-    end
-end
-
--- Safe numeric display transform for Midnight secret values
-local function SafeNumericTransform(bar, value, valueMax)
-    -- Check if either value is secret
-    local isValueSecret = issecretvalue and issecretvalue(value)
-    local isMaxSecret = issecretvalue and issecretvalue(valueMax)
-    
-    if isValueSecret or isMaxSecret then
-        -- For health bars, we can use the helper that returns readable percentages
-        -- Blizzard code often stores the unit on the bar itself as bar.unit
-        local unit = bar.unit
-        if unit then
-            -- Try to determine if this is a health bar or power bar
-            -- Health bars usually have HealthBar in their name or a specific mixin
-            local isHealth = bar:GetName() and bar:GetName():find("Health")
-            
-            if isHealth then
-                local percent = UnitHealthPercent(unit)
-                if percent then
-                    return string.format("%.0f%%", percent), "100%"
-                end
-            end
-        end
-        
-        -- Fallback for power or when unit/percent is unavailable
-        return "???", "???"
-    end
-    
-    -- If NOT secret, use standard abbreviation
-    return AbbreviateLargeNumbers(value), AbbreviateLargeNumbers(valueMax)
-end
-
--- Apply font to a status bar's text elements
-local function ApplyFontToBar(bar, fontPath, fontSize, alwaysShow)
-    if not bar then return end
-    
-    -- Set forceShow if requested
-    if alwaysShow then
-        bar.forceShow = true
-        
-        -- Apply safe numeric transform to handle secret values gracefully
-        bar.numericDisplayTransformFunc = function(v, vMax)
-            return SafeNumericTransform(bar, v, vMax)
-        end
-    else
-        bar.forceShow = nil
-        bar.numericDisplayTransformFunc = nil
-    end
-    
-    -- Common text elements on status bars
-    local textElements = {
-        bar.TextString,      -- Main text
-        bar.LeftText,        -- Left-aligned text
-        bar.RightText,       -- Right-aligned text
-        bar.ManaBarText,     -- Mana bar specific
-        bar.HealthBarText,   -- Health bar specific
-    }
-    
-    for _, textEl in ipairs(textElements) do
-        if textEl and textEl.SetFont then
-            textEl:SetFont(fontPath, fontSize, "OUTLINE")
-            
-            -- Force text visibility if always show is enabled
-            if alwaysShow then
-                textEl:Show()
-                textEl:SetAlpha(1)
-            end
+        if justifyH then
+            fontString:SetJustifyH(justifyH)
         end
     end
 end
@@ -306,6 +262,21 @@ local function EnsureBarLayout(main, frameKey, p)
             healthContainer.HealthBar:SetPoint("BOTTOMRIGHT", healthContainer, "BOTTOMRIGHT", 0, 0)
             anchorsApplied[frameKey .. "HealthBarInternal"] = true
         end
+
+        -- Position the HealthBar text strings (Health/Percentage)
+        -- In Screenshot 2, they are centered at the bottom of the bar
+        if not anchorsApplied[frameKey .. "HealthText"] then
+            local hb = healthContainer.HealthBar
+            local texts = { hb.TextString, hb.LeftText, hb.RightText }
+            for _, txt in ipairs(texts) do
+                if txt then
+                    txt:ClearAllPoints()
+                    -- Center at the bottom of the health bar
+                    txt:SetPoint("BOTTOM", hb, "BOTTOM", 0, 2)
+                end
+            end
+            anchorsApplied[frameKey .. "HealthText"] = true
+        end
     end
     
     -- Mana/Power bar layout
@@ -322,6 +293,42 @@ local function EnsureBarLayout(main, frameKey, p)
             manaBar:SetPoint("BOTTOMRIGHT", healthContainer, "BOTTOMRIGHT", 0, -(1 + manaHeight))
             anchorsApplied[frameKey .. "ManaBar"] = true
         end
+
+        -- Position ManaBar text centered
+        if not anchorsApplied[frameKey .. "ManaText"] then
+            local mTexts = { manaBar.TextString, manaBar.LeftText, manaBar.RightText, manaBar.ManaBarText }
+            for _, txt in ipairs(mTexts) do
+                if txt then
+                    txt:ClearAllPoints()
+                    txt:SetPoint("CENTER", manaBar, "CENTER", 0, 0)
+                end
+            end
+            anchorsApplied[frameKey .. "ManaText"] = true
+        end
+    end
+
+    -- Normalize Name and Level position
+    -- Based on Screenshot 2: 
+    --   Level is TOPLEFT inside health bar
+    --   Name is TOP center inside health bar
+    if not anchorsApplied[frameKey .. "NameLevel"] then
+        local name = main.Name or (frameKey == "Player" and _G.PlayerName)
+        local level = main.LevelText or (frameKey == "Player" and _G.PlayerLevelText)
+
+        if name then
+            name:ClearAllPoints()
+            -- Anchor to TOP of healthContainer
+            name:SetPoint("TOP", healthContainer, "TOP", 0, -2)
+            name:SetJustifyH("CENTER")
+        end
+
+        if level then
+            level:ClearAllPoints()
+            -- Anchor to TOPLEFT of healthContainer
+            level:SetPoint("TOPLEFT", healthContainer, "TOPLEFT", 4, -2)
+            level:SetJustifyH("LEFT")
+        end
+        anchorsApplied[frameKey .. "NameLevel"] = true
     end
 end
 
@@ -377,10 +384,7 @@ function UnitFrames:StylePlayerFrame()
         if contextual then
             -- The yellow corner arrow/embellishment
             HideTexture(contextual.PlayerPortraitCornerIcon)
-            -- Combat sword icon (appears near portrait)
-            HideTexture(contextual.AttackIcon)
-            -- Zzz rest animation
-            if contextual.PlayerRestLoop then contextual.PlayerRestLoop:Hide() end
+            -- Combat sword icon and Zzz rest animation are repositioned below
             -- PVP icons (appear near portrait)
             HideTexture(contextual.PVPIcon)
             HideTexture(contextual.PrestigePortrait)
@@ -461,28 +465,39 @@ function UnitFrames:StylePlayerFrame()
         backgrounds["Player"]:Hide()
     end
     
-    -- Apply font styling
-    if p.ufFontName then
-        local fontPath = LSM:Fetch("font", p.ufFontName) or "Fonts\\FRIZQT__.TTF"
-        local fontSize = p.ufFontSize or 10
-        local alwaysShow = p.ufAlwaysShowText
-        
-        -- Bar text
-        if main then
-            local healthContainer = main.HealthBarsContainer
-            if healthContainer and healthContainer.HealthBar then
-                healthContainer.HealthBar.unit = "player" -- Ensure unit is set for safe transform
-                ApplyFontToBar(healthContainer.HealthBar, fontPath, fontSize, alwaysShow)
-            end
-            if manaBar then
-                manaBar.unit = "player" -- Ensure unit is set for safe transform
-                ApplyFontToBar(manaBar, fontPath, fontSize, alwaysShow)
-            end
+    -- Apply font styling (text shows on hover by default - Midnight limitation)
+    local fontPath = LSM:Fetch("font", p.ufFontName) or "Fonts\\FRIZQT__.TTF"
+    local fontSize = p.ufFontSize or 10
+    
+    -- Bar text font
+    if main then
+        local healthContainer = main.HealthBarsContainer
+        if healthContainer and healthContainer.HealthBar then
+            ApplyFontToBar(healthContainer.HealthBar, fontPath, fontSize)
         end
-        
-        -- Name and level text (global frame names for PlayerFrame)
-        ApplyFontToText(PlayerName, fontPath, fontSize)
-        ApplyFontToText(PlayerLevelText, fontPath, fontSize)
+        if manaBar then
+            ApplyFontToBar(manaBar, fontPath, fontSize)
+        end
+    end
+    
+    -- Name and level text (global frame names for PlayerFrame)
+    ApplyFontToText(PlayerName, fontPath, fontSize, "OUTLINE", "CENTER")
+    ApplyFontToText(PlayerLevelText, fontPath, fontSize, "OUTLINE", "LEFT")
+
+    -- Reposition Status/Resting Icon (Screenshot 2 style)
+    if contextual then
+        -- Resting icon (Zzz)
+        if contextual.PlayerRestLoop then
+            contextual.PlayerRestLoop:ClearAllPoints()
+            contextual.PlayerRestLoop:SetPoint("TOPLEFT", PlayerFrame, "TOPLEFT", 0, 0)
+            contextual.PlayerRestLoop:SetScale(0.7)
+        end
+        -- Combat icon (Swords)
+        if contextual.AttackIcon then
+            contextual.AttackIcon:ClearAllPoints()
+            contextual.AttackIcon:SetPoint("TOPLEFT", PlayerFrame, "TOPLEFT", 0, 0)
+            contextual.AttackIcon:SetScale(0.7)
+        end
     end
 end
 
@@ -576,28 +591,23 @@ function UnitFrames:StyleTargetFrame()
         backgrounds["Target"]:Hide()
     end
     
-    -- Apply font styling
-    if p.ufFontName then
-        local fontPath = LSM:Fetch("font", p.ufFontName) or "Fonts\\FRIZQT__.TTF"
-        local fontSize = p.ufFontSize or 10
-        local alwaysShow = p.ufAlwaysShowText
-        
-        -- Bar text
-        if main then
-            local healthContainer = main.HealthBarsContainer
-            if healthContainer and healthContainer.HealthBar then
-                healthContainer.HealthBar.unit = "target"
-                ApplyFontToBar(healthContainer.HealthBar, fontPath, fontSize, alwaysShow)
-            end
-            if main.ManaBar then
-                main.ManaBar.unit = "target"
-                ApplyFontToBar(main.ManaBar, fontPath, fontSize, alwaysShow)
-            end
-            
-            -- Name and level text
-            ApplyFontToText(main.Name, fontPath, fontSize)
-            ApplyFontToText(main.LevelText, fontPath, fontSize)
+    -- Apply font styling (text shows on hover by default - Midnight limitation)
+    local fontPath = LSM:Fetch("font", p.ufFontName) or "Fonts\\FRIZQT__.TTF"
+    local fontSize = p.ufFontSize or 10
+    
+    -- Bar text font
+    if main then
+        local healthContainer = main.HealthBarsContainer
+        if healthContainer and healthContainer.HealthBar then
+            ApplyFontToBar(healthContainer.HealthBar, fontPath, fontSize)
         end
+        if main.ManaBar then
+            ApplyFontToBar(main.ManaBar, fontPath, fontSize)
+        end
+        
+        -- Name and level text
+        ApplyFontToText(main.Name, fontPath, fontSize, "OUTLINE", "CENTER")
+        ApplyFontToText(main.LevelText, fontPath, fontSize, "OUTLINE", "LEFT")
     end
 end
 
@@ -686,28 +696,23 @@ function UnitFrames:StyleFocusFrame()
         backgrounds["Focus"]:Hide()
     end
     
-    -- Apply font styling
-    if p.ufFontName then
-        local fontPath = LSM:Fetch("font", p.ufFontName) or "Fonts\\FRIZQT__.TTF"
-        local fontSize = p.ufFontSize or 10
-        local alwaysShow = p.ufAlwaysShowText
-        
-        -- Bar text
-        if main then
-            local healthContainer = main.HealthBarsContainer
-            if healthContainer and healthContainer.HealthBar then
-                healthContainer.HealthBar.unit = "focus"
-                ApplyFontToBar(healthContainer.HealthBar, fontPath, fontSize, alwaysShow)
-            end
-            if main.ManaBar then
-                main.ManaBar.unit = "focus"
-                ApplyFontToBar(main.ManaBar, fontPath, fontSize, alwaysShow)
-            end
-            
-            -- Name and level text (Focus uses same structure as Target)
-            ApplyFontToText(main.Name, fontPath, fontSize)
-            ApplyFontToText(main.LevelText, fontPath, fontSize)
+    -- Apply font styling (text shows on hover by default - Midnight limitation)
+    local fontPath = LSM:Fetch("font", p.ufFontName) or "Fonts\\FRIZQT__.TTF"
+    local fontSize = p.ufFontSize or 10
+    
+    -- Bar text font
+    if main then
+        local healthContainer = main.HealthBarsContainer
+        if healthContainer and healthContainer.HealthBar then
+            ApplyFontToBar(healthContainer.HealthBar, fontPath, fontSize)
         end
+        if main.ManaBar then
+            ApplyFontToBar(main.ManaBar, fontPath, fontSize)
+        end
+        
+        -- Name and level text (Focus uses same structure as Target)
+        ApplyFontToText(main.Name, fontPath, fontSize, "OUTLINE", "CENTER")
+        ApplyFontToText(main.LevelText, fontPath, fontSize, "OUTLINE", "LEFT")
     end
 end
 
@@ -807,7 +812,10 @@ function UnitFrames:UpdateLayout()
     local p = self.db.profile
     
     -- Reset anchor tracking so they can be reapplied
-    wipe(anchorsApplied)
+    -- ONLY do this outside combat to avoid taint from ClearAllPoints
+    if not InCombatLockdown() then
+        wipe(anchorsApplied)
+    end
     
     if p.ufEnabled then
         isStylingActive = true

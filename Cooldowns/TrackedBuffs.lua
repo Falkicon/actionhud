@@ -71,11 +71,16 @@ function TrackedBuffs:ApplyStyling()
     local blizzFrame = self:GetBlizzardFrame()
     if not blizzFrame then return end
     
-    -- Style existing item frames
-    if blizzFrame.itemFramePool then
-        for itemFrame in blizzFrame.itemFramePool:EnumerateActive() do
-            self:StyleItemFrame(itemFrame)
-        end
+    -- Main frame properties are safe to set in hooks
+end
+
+-- Force style all active items (unsafe in Blizzard hooks, call only from settings/enable)
+function TrackedBuffs:ForceStyleAllItems()
+    local blizzFrame = self:GetBlizzardFrame()
+    if not blizzFrame or not blizzFrame.itemFramePool then return end
+    
+    for itemFrame in blizzFrame.itemFramePool:EnumerateActive() do
+        self:StyleItemFrame(itemFrame)
     end
 end
 
@@ -151,10 +156,11 @@ function TrackedBuffs:SetupStyling()
         return
     end
     
-    -- Apply initial styling
-    self:ApplyStyling()
-    
     isStylingActive = true
+    
+    -- Apply initial styling to existing items
+    self:ForceStyleAllItems()
+    
     addon:Log("TrackedBuffs: Styling active", "discovery")
 end
 
@@ -164,6 +170,6 @@ function TrackedBuffs:UpdateLayout()
     
     -- Force re-apply styling to all existing frames
     if isStylingActive then
-        self:ApplyStyling()
+        self:ForceStyleAllItems()
     end
 end

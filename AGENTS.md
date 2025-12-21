@@ -20,9 +20,11 @@ For shared patterns, documentation requirements, and library management, see **[
 
 A compact action bar HUD overlay that displays ability icons, cooldowns, and proc glows in a minimal footprint.
 
-- Displays a 6×4 grid mapped to Action Bar 1 (slots 1-12) and Action Bar 2 (slots 61-72)
+- **Action Bar Mirroring**: Dynamically synchronizes layout (rows, icons) with Blizzard's Edit Mode settings for Bar 1 and Bar 6.
+- **Dynamic Layout**: Components automatically restack and update HUD height when modules or individual bars are toggled.
 - Supports stance/form page swapping via `GetBonusBarOffset()`
 - Hijacks Blizzard's CooldownViewer frames using a proxy system
+- **Midnight Compatibility**: Safe handling of "secret" values via layout caching and defensive API wrappers.
 
 ---
 
@@ -34,12 +36,12 @@ A compact action bar HUD overlay that displays ability icons, cooldowns, and pro
 | `Utils.lua` | Shared utility functions (safe API wrappers, fonts, Midnight compatibility) |
 | `LayoutManager.lua` | Centralized module positioning and stack management |
 | `ActionBars.lua` | Action bar grid (6×4 button frames) |
-| `Resources.lua` | Health, Power, and Class Resource bars |
+| `Resources.lua` | Health, Power, and Class Resource bars (individual visibility/height) |
 | `Cooldowns/Manager.lua` | Centralized proxy pool, aura cache, Blizzard frame management |
 | `Cooldowns/Cooldowns.lua` | Essential/Utility cooldown icons (custom proxies) |
 | `Cooldowns/TrackedBars.lua` | Tracked Bars reskin (hooks BuffBarCooldownViewer, sidecar positioning) |
 | `Cooldowns/TrackedBuffs.lua` | Tracked Buffs reskin (hooks BuffIconCooldownViewer) |
-| `Nameplates/Nameplates.lua` | Nameplate reskin (hooks NamePlateDriverFrame) |
+| `Cooldowns/TrackedDefensives.lua` | External Defensives reskin (hooks ExternalDefensivesFrame) |
 | `UnitFrames/UnitFrames.lua` | Unit Frame reskin (PlayerFrame, TargetFrame, FocusFrame) |
 | `SettingsUI.lua` | Blizzard Settings API integration (no external libs) |
 | `ActionHud.toc` | Addon metadata and load order |
@@ -142,38 +144,6 @@ Uses a **"hide-only" visibility model** with custom proxy frames:
 
 For detailed Blizzard frame structure and API reference, see `Docs/proxy-system.md`.
 
-#### Nameplates Module (Style-Only Approach)
-
-**Midnight (12.0) Compatibility:** Uses the same style-only approach as TrackedBuffs/TrackedBars.
-
-| Blizzard Frame | ActionHud Hook |
-|----------------|----------------|
-| `NamePlateDriverFrame` | `OnNamePlateAdded`, `UpdateNamePlateOptions` |
-| `PlayerFrame` | Portrait visibility |
-
-**Design:**
-1. Hook into `NamePlateDriverFrame:OnNamePlateAdded()` to style new nameplates
-2. Style operations only:
-   - Hide border textures for clean look
-   - Apply flat solid bar texture
-   - Adjust bar height and width
-   - Style class resource bars (mana, runes)
-3. Player Frame portrait can be hidden independently
-
-**Available Settings:**
-
-| Setting | Description |
-|---------|-------------|
-| Enable Nameplate Styling | Master toggle for all nameplate styling |
-| Hide Borders | Remove frame borders for minimal look |
-| Flat Bar Texture | Use solid color texture instead of gradients |
-| Health Bar Height | Pixel height of health bars (2-20) |
-| Bar Width Scale | Scale multiplier for bar width (0.5-1.5) |
-| Class Bar Height | Pixel height of class resource bars |
-| Hide Player Portrait | Hide the portrait on the Player Frame |
-
-**Note:** Requires `/reload` to apply styling to existing nameplates.
-
 #### UnitFrames Module (Style-Only Approach)
 
 **Midnight (12.0) Compatibility:** Uses the same style-only approach for Player, Target, and Focus frames.
@@ -209,6 +179,29 @@ For detailed Blizzard frame structure and API reference, see `Docs/proxy-system.
 
 **Note:** Requires `/reload` after changing settings.
 
+**Known Limitations (Midnight 12.0):**
+
+The "Always Show Text" feature for health/power values was shelved due to Midnight's secret value system. Key findings:
+
+| Issue | Details |
+|-------|---------|
+| `UnitHealthPercent()` returns secret value | Even this "safe" API returns a secret value in instanced content |
+| `bar:GetValue()` returns secret value | Cannot calculate percentage from bar values |
+| Comparison crashes | Any `if percent > 0` or arithmetic on secret values crashes |
+| Heal prediction bars | `UnitFrameHealPredictionBars_Update` uses `maxHealth` internally, causing cascading errors |
+
+**Attempted Approaches (all failed):**
+1. **pauseUpdates + Custom Overlay** - `UnitHealthPercent()` still returns secret values
+2. **Hook SetBarText** - Runs after crash-prone code
+3. **Replace UpdateTextString** - Still need safe values to display
+
+**Future Follow-up:** Monitor Blizzard API changes in future patches. Blizzard may expose safe text APIs similar to how they added `UnitHealthPercent` (though it's not fully safe yet). Check for:
+- New safe unit info APIs in patch notes
+- Changes to `TextStatusBarMixin` behavior
+- Community solutions from other addon authors
+
+For now, text visibility defaults to Blizzard's hover behavior. Font styling (face/size) still works.
+
 ---
 
 ## SavedVariables
@@ -243,15 +236,6 @@ Stored in `ActionHudDB.profile`:
   -- TrackedBars Compact Mode
   barsCompactMode = false,    -- Hide bars, show icons only
   barsTimerOnIcon = false,    -- Move timer text on top of icon
-  
-  -- Nameplates Reskin
-  npEnabled = false,          -- Master toggle
-  npHideBorders = true,       -- Hide frame borders
-  npFlatBars = true,          -- Solid bar texture
-  npBarHeight = 4,            -- Health bar height (pixels)
-  npBarScale = 1.0,           -- Width scale multiplier
-  npClassBarHeight = 4,       -- Class bar height (pixels)
-  npHidePlayerPortrait = false, -- Hide Player Frame portrait
   
   -- Unit Frames Reskin (Player/Target/Focus)
   ufEnabled = false,          -- Master toggle

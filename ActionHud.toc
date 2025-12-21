@@ -2,7 +2,7 @@
 ## Title: ActionHud
 ## Notes: Minimalist HUD mirroring Action Bars 1 & 2
 ## Author: Jason Falk
-## Version: 2.5.5
+## Version: 2.6.0
 ## X-License: GPL-3.0
 ## SavedVariables: ActionHudDB
 
@@ -17,7 +17,6 @@ Cooldowns\Manager.lua
 Cooldowns\Cooldowns.lua
 Cooldowns\TrackedBars.lua
 Cooldowns\TrackedBuffs.lua
-Cooldowns\TrackedDefensives.lua
-Nameplates\Nameplates.lua
-UnitFrames\UnitFrames.lua
-SettingsUI.lua
+    Cooldowns\TrackedDefensives.lua
+    UnitFrames\UnitFrames.lua
+    SettingsUI.lua

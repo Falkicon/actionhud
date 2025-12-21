@@ -70,11 +70,17 @@ function TrackedBars:ApplyStyling()
     local blizzFrame = self:GetBlizzardFrame()
     if not blizzFrame then return end
     
-    -- Style existing item frames
-    if blizzFrame.itemFramePool then
-        for itemFrame in blizzFrame.itemFramePool:EnumerateActive() do
-            self:StyleItemFrame(itemFrame)
-        end
+    -- Main frame properties are safe to set in hooks
+    -- (Add any main frame styling here if needed)
+end
+
+-- Force style all active items (unsafe in Blizzard hooks, call only from settings/enable)
+function TrackedBars:ForceStyleAllItems()
+    local blizzFrame = self:GetBlizzardFrame()
+    if not blizzFrame or not blizzFrame.itemFramePool then return end
+    
+    for itemFrame in blizzFrame.itemFramePool:EnumerateActive() do
+        self:StyleItemFrame(itemFrame)
     end
 end
 
@@ -209,10 +215,12 @@ function TrackedBars:SetupStyling()
         return
     end
     
-    -- Apply initial styling
-    self:ApplyStyling()
-    
     isStylingActive = true
+    
+    -- Apply initial styling to existing items
+    -- This is safe here because it's called from OnEnable/C_Timer, not a Blizzard hook
+    self:ForceStyleAllItems()
+    
     addon:Log("TrackedBars: Styling active", "discovery")
 end
 
@@ -220,8 +228,8 @@ end
 function TrackedBars:UpdateLayout()
     self:SetupStyling()
     
-    -- Force re-apply styling to all existing frames
+    -- Force re-apply styling to all existing frames if active
     if isStylingActive then
-        self:ApplyStyling()
+        self:ForceStyleAllItems()
     end
 end
