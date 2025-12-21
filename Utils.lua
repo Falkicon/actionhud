@@ -21,22 +21,39 @@ Utils.IS_MIDNIGHT = (select(4, GetBuildInfo()) >= 120000)
 function Utils.IsValueSecret(value)
     if not Utils.IS_MIDNIGHT then return false end
     if value == nil then return false end
-    if not issecretvalue then return false end
-    return issecretvalue(value) == true
+    
+    -- Official checker is the most reliable
+    if issecretvalue then
+        return issecretvalue(value) == true
+    end
+    
+    -- Robust fallback: Try an operation that secrets are known to block.
+    -- We use pcall to catch the "attempt to compare... (a secret value)" error.
+    -- We avoid == nil check as it might also trigger it in some cases.
+    local ok = pcall(function() 
+        local _ = (value > -1e12) or (value == 0)
+    end)
+    
+    return not ok
 end
 
 -- Helper: Safe comparison that handles secret values
 -- Returns nil if comparison is not possible
 function Utils.SafeCompare(a, b, op)
-    if a == nil or b == nil then return nil end
-    if Utils.IsValueSecret(a) or Utils.IsValueSecret(b) then return nil end
-    if op == ">" then return a > b
-    elseif op == "<" then return a < b
-    elseif op == ">=" then return a >= b
-    elseif op == "<=" then return a <= b
-    elseif op == "==" then return a == b
-    end
-    return nil
+    -- Wrap everything in pcall including nil checks
+    local ok, result = pcall(function()
+        if a == nil or b == nil then return nil end
+        if op == ">" then return a > b
+        elseif op == "<" then return a < b
+        elseif op == ">=" then return a >= b
+        elseif op == "<=" then return a <= b
+        elseif op == "==" then return a == b
+        end
+        return nil
+    end)
+    
+    if ok then return result end
+    return nil 
 end
 
 -- ============================================================================
@@ -130,6 +147,139 @@ function Utils.GetUnitColor(unit, barType, mult)
 end
 
 -- ============================================================================
+-- Action Bar Compatibility (12.0)
+-- ============================================================================
+
+function Utils.GetActionCooldownSafe(actionID)
+    if not actionID then return 0, 0, false, 1 end
+    
+    if Utils.IS_MIDNIGHT and C_ActionBar and C_ActionBar.GetActionCooldown then
+        local ok, info = pcall(C_ActionBar.GetActionCooldown, actionID)
+        if ok and info then
+            -- Returns (startTime, duration, isEnabled, modRate)
+            return info.startTime or 0, info.duration or 0, info.isEnabled, info.modRate or 1
+        end
+    end
+    
+    -- Fallback to global
+    if GetActionCooldown then -- @scan-ignore: midnight-wrapper
+        return GetActionCooldown(actionID) -- @scan-ignore: midnight-wrapper
+    end
+    
+    return 0, 0, false, 1
+end
+
+function Utils.GetActionDisplayCountSafe(actionID)
+    if not actionID then return 0 end
+    
+    if Utils.IS_MIDNIGHT and C_ActionBar and C_ActionBar.GetActionDisplayCount then
+        local ok, count = pcall(C_ActionBar.GetActionDisplayCount, actionID)
+        if ok then
+            -- Handle potential table return if Blizzard changes it later
+            if type(count) == "table" then return count.count or count.displayCount or 0 end
+            return count or 0
+        end
+    end
+    
+    if GetActionCount then
+        local count = GetActionCount(actionID)
+        if type(count) == "table" then return count.count or count.displayCount or 0 end
+        return count or 0
+    end
+    
+    return 0
+end
+
+function Utils.GetActionBarPageSafe()
+    if Utils.IS_MIDNIGHT and C_ActionBar and C_ActionBar.GetActionBarPage then
+        local ok, page = pcall(C_ActionBar.GetActionBarPage)
+        if ok then 
+            if type(page) == "table" then return page.page or page.currentPage or 1 end
+            return page or 1 
+        end
+    end
+    
+    if GetActionBarPage then -- @scan-ignore: midnight-wrapper
+        return GetActionBarPage() -- @scan-ignore: midnight-wrapper
+    end
+    
+    return 1
+end
+
+function Utils.GetActionTextureSafe(actionID)
+    if not actionID then return nil end
+    
+    if Utils.IS_MIDNIGHT and C_ActionBar and C_ActionBar.GetActionTexture then
+        local ok, texture = pcall(C_ActionBar.GetActionTexture, actionID)
+        if ok then 
+            if type(texture) == "table" then return texture.texture or texture.icon end
+            return texture 
+        end
+    end
+    
+    if GetActionTexture then -- @scan-ignore: midnight-wrapper
+        return GetActionTexture(actionID) -- @scan-ignore: midnight-wrapper
+    end
+    
+    return nil
+end
+
+function Utils.IsUsableActionSafe(actionID)
+    if not actionID then return false, false end
+    
+    if Utils.IS_MIDNIGHT and C_ActionBar and C_ActionBar.IsUsableAction then
+        local ok, isUsable, noMana = pcall(C_ActionBar.IsUsableAction, actionID)
+        if ok then 
+            if type(isUsable) == "table" then
+                return isUsable.isUsable or isUsable.usable, isUsable.notEnoughMana or isUsable.noMana
+            end
+            return isUsable, noMana 
+        end
+    end
+    
+    if IsUsableAction then -- @scan-ignore: midnight-wrapper
+        return IsUsableAction(actionID) -- @scan-ignore: midnight-wrapper
+    end
+    
+    return false, false
+end
+
+function Utils.IsActionInRangeSafe(actionID)
+    if not actionID then return nil end
+    
+    if Utils.IS_MIDNIGHT and C_ActionBar and C_ActionBar.IsActionInRange then
+        local ok, inRange = pcall(C_ActionBar.IsActionInRange, actionID)
+        if ok then 
+            if type(inRange) == "table" then return inRange.inRange or inRange.isInRange end
+            return inRange 
+        end
+    end
+    
+    if IsActionInRange then -- @scan-ignore: midnight-wrapper
+        return IsActionInRange(actionID) -- @scan-ignore: midnight-wrapper
+    end
+    
+    return nil
+end
+
+function Utils.GetSpecializationSafe()
+    if Utils.IS_MIDNIGHT and C_SpecializationInfo and C_SpecializationInfo.GetSpecialization then
+        local ok, spec = pcall(C_SpecializationInfo.GetSpecialization)
+        if ok then 
+            -- Normalize to number if possible, secrets will return nil for tonumber
+            return tonumber(spec) or spec 
+        end
+    end
+    
+    if GetSpecialization then
+        local spec = GetSpecialization()
+        return tonumber(spec) or spec
+    end
+    
+    return nil
+end
+
+-- ============================================================================
 -- Frame-level API caching (invalidates each frame to avoid stale data)
 -- ============================================================================
 local cooldownCache = {}
@@ -161,14 +311,14 @@ end
 -- Safe API wrappers with pcall and frame-level caching (per API Resilience guide 09)
 function Utils.GetSpellCooldownSafe(spellID)
     if not spellID then return nil end
-    if not C_Spell or not C_Spell.GetSpellCooldown then return nil end
+    if not C_Spell or not C_Spell.GetSpellCooldown then return nil end -- @scan-ignore: midnight-wrapper
     
     InvalidateCacheIfNeeded()
     
     local cached = cooldownCache[spellID]
     if cached ~= nil then return cached end
     
-    local ok, info = pcall(C_Spell.GetSpellCooldown, spellID)
+    local ok, info = pcall(C_Spell.GetSpellCooldown, spellID) -- @scan-ignore: midnight-wrapper
     if ok and info then
         cooldownCache[spellID] = info
         return info
@@ -179,14 +329,14 @@ end
 
 function Utils.GetSpellChargesSafe(spellID)
     if not spellID then return nil end
-    if not C_Spell or not C_Spell.GetSpellCharges then return nil end
+    if not C_Spell or not C_Spell.GetSpellCharges then return nil end -- @scan-ignore: midnight-wrapper
     
     InvalidateCacheIfNeeded()
     
     local cached = chargesCache[spellID]
     if cached ~= nil then return cached or nil end
     
-    local ok, info = pcall(C_Spell.GetSpellCharges, spellID)
+    local ok, info = pcall(C_Spell.GetSpellCharges, spellID) -- @scan-ignore: midnight-wrapper
     if ok and info then
         chargesCache[spellID] = info
         return info

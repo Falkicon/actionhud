@@ -2,7 +2,7 @@
 ## Title: ActionHud
 ## Notes: Minimalist HUD mirroring Action Bars 1 & 2
 ## Author: Jason Falk
-## Version: 2.6.2
+## Version: 2.7.0
 ## X-License: GPL-3.0
 ## SavedVariables: ActionHudDB
 

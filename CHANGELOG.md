@@ -3,6 +3,21 @@
 All notable changes to this project will be documented in this file.
 
 
+## [2.7.0] - 2025-12-21
+
+### Added
+- **API Deprecation Scanner Support**: Integrated with the new `ADDON_DEV/Tools/DeprecationScanner` tool.
+- **Scoped Ignore Tags**: Implemented `-- @scan-ignore: midnight` tags across the codebase to silence verified "passthrough" warnings for Midnight (12.0.0).
+
+### Changed
+- **Midnight Compatibility Layer**: Major refactor of `Utils.lua` to include bulletproof "Safe" API wrappers for `C_ActionBar` and `C_Spell` namespaces.
+- **Robust Secret Value Handling**: Updated `Utils.IsValueSecret` and `Utils.SafeCompare` with `pcall` protection to prevent runtime crashes during instanced combat in Midnight.
+- **Action Bar Normalization**: Refactored `ActionBars.lua` to handle the new table-based return signatures of `C_ActionBar` functions automatically.
+
+### Fixed
+- **Action Bar Count/Timer Display**: Resolved an issue where secret values caused action counts to display as `...` inappropriately; now leverages native UI passthrough for correct rendering.
+- **Type Mismatch Errors**: Fixed Lua errors when comparing numeric counts/durations that could potentially be strings (secret values).
+
 ## [2.6.2] - 2025-12-21
 
 ### Added

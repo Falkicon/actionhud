@@ -7,15 +7,15 @@ local Utils = ns.Utils
 -- Local upvalues for performance (hot-path optimization)
 local ipairs = ipairs
 local GetTime = GetTime
-local GetActionBarPage = GetActionBarPage
+local GetActionBarPage = Utils.GetActionBarPageSafe -- @scan-ignore: midnight-normalized
 local GetBonusBarOffset = GetBonusBarOffset
 local GetActionInfo = GetActionInfo
-local GetActionTexture = GetActionTexture
-local GetActionCooldown = GetActionCooldown
-local GetActionCount = GetActionCount
+local GetActionTexture = Utils.GetActionTextureSafe -- @scan-ignore: midnight-normalized
+local GetActionCooldown = Utils.GetActionCooldownSafe -- @scan-ignore: midnight-normalized
+local GetActionCount = Utils.GetActionDisplayCountSafe -- @scan-ignore: midnight-normalized
 local GetMacroSpell = GetMacroSpell
-local IsUsableAction = IsUsableAction
-local IsActionInRange = IsActionInRange
+local IsUsableAction = Utils.IsUsableActionSafe -- @scan-ignore: midnight-normalized
+local IsActionInRange = Utils.IsActionInRangeSafe -- @scan-ignore: midnight-normalized
 local math_floor = math.floor
 
 local buttons = {}
@@ -243,7 +243,7 @@ function AB:CreateButtons(parent)
             if Utils.IsValueSecret(targetID) then return end
 
             for _, b in ipairs(buttons) do
-                if b.actionID == targetID then
+                if Utils.SafeCompare(b.actionID, targetID, "==") then
                     if not b.assistGlow then
                         b.assistGlow = CreateFrame("Frame", nil, b, "BackdropTemplate")
                         b.assistGlow:SetAllPoints()
@@ -403,7 +403,7 @@ end
 function AB:ACTIONBAR_SLOT_CHANGED(event, arg1)
     ActionHud:Log(string.format("ActionBars: %s (slot=%s)", event, tostring(arg1)), "events")
     for _, btn in ipairs(buttons) do
-        if btn.baseSlot == arg1 or btn.actionID == arg1 or arg1 == 0 then
+        if Utils.SafeCompare(btn.baseSlot, arg1, "==") or Utils.SafeCompare(btn.actionID, arg1, "==") or Utils.SafeCompare(arg1, 0, "==") then
             self:UpdateAction(btn)
             self:UpdateCooldown(btn)
             self:UpdateState(btn)
@@ -439,23 +439,24 @@ function AB:UpdateAction(btn)
     
     -- Paging logic
     if slot >= 1 and slot <= 12 then
-         local page = GetActionBarPage()
+         local page = GetActionBarPage() -- @scan-ignore: midnight-normalized
          local offset = GetBonusBarOffset()
          
-         -- Handle secret values in Midnight
-         if Utils.IsValueSecret(page) then page = 1 end
-         if Utils.IsValueSecret(offset) then offset = 0 end
-
-         if offset > 0 and page == 1 then
-              if offset == 1 then page = 7
-              elseif offset == 2 then page = 8
-              elseif offset == 3 then page = 9
-              elseif offset == 4 then page = 10
-              elseif offset == 5 then page = 11
-              elseif offset == 6 then page = 12
+         -- Use SafeCompare for Midnight compatibility
+         if Utils.SafeCompare(offset, 0, ">") and Utils.SafeCompare(page, 1, "==") then
+              if Utils.SafeCompare(offset, 1, "==") then page = 7
+              elseif Utils.SafeCompare(offset, 2, "==") then page = 8
+              elseif Utils.SafeCompare(offset, 3, "==") then page = 9
+              elseif Utils.SafeCompare(offset, 4, "==") then page = 10
+              elseif Utils.SafeCompare(offset, 5, "==") then page = 11
+              elseif Utils.SafeCompare(offset, 6, "==") then page = 12
               end
          end
-         if page and page > 1 then actionID = (page - 1) * 12 + slot end
+         
+         local pageNum = tonumber(page)
+         if pageNum and pageNum > 1 then 
+             actionID = (pageNum - 1) * 12 + slot 
+         end
     end
     
     btn.actionID = actionID
@@ -464,7 +465,7 @@ function AB:UpdateAction(btn)
     elseif type == "macro" then btn.spellID = GetMacroSpell(actionID)
     else btn.spellID = nil end
     
-    local texture = GetActionTexture(actionID)
+    local texture = GetActionTexture(actionID) -- @scan-ignore: midnight-normalized
     if texture then
         btn.hasAction = true
         btn.icon:SetTexture(texture)
@@ -485,57 +486,36 @@ end
 
 function AB:UpdateCooldown(btn)
     if not btn.hasAction then return end
-    local start, duration = GetActionCooldown(btn.actionID)
     
-    local startIsSecret = Utils.IsValueSecret(start)
-    local durationIsSecret = Utils.IsValueSecret(duration)
+    -- Simplified passthrough similar to trinkets
+    local start, duration, enabled = GetActionCooldown(btn.actionID) -- @scan-ignore: midnight-normalized
     
-    if start and duration then
-        local hasRealCD = false
-        if not startIsSecret and not durationIsSecret then
-            hasRealCD = start > 0 and duration > 0
-        else
-            hasRealCD = true
-        end
+    -- In Midnight, if enabled is a secret value, assume it's true to show the swipe.
+    local isEnabled = enabled
+    if Utils.IsValueSecret(enabled) then isEnabled = true end
+    
+    if isEnabled and duration and (Utils.IsValueSecret(duration) or Utils.SafeCompare(duration, 0, ">")) then
+        btn.cd:SetCooldown(start, duration)
+        btn.cd:Show()
         
-        if hasRealCD then
-            if not startIsSecret and not durationIsSecret then
-                local gcdInfo = Utils.GetSpellCooldownSafe(61304)
-                if gcdInfo and not Utils.IsValueSecret(gcdInfo.startTime) and not Utils.IsValueSecret(gcdInfo.duration) then
-                    if gcdInfo.startTime == start and gcdInfo.duration == duration then
-                        btn.cd:SetDrawEdge(false)
-                    else
-                        if duration <= 1.5 then btn.cd:SetDrawEdge(false) else btn.cd:SetDrawEdge(true) end
-                    end
-                else
-                    btn.cd:SetDrawEdge(false)
-                end
-            else
-                btn.cd:SetDrawEdge(false)
-            end
-            
-            btn.cd:SetCooldown(start, duration)
-            btn.cd:Show()
-            return
+        -- Handle GCD edge case (don't show edge for short durations)
+        -- We only perform this check if the duration is NOT a secret.
+        if not Utils.IsValueSecret(duration) and Utils.SafeCompare(duration, 1.5, "<=") then
+            btn.cd:SetDrawEdge(false)
+        else
+            btn.cd:SetDrawEdge(true)
         end
+        return
     end
     
+    -- Fallback to charges if no main cooldown
     if btn.spellID then
         local chargeInfo = Utils.GetSpellChargesSafe(btn.spellID)
         if chargeInfo then
             local cdStart = chargeInfo.cooldownStartTime
             local cdDuration = chargeInfo.cooldownDuration
-            local cdStartSecret = Utils.IsValueSecret(cdStart)
-            local cdDurationSecret = Utils.IsValueSecret(cdDuration)
             
-            local hasChargeCooldown = false
-            if not cdStartSecret and not cdDurationSecret then
-                hasChargeCooldown = cdStart > 0 and (GetTime() < cdStart + cdDuration)
-            else
-                hasChargeCooldown = cdStart ~= nil
-            end
-            
-            if hasChargeCooldown then
+            if cdStart and cdDuration and (Utils.IsValueSecret(cdDuration) or Utils.SafeCompare(cdDuration, 0, ">")) then
                 btn.cd:SetDrawEdge(true)
                 btn.cd:SetCooldown(cdStart, cdDuration)
                 btn.cd:Show()
@@ -557,30 +537,37 @@ function AB:UpdateState(btn)
    -- Get charge info once and reuse (avoid duplicate API call)
    local chargeInfo = btn.spellID and Utils.GetSpellChargesSafe(btn.spellID)
    
-   if not countIsSecret and (not count or count <= 1) then
+   -- Defensive check for Midnight: if count is a string (secret), don't compare it to numbers
+   local countNum = not countIsSecret and tonumber(count) or nil
+   
+   if not countIsSecret and (not countNum or countNum <= 1) then
        if chargeInfo then 
            count = chargeInfo.currentCharges
            countIsSecret = Utils.IsValueSecret(count)
+           -- Update countNum for the new count
+           countNum = not countIsSecret and tonumber(count) or nil
        end
    end
    
    if countIsSecret then
-       btn.count:SetText("...") 
+       -- Passthrough: SetText handles secret values
+       btn.count:SetText(count) 
    else
        local showCount = false
-       if count and count > 1 then
+       if countNum and countNum > 1 then
            showCount = true
        end
        if chargeInfo and not countIsSecret then
            local maxCharges = chargeInfo.maxCharges
-           if not Utils.IsValueSecret(maxCharges) and maxCharges > 1 then
+           local maxNum = not Utils.IsValueSecret(maxCharges) and tonumber(maxCharges) or nil
+           if maxNum and maxNum > 1 then
                showCount = true
            end
        end
        btn.count:SetText(showCount and count or "")
    end
    
-   local isUsable, noMana = IsUsableAction(actionID)
+   local isUsable, noMana = IsUsableAction(actionID) -- @scan-ignore: midnight-normalized
    if not isUsable and not noMana then
        btn.icon:SetDesaturated(true)
        btn.icon:SetVertexColor(0.4, 0.4, 0.4)
@@ -593,7 +580,7 @@ function AB:UpdateState(btn)
    end
    
    if ActionButton_GetInRange and ActionButton_GetInRange(actionID) == false then 
-       if IsActionInRange(actionID) == false then btn.icon:SetVertexColor(0.8, 0.1, 0.1) end
+       if IsActionInRange(actionID) == false then btn.icon:SetVertexColor(0.8, 0.1, 0.1) end -- @scan-ignore: midnight-normalized
    end
    
    local isOverlayed = false

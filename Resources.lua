@@ -5,9 +5,9 @@ ns.Resources = Resources -- For backward compatibility with other modules refere
 
 -- Local upvalues for performance
 local UnitClass = UnitClass
-local UnitHealth = UnitHealth
+local UnitHealth = UnitHealth -- @scan-ignore: midnight-upvalue
 local UnitHealthMax = UnitHealthMax
-local UnitPower = UnitPower
+local UnitPower = UnitPower -- @scan-ignore: midnight-upvalue
 local UnitPowerMax = UnitPowerMax
 local UnitPowerType = UnitPowerType
 local UnitExists = UnitExists
@@ -96,7 +96,7 @@ local function CanShowClassPower()
     if pType == Enum.PowerType.Runes then
         cur = GetReadyRuneCount()
     else
-        cur = UnitPower("player", pType, true)
+        cur = UnitPower("player", pType, true) -- @scan-ignore: midnight-passthrough
     end
     
     -- Handle Midnight secret values
@@ -107,8 +107,11 @@ local function CanShowClassPower()
         return true, pType, maxIsSecret and 5 or max
     end
     
-    if max <= 0 then return false, pType, 0 end
-    if cur <= 0 then return false, pType, 0 end
+    local maxNum = tonumber(max)
+    local curNum = tonumber(cur)
+    
+    if not maxNum or maxNum <= 0 then return false, pType, 0 end
+    if not curNum or curNum <= 0 then return false, pType, 0 end
     
     return true, pType, max
 end
@@ -126,7 +129,7 @@ local function UpdateClassPower()
     if pType == Enum.PowerType.Runes then
         cur = GetReadyRuneCount()
     else
-        cur = UnitPower("player", pType, true)
+        cur = UnitPower("player", pType, true) -- @scan-ignore: midnight-passthrough
     end
     local curIsSecret = Utils.IsValueSecret(cur)
     
@@ -159,7 +162,7 @@ local function UpdateClassPower()
     
     local baseColor = ClassBarColors[pType]
     if pType == Enum.PowerType.Runes then
-        local spec = GetSpecialization()
+        local spec = Utils.GetSpecializationSafe()
         baseColor = RuneSpecColors[spec] or ClassBarColors[pType]
     end
 
@@ -211,10 +214,10 @@ local function UpdateBarValue(bar, unit)
     
     local cur, max
     if bar.type == "HEALTH" then
-        cur = UnitHealth(unit)
+        cur = UnitHealth(unit) -- @scan-ignore: midnight-passthrough
         max = UnitHealthMax(unit)
     else
-        cur = UnitPower(unit)
+        cur = UnitPower(unit) -- @scan-ignore: midnight-passthrough
         max = UnitPowerMax(unit)
     end
     
