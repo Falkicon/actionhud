@@ -39,7 +39,8 @@ A compact action bar HUD overlay that displays ability icons, cooldowns, and pro
 | `Cooldowns/Cooldowns.lua` | Essential/Utility cooldown icons (custom proxies) |
 | `Cooldowns/TrackedBars.lua` | Tracked Bars reskin (hooks BuffBarCooldownViewer, sidecar positioning) |
 | `Cooldowns/TrackedBuffs.lua` | Tracked Buffs reskin (hooks BuffIconCooldownViewer) |
-| `Nameplates/Nameplates.lua` | Nameplate reskin (hooks NamePlateDriverFrame, Player Frame portrait) |
+| `Nameplates/Nameplates.lua` | Nameplate reskin (hooks NamePlateDriverFrame) |
+| `UnitFrames/UnitFrames.lua` | Unit Frame reskin (PlayerFrame, TargetFrame, FocusFrame) |
 | `SettingsUI.lua` | Blizzard Settings API integration (no external libs) |
 | `ActionHud.toc` | Addon metadata and load order |
 
@@ -173,6 +174,41 @@ For detailed Blizzard frame structure and API reference, see `Docs/proxy-system.
 
 **Note:** Requires `/reload` to apply styling to existing nameplates.
 
+#### UnitFrames Module (Style-Only Approach)
+
+**Midnight (12.0) Compatibility:** Uses the same style-only approach for Player, Target, and Focus frames.
+
+| Blizzard Frame | ActionHud Hook |
+|----------------|----------------|
+| `PlayerFrame` | `PlayerFrame_UpdateArt`, `PlayerFrame_UpdateStatus` |
+| `TargetFrame` | `TargetFrame_Update`, `TargetFrame_CheckClassification` |
+| `FocusFrame` | `FocusFrame:Update` |
+
+**Design:**
+1. Hook into Blizzard's unit frame update functions
+2. Style operations only:
+   - Hide portrait textures (circular character images)
+   - Hide border/decoration textures
+   - Apply flat solid bar texture
+   - Adjust health/mana bar height and width
+   - Style class resource bars (combo points, holy power, etc.)
+
+**Available Settings:**
+
+| Setting | Description |
+|---------|-------------|
+| Enable Unit Frame Styling | Master toggle |
+| Hide Portraits | Remove circular portrait images |
+| Hide Borders | Remove frame borders/decorations |
+| Flat Bar Texture | Use solid color texture |
+| Health Bar Height | Pixel height (5-40) |
+| Mana/Power Bar Height | Pixel height (2-30) |
+| Bar Width Scale | Scale multiplier (0.5-1.5) |
+| Class Bar Height | Pixel height for class resources |
+| Style Player/Target/Focus | Per-frame toggles |
+
+**Note:** Requires `/reload` after changing settings.
+
 ---
 
 ## SavedVariables
@@ -216,6 +252,19 @@ Stored in `ActionHudDB.profile`:
   npBarScale = 1.0,           -- Width scale multiplier
   npClassBarHeight = 4,       -- Class bar height (pixels)
   npHidePlayerPortrait = false, -- Hide Player Frame portrait
+  
+  -- Unit Frames Reskin (Player/Target/Focus)
+  ufEnabled = false,          -- Master toggle
+  ufHidePortraits = true,     -- Hide circular portraits
+  ufHideBorders = true,       -- Hide borders/decorations
+  ufFlatBars = true,          -- Solid bar texture
+  ufHealthHeight = 20,        -- Health bar height (pixels)
+  ufManaHeight = 10,          -- Mana bar height (pixels)
+  ufBarScale = 1.0,           -- Width scale multiplier
+  ufClassBarHeight = 10,      -- Class resource bar height
+  ufStylePlayer = true,       -- Style Player Frame
+  ufStyleTarget = true,       -- Style Target Frame
+  ufStyleFocus = true,        -- Style Focus Frame
 }
 ```
 

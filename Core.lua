@@ -63,6 +63,19 @@ local defaults = {
         npBarScale = 1.0,            -- Width scale multiplier (0.5-1.5)
         npClassBarHeight = 4,        -- Class resource bar height
         npHidePlayerPortrait = false, -- Hide portrait on Player Frame
+        
+        -- Unit Frames Reskin (Player/Target/Focus)
+        ufEnabled = false,           -- Master toggle for unit frame styling
+        ufHidePortraits = true,      -- Hide circular portrait images
+        ufHideBorders = true,        -- Hide frame borders/decorations
+        ufFlatBars = true,           -- Use flat solid bar texture
+        ufHealthHeight = 20,         -- Health bar height in pixels
+        ufManaHeight = 10,           -- Mana/power bar height in pixels
+        ufBarScale = 1.0,            -- Width scale multiplier
+        ufClassBarHeight = 10,       -- Class resource bar height
+        ufStylePlayer = true,        -- Style the Player Frame
+        ufStyleTarget = true,        -- Style the Target Frame
+        ufStyleFocus = true,         -- Style the Focus Frame
 
         -- Minimap Icon (LibDBIcon)
         minimap = {

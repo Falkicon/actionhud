@@ -6,6 +6,14 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased - Midnight Branch]
 
 ### Added
+- **Unit Frames Module**: New reskin module for Player, Target, and Focus frames.
+    - Hide circular portraits for a cleaner look
+    - Hide frame borders and decorations
+    - Flat solid bar textures
+    - Adjustable health and mana bar heights
+    - Bar width scaling
+    - Class resource bar (combo points, holy power) sizing
+    - Per-frame toggles (Player, Target, Focus)
 - **Nameplates Module**: New reskin module for Blizzard's default nameplates.
     - Hide borders for a clean, minimal appearance
     - Flat solid bar textures (like personal resources)

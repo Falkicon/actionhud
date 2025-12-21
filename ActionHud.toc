@@ -19,4 +19,5 @@ Cooldowns\TrackedBars.lua
 Cooldowns\TrackedBuffs.lua
 Cooldowns\TrackedDefensives.lua
 Nameplates\Nameplates.lua
+UnitFrames\UnitFrames.lua
 SettingsUI.lua

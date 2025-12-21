@@ -612,6 +612,158 @@ Enable it in Gameplay Enhancements to use these features.]]
             },
         },
     }
+    
+    -- SUB: Unit Frames (Player/Target/Focus)
+    local unitFrameOptions = {
+        name = "Unit Frames",
+        handler = ActionHud,
+        type = "group",
+        args = {
+            infoNote = {
+                type = "description", order = 0,
+                name = [[Reskin the default Player, Target, and Focus frames.
+
+|cffffcc00Note:|r Use |cff00ff00/reload|r after changing settings to fully apply styling.
+]],
+            },
+            enable = {
+                name = "Enable Unit Frame Styling",
+                desc = "Apply ActionHud styling to unit frames.",
+                type = "toggle", order = 1, width = "full",
+                get = function(info) return self.db.profile.ufEnabled end,
+                set = function(info, val) 
+                    self.db.profile.ufEnabled = val
+                    ActionHud:GetModule("UnitFrames"):UpdateLayout()
+                end,
+            },
+            
+            -- Appearance Section
+            appearanceHeader = { name = "Appearance", type = "header", order = 10 },
+            hidePortraits = {
+                name = "Hide Portraits",
+                desc = "Hide the circular portrait images on frames.",
+                type = "toggle", order = 11, width = 1.0,
+                disabled = function() return not self.db.profile.ufEnabled end,
+                get = function(info) return self.db.profile.ufHidePortraits end,
+                set = function(info, val) 
+                    self.db.profile.ufHidePortraits = val
+                    ActionHud:GetModule("UnitFrames"):UpdateLayout()
+                end,
+            },
+            hideBorders = {
+                name = "Hide Borders",
+                desc = "Remove frame borders and decorations for a clean look.",
+                type = "toggle", order = 12, width = 1.0,
+                disabled = function() return not self.db.profile.ufEnabled end,
+                get = function(info) return self.db.profile.ufHideBorders end,
+                set = function(info, val) 
+                    self.db.profile.ufHideBorders = val
+                    ActionHud:GetModule("UnitFrames"):UpdateLayout()
+                end,
+            },
+            flatBars = {
+                name = "Flat Bar Texture",
+                desc = "Use a solid flat texture instead of gradient bars.",
+                type = "toggle", order = 13, width = 1.0,
+                disabled = function() return not self.db.profile.ufEnabled end,
+                get = function(info) return self.db.profile.ufFlatBars end,
+                set = function(info, val) 
+                    self.db.profile.ufFlatBars = val
+                    ActionHud:GetModule("UnitFrames"):UpdateLayout()
+                end,
+            },
+            
+            -- Sizing Section
+            sizingHeader = { name = "Bar Sizing", type = "header", order = 20 },
+            healthHeight = {
+                name = "Health Bar Height",
+                desc = "Height of the health bar in pixels.",
+                type = "range", min = 5, max = 40, step = 1, order = 21,
+                disabled = function() return not self.db.profile.ufEnabled end,
+                get = function(info) return self.db.profile.ufHealthHeight end,
+                set = function(info, val) 
+                    self.db.profile.ufHealthHeight = val
+                    ActionHud:GetModule("UnitFrames"):UpdateLayout()
+                end,
+            },
+            manaHeight = {
+                name = "Mana/Power Bar Height",
+                desc = "Height of the mana/power bar in pixels.",
+                type = "range", min = 2, max = 30, step = 1, order = 22,
+                disabled = function() return not self.db.profile.ufEnabled end,
+                get = function(info) return self.db.profile.ufManaHeight end,
+                set = function(info, val) 
+                    self.db.profile.ufManaHeight = val
+                    ActionHud:GetModule("UnitFrames"):UpdateLayout()
+                end,
+            },
+            barScale = {
+                name = "Bar Width Scale",
+                desc = "Scale the width of health/mana bars (1.0 = default).",
+                type = "range", min = 0.5, max = 1.5, step = 0.05, order = 23,
+                disabled = function() return not self.db.profile.ufEnabled end,
+                get = function(info) return self.db.profile.ufBarScale end,
+                set = function(info, val) 
+                    self.db.profile.ufBarScale = val
+                    ActionHud:GetModule("UnitFrames"):UpdateLayout()
+                end,
+            },
+            
+            -- Class Resources Section
+            classHeader = { name = "Class Resources", type = "header", order = 30 },
+            classBarHeight = {
+                name = "Class Bar Height",
+                desc = "Height of the class resource bar (combo points, holy power, etc.).",
+                type = "range", min = 5, max = 30, step = 1, order = 31,
+                disabled = function() return not self.db.profile.ufEnabled end,
+                get = function(info) return self.db.profile.ufClassBarHeight end,
+                set = function(info, val) 
+                    self.db.profile.ufClassBarHeight = val
+                    ActionHud:GetModule("UnitFrames"):UpdateLayout()
+                end,
+            },
+            
+            -- Scope Section
+            scopeHeader = { name = "Frame Selection", type = "header", order = 40 },
+            scopeNote = {
+                type = "description", order = 41,
+                name = "Choose which frames to style:",
+            },
+            stylePlayer = {
+                name = "Player Frame",
+                desc = "Apply styling to your Player Frame.",
+                type = "toggle", order = 42, width = 0.8,
+                disabled = function() return not self.db.profile.ufEnabled end,
+                get = function(info) return self.db.profile.ufStylePlayer end,
+                set = function(info, val) 
+                    self.db.profile.ufStylePlayer = val
+                    ActionHud:GetModule("UnitFrames"):UpdateLayout()
+                end,
+            },
+            styleTarget = {
+                name = "Target Frame",
+                desc = "Apply styling to the Target Frame.",
+                type = "toggle", order = 43, width = 0.8,
+                disabled = function() return not self.db.profile.ufEnabled end,
+                get = function(info) return self.db.profile.ufStyleTarget end,
+                set = function(info, val) 
+                    self.db.profile.ufStyleTarget = val
+                    ActionHud:GetModule("UnitFrames"):UpdateLayout()
+                end,
+            },
+            styleFocus = {
+                name = "Focus Frame",
+                desc = "Apply styling to the Focus Frame.",
+                type = "toggle", order = 44, width = 0.8,
+                disabled = function() return not self.db.profile.ufEnabled end,
+                get = function(info) return self.db.profile.ufStyleFocus end,
+                set = function(info, val) 
+                    self.db.profile.ufStyleFocus = val
+                    ActionHud:GetModule("UnitFrames"):UpdateLayout()
+                end,
+            },
+        },
+    }
 
     -- SUB: Layout
     -- Helper to get LayoutManager
@@ -903,7 +1055,11 @@ Enable it in Gameplay Enhancements to use these features.]]
     LibStub("AceConfig-3.0"):RegisterOptionsTable("ActionHud_Nameplates", nameplateOptions)
     LibStub("AceConfigDialog-3.0"):AddToBlizOptions("ActionHud_Nameplates", "Nameplates", "ActionHud")
     
-    -- 8-9. Meta settings
+    -- 8. Unit Frames (Player/Target/Focus)
+    LibStub("AceConfig-3.0"):RegisterOptionsTable("ActionHud_UnitFrames", unitFrameOptions)
+    LibStub("AceConfigDialog-3.0"):AddToBlizOptions("ActionHud_UnitFrames", "Unit Frames", "ActionHud")
+    
+    -- 9-10. Meta settings
     local profiles = LibStub("AceDBOptions-3.0"):GetOptionsTable(self.db)
     LibStub("AceConfig-3.0"):RegisterOptionsTable("ActionHud_Profiles", profiles)
     LibStub("AceConfigDialog-3.0"):AddToBlizOptions("ActionHud_Profiles", "Profiles", "ActionHud")
