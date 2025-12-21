@@ -15,6 +15,9 @@ local FLAT_BAR_TEXTURE = "Interface\\Buttons\\WHITE8x8"
 -- Forward declaration for local functions
 local ApplyFlatTexture
 
+-- Color multiplier to match Resources module (less saturated)
+local COLOR_MULT = 0.85
+
 -- Apply flat texture to a status bar and force color update
 ApplyFlatTexture = function(bar, unit, barType)
     if not bar then return end
@@ -22,32 +25,37 @@ ApplyFlatTexture = function(bar, unit, barType)
     
     -- Force color based on bar type
     if barType == "health" then
-        -- For health bars, use class color or green
+        -- For health bars, use class color or green (with multiplier)
         if unit and UnitIsPlayer(unit) then
             local _, class = UnitClass(unit)
             if class then
                 local color = RAID_CLASS_COLORS[class]
                 if color then
-                    bar:SetStatusBarColor(color.r, color.g, color.b)
+                    bar:SetStatusBarColor(color.r * COLOR_MULT, color.g * COLOR_MULT, color.b * COLOR_MULT)
                     return
                 end
             end
         end
         -- Default green for health
-        bar:SetStatusBarColor(0, 0.8, 0)
+        bar:SetStatusBarColor(0, 0.8 * COLOR_MULT, 0)
     elseif barType == "mana" then
-        -- Get power type and color appropriately
+        -- Get power type and color appropriately (with multiplier to match Resources module)
         if unit then
             local powerType = UnitPowerType(unit)
             local color = PowerBarColor[powerType]
             if color then
-                bar:SetStatusBarColor(color.r, color.g, color.b)
+                bar:SetStatusBarColor(color.r * COLOR_MULT, color.g * COLOR_MULT, color.b * COLOR_MULT)
                 return
             end
         end
         -- Default blue for mana
-        bar:SetStatusBarColor(0, 0.5, 1)
+        bar:SetStatusBarColor(0, 0.5 * COLOR_MULT, 1 * COLOR_MULT)
     end
+    
+    -- Hide power bar animations (FullPowerFrame = gate animation, Spark = moving glow)
+    if bar.FullPowerFrame then bar.FullPowerFrame:Hide() end
+    if bar.Spark then bar.Spark:Hide() end
+    if bar.FeedbackFrame then bar.FeedbackFrame:Hide() end
 end
 
 -- Aggressively hide a texture (try multiple methods)
@@ -96,8 +104,11 @@ local function ApplyFontToBar(bar, fontPath, fontSize, alwaysShow)
     end
 end
 
--- Normalized bar width for all frames (default from TargetFrame which is wider)
+-- Normalized dimensions for all frames
 local NORMALIZED_BAR_WIDTH = 126
+local NORMALIZED_HEALTH_HEIGHT = 20  -- Default health bar height
+local NORMALIZED_MANA_HEIGHT = 10    -- Default mana/power bar height
+local BG_PADDING = 1                  -- Background padding around bars (thinner = tighter)
 
 function UnitFrames:OnInitialize()
     self.db = addon.db
@@ -312,48 +323,38 @@ function UnitFrames:StylePlayerFrame()
         end
     end
     
-    -- Resize health bar (skip during combat to avoid taint)
-    if main and p.ufHealthHeight and not InCombatLockdown() then
-        local healthContainer = main.HealthBarsContainer
-        if healthContainer then
-            healthContainer:SetHeight(p.ufHealthHeight)
-            if healthContainer.HealthBar then
-                healthContainer.HealthBar:SetHeight(p.ufHealthHeight)
-            end
-        end
-    end
-    
-    -- Resize mana bar (skip during combat)
-    if manaBar and p.ufManaHeight and not InCombatLockdown() then
-        manaBar:SetHeight(p.ufManaHeight)
-    end
-    
-    -- Apply bar width - normalize to standard width, then apply scale (skip during combat)
+    -- Apply bar dimensions - normalize width and height (skip during combat)
     if main and not InCombatLockdown() then
         local healthContainer = main.HealthBarsContainer
         local scaledWidth = NORMALIZED_BAR_WIDTH * (p.ufBarScale or 1.0)
+        local healthHeight = p.ufHealthHeight or NORMALIZED_HEALTH_HEIGHT
+        local manaHeight = p.ufManaHeight or NORMALIZED_MANA_HEIGHT
+        
         if healthContainer then
             healthContainer:SetWidth(scaledWidth)
+            healthContainer:SetHeight(healthHeight)
             if healthContainer.HealthBar then
                 healthContainer.HealthBar:SetWidth(scaledWidth)
+                healthContainer.HealthBar:SetHeight(healthHeight)
             end
         end
         if manaBar then
             manaBar:SetWidth(scaledWidth)
+            manaBar:SetHeight(manaHeight)
         end
     end
     
-    -- Add background behind bars
+    -- Add background behind bars (tight padding)
     if p.ufShowBackground and main then
         local healthContainer = main.HealthBarsContainer
         if healthContainer then
             local bg = GetOrCreateBackground(PlayerFrame, "Player")
             bg:ClearAllPoints()
-            bg:SetPoint("TOPLEFT", healthContainer, "TOPLEFT", -3, 3)
+            bg:SetPoint("TOPLEFT", healthContainer, "TOPLEFT", -BG_PADDING, BG_PADDING)
             if manaBar and manaBar:IsShown() then
-                bg:SetPoint("BOTTOMRIGHT", manaBar, "BOTTOMRIGHT", 3, -3)
+                bg:SetPoint("BOTTOMRIGHT", manaBar, "BOTTOMRIGHT", BG_PADDING, -BG_PADDING)
             else
-                bg:SetPoint("BOTTOMRIGHT", healthContainer, "BOTTOMRIGHT", 3, -3)
+                bg:SetPoint("BOTTOMRIGHT", healthContainer, "BOTTOMRIGHT", BG_PADDING, -BG_PADDING)
             end
             bg:Show()
         end
@@ -450,48 +451,38 @@ function UnitFrames:StyleTargetFrame()
         end
     end
     
-    -- Resize health bar (skip during combat to avoid taint)
-    if main and p.ufHealthHeight and not InCombatLockdown() then
-        local healthContainer = main.HealthBarsContainer
-        if healthContainer then
-            healthContainer:SetHeight(p.ufHealthHeight)
-            if healthContainer.HealthBar then
-                healthContainer.HealthBar:SetHeight(p.ufHealthHeight)
-            end
-        end
-    end
-    
-    -- Resize mana bar (skip during combat)
-    if main and main.ManaBar and p.ufManaHeight and not InCombatLockdown() then
-        main.ManaBar:SetHeight(p.ufManaHeight)
-    end
-    
-    -- Apply bar width - normalize to standard width, then apply scale (skip during combat)
+    -- Apply bar dimensions - normalize width and height (skip during combat)
     if main and not InCombatLockdown() then
         local healthContainer = main.HealthBarsContainer
         local scaledWidth = NORMALIZED_BAR_WIDTH * (p.ufBarScale or 1.0)
+        local healthHeight = p.ufHealthHeight or NORMALIZED_HEALTH_HEIGHT
+        local manaHeight = p.ufManaHeight or NORMALIZED_MANA_HEIGHT
+        
         if healthContainer then
             healthContainer:SetWidth(scaledWidth)
+            healthContainer:SetHeight(healthHeight)
             if healthContainer.HealthBar then
                 healthContainer.HealthBar:SetWidth(scaledWidth)
+                healthContainer.HealthBar:SetHeight(healthHeight)
             end
         end
         if main.ManaBar then
             main.ManaBar:SetWidth(scaledWidth)
+            main.ManaBar:SetHeight(manaHeight)
         end
     end
     
-    -- Add background behind bars
+    -- Add background behind bars (tight padding)
     if p.ufShowBackground and main then
         local healthContainer = main.HealthBarsContainer
         if healthContainer then
             local bg = GetOrCreateBackground(TargetFrame, "Target")
             bg:ClearAllPoints()
-            bg:SetPoint("TOPLEFT", healthContainer, "TOPLEFT", -3, 3)
+            bg:SetPoint("TOPLEFT", healthContainer, "TOPLEFT", -BG_PADDING, BG_PADDING)
             if main.ManaBar and main.ManaBar:IsShown() then
-                bg:SetPoint("BOTTOMRIGHT", main.ManaBar, "BOTTOMRIGHT", 3, -3)
+                bg:SetPoint("BOTTOMRIGHT", main.ManaBar, "BOTTOMRIGHT", BG_PADDING, -BG_PADDING)
             else
-                bg:SetPoint("BOTTOMRIGHT", healthContainer, "BOTTOMRIGHT", 3, -3)
+                bg:SetPoint("BOTTOMRIGHT", healthContainer, "BOTTOMRIGHT", BG_PADDING, -BG_PADDING)
             end
             bg:Show()
         end
@@ -583,48 +574,38 @@ function UnitFrames:StyleFocusFrame()
         end
     end
     
-    -- Resize health bar (skip during combat to avoid taint)
-    if main and p.ufHealthHeight and not InCombatLockdown() then
-        local healthContainer = main.HealthBarsContainer
-        if healthContainer then
-            healthContainer:SetHeight(p.ufHealthHeight)
-            if healthContainer.HealthBar then
-                healthContainer.HealthBar:SetHeight(p.ufHealthHeight)
-            end
-        end
-    end
-    
-    -- Resize mana bar (skip during combat)
-    if main and main.ManaBar and p.ufManaHeight and not InCombatLockdown() then
-        main.ManaBar:SetHeight(p.ufManaHeight)
-    end
-    
-    -- Apply bar width - normalize to standard width, then apply scale (skip during combat)
+    -- Apply bar dimensions - normalize width and height (skip during combat)
     if main and not InCombatLockdown() then
         local healthContainer = main.HealthBarsContainer
         local scaledWidth = NORMALIZED_BAR_WIDTH * (p.ufBarScale or 1.0)
+        local healthHeight = p.ufHealthHeight or NORMALIZED_HEALTH_HEIGHT
+        local manaHeight = p.ufManaHeight or NORMALIZED_MANA_HEIGHT
+        
         if healthContainer then
             healthContainer:SetWidth(scaledWidth)
+            healthContainer:SetHeight(healthHeight)
             if healthContainer.HealthBar then
                 healthContainer.HealthBar:SetWidth(scaledWidth)
+                healthContainer.HealthBar:SetHeight(healthHeight)
             end
         end
         if main.ManaBar then
             main.ManaBar:SetWidth(scaledWidth)
+            main.ManaBar:SetHeight(manaHeight)
         end
     end
     
-    -- Add background behind bars
+    -- Add background behind bars (tight padding)
     if p.ufShowBackground and main then
         local healthContainer = main.HealthBarsContainer
         if healthContainer then
             local bg = GetOrCreateBackground(FocusFrame, "Focus")
             bg:ClearAllPoints()
-            bg:SetPoint("TOPLEFT", healthContainer, "TOPLEFT", -3, 3)
+            bg:SetPoint("TOPLEFT", healthContainer, "TOPLEFT", -BG_PADDING, BG_PADDING)
             if main.ManaBar and main.ManaBar:IsShown() then
-                bg:SetPoint("BOTTOMRIGHT", main.ManaBar, "BOTTOMRIGHT", 3, -3)
+                bg:SetPoint("BOTTOMRIGHT", main.ManaBar, "BOTTOMRIGHT", BG_PADDING, -BG_PADDING)
             else
-                bg:SetPoint("BOTTOMRIGHT", healthContainer, "BOTTOMRIGHT", 3, -3)
+                bg:SetPoint("BOTTOMRIGHT", healthContainer, "BOTTOMRIGHT", BG_PADDING, -BG_PADDING)
             end
             bg:Show()
         end
