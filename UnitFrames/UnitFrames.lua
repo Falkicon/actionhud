@@ -135,7 +135,12 @@ local function HideTexture(texture)
 end
 
 -- Style the Player Frame
--- Exact paths from Blizzard's PlayerFrame.xml
+-- PlayerFrame structure:
+--   Portrait: PlayerFrame.PlayerFrameContainer.PlayerPortrait
+--   FrameTexture: PlayerFrame.PlayerFrameContainer.FrameTexture (includes portrait ring AND bar decorations)
+--   HealthBar: PlayerFrame.PlayerFrameContent.PlayerFrameContentMain.HealthBarsContainer.HealthBar
+--   ManaBar: PlayerFrame.PlayerFrameContent.PlayerFrameContentMain.ManaBarArea.ManaBar (note: inside ManaBarArea!)
+--   Contextual: PlayerFrame.PlayerFrameContent.PlayerFrameContentContextual (Zzz, arrow, etc.)
 function UnitFrames:StylePlayerFrame()
     if not PlayerFrame then return end
     
@@ -145,41 +150,42 @@ function UnitFrames:StylePlayerFrame()
     local main = content and content.PlayerFrameContentMain
     local contextual = content and content.PlayerFrameContentContextual
     
-    -- Hide portrait
+    -- Hide portrait AND associated elements (Zzz, arrow, corner icon)
+    -- These are all visually part of the "portrait area"
     if p.ufHidePortraits then
-        if container and container.PlayerPortrait then
-            container.PlayerPortrait:SetAlpha(0)
+        if container then
+            if container.PlayerPortrait then container.PlayerPortrait:SetAlpha(0) end
+            if container.PlayerPortraitMask then container.PlayerPortraitMask:Hide() end
         end
-        if container and container.PlayerPortraitMask then
-            container.PlayerPortraitMask:Hide()
+        
+        -- Portrait-area contextual elements
+        if contextual then
+            -- The yellow corner arrow/embellishment
+            HideTexture(contextual.PlayerPortraitCornerIcon)
+            -- Combat sword icon (appears near portrait)
+            HideTexture(contextual.AttackIcon)
+            -- Zzz rest animation
+            if contextual.PlayerRestLoop then contextual.PlayerRestLoop:Hide() end
+            -- PVP icons (appear near portrait)
+            HideTexture(contextual.PVPIcon)
+            HideTexture(contextual.PrestigePortrait)
+            HideTexture(contextual.PrestigeBadge)
         end
     end
     
-    -- Hide borders/frame textures
+    -- Hide borders/frame textures (the main frame decoration)
     if p.ufHideBorders then
         if container then
-            -- Main frame textures - use aggressive hiding
+            -- Main frame textures - these include portrait ring AND bar decorations
             HideTexture(container.FrameTexture)
             HideTexture(container.VehicleFrameTexture)
             HideTexture(container.AlternatePowerFrameTexture)
             HideTexture(container.FrameFlash)
         end
         
-        -- Contextual elements (corner icon, rest indicator, etc.)
+        -- Group/leader indicators (part of frame decoration)
         if contextual then
-            -- The yellow corner arrow/embellishment
-            HideTexture(contextual.PlayerPortraitCornerIcon)
-            -- Combat sword icon
-            HideTexture(contextual.AttackIcon)
-            -- Zzz rest animation
-            if contextual.PlayerRestLoop then contextual.PlayerRestLoop:Hide() end
-            -- PVP icons
-            HideTexture(contextual.PVPIcon)
-            HideTexture(contextual.PrestigePortrait)
-            HideTexture(contextual.PrestigeBadge)
-            -- Group indicator
             if contextual.GroupIndicator then contextual.GroupIndicator:Hide() end
-            -- Leader/Guide icons
             HideTexture(contextual.LeaderIcon)
             HideTexture(contextual.GuideIcon)
             HideTexture(contextual.RoleIcon)
@@ -196,11 +202,16 @@ function UnitFrames:StylePlayerFrame()
             if healthContainer and healthContainer.HealthBarMask then
                 healthContainer.HealthBarMask:Hide()
             end
-            if main.ManaBar and main.ManaBar.ManaBarMask then
-                main.ManaBar.ManaBarMask:Hide()
+            -- ManaBar is inside ManaBarArea for PlayerFrame
+            local manaBarArea = main.ManaBarArea
+            if manaBarArea and manaBarArea.ManaBar and manaBarArea.ManaBar.ManaBarMask then
+                manaBarArea.ManaBar.ManaBarMask:Hide()
             end
         end
     end
+    
+    -- Get the mana bar (PlayerFrame has it inside ManaBarArea)
+    local manaBar = main and main.ManaBarArea and main.ManaBarArea.ManaBar
     
     -- Apply flat bar texture with proper colors
     if p.ufFlatBars and main then
@@ -208,12 +219,12 @@ function UnitFrames:StylePlayerFrame()
         if healthContainer and healthContainer.HealthBar then
             ApplyFlatTexture(healthContainer.HealthBar, "player", "health")
         end
-        if main.ManaBar then
-            ApplyFlatTexture(main.ManaBar, "player", "mana")
+        if manaBar then
+            ApplyFlatTexture(manaBar, "player", "mana")
         end
     end
     
-    -- Resize bars
+    -- Resize health bar
     if main and p.ufHealthHeight then
         local healthContainer = main.HealthBarsContainer
         if healthContainer then
@@ -224,13 +235,34 @@ function UnitFrames:StylePlayerFrame()
         end
     end
     
-    if main and main.ManaBar and p.ufManaHeight then
-        main.ManaBar:SetHeight(p.ufManaHeight)
+    -- Resize mana bar
+    if manaBar and p.ufManaHeight then
+        manaBar:SetHeight(p.ufManaHeight)
+    end
+    
+    -- Apply bar width scale
+    if p.ufBarScale and p.ufBarScale ~= 1.0 and main then
+        local healthContainer = main.HealthBarsContainer
+        if healthContainer then
+            local defaultWidth = 124  -- Default from XML
+            healthContainer:SetWidth(defaultWidth * p.ufBarScale)
+            if healthContainer.HealthBar then
+                healthContainer.HealthBar:SetWidth(defaultWidth * p.ufBarScale)
+            end
+        end
+        if manaBar then
+            local defaultManaWidth = 124  -- Default from XML
+            manaBar:SetWidth(defaultManaWidth * p.ufBarScale)
+        end
     end
 end
 
 -- Style the Target Frame
--- Exact paths from Blizzard's TargetFrame.xml (TargetFrameTemplate)
+-- TargetFrame structure:
+--   Portrait: TargetFrame.TargetFrameContainer.Portrait
+--   FrameTexture: TargetFrame.TargetFrameContainer.FrameTexture
+--   HealthBar: TargetFrame.TargetFrameContent.TargetFrameContentMain.HealthBarsContainer.HealthBar
+--   ManaBar: TargetFrame.TargetFrameContent.TargetFrameContentMain.ManaBar (directly under main, no ManaBarArea!)
 function UnitFrames:StyleTargetFrame()
     if not TargetFrame then return end
     
@@ -242,11 +274,9 @@ function UnitFrames:StyleTargetFrame()
     
     -- Hide portrait
     if p.ufHidePortraits then
-        if container and container.Portrait then
-            container.Portrait:SetAlpha(0)
-        end
-        if container and container.PortraitMask then
-            container.PortraitMask:Hide()
+        if container then
+            if container.Portrait then container.Portrait:SetAlpha(0) end
+            if container.PortraitMask then container.PortraitMask:Hide() end
         end
     end
     
@@ -293,7 +323,7 @@ function UnitFrames:StyleTargetFrame()
         end
     end
     
-    -- Resize bars
+    -- Resize health bar
     if main and p.ufHealthHeight then
         local healthContainer = main.HealthBarsContainer
         if healthContainer then
@@ -304,8 +334,25 @@ function UnitFrames:StyleTargetFrame()
         end
     end
     
+    -- Resize mana bar
     if main and main.ManaBar and p.ufManaHeight then
         main.ManaBar:SetHeight(p.ufManaHeight)
+    end
+    
+    -- Apply bar width scale
+    if p.ufBarScale and p.ufBarScale ~= 1.0 and main then
+        local healthContainer = main.HealthBarsContainer
+        if healthContainer then
+            local defaultWidth = 126  -- Default from XML
+            healthContainer:SetWidth(defaultWidth * p.ufBarScale)
+            if healthContainer.HealthBar then
+                healthContainer.HealthBar:SetWidth(defaultWidth * p.ufBarScale)
+            end
+        end
+        if main.ManaBar then
+            local defaultManaWidth = 134  -- Default from XML
+            main.ManaBar:SetWidth(defaultManaWidth * p.ufBarScale)
+        end
     end
 end
 
@@ -321,11 +368,9 @@ function UnitFrames:StyleFocusFrame()
     
     -- Hide portrait
     if p.ufHidePortraits then
-        if container and container.Portrait then
-            container.Portrait:SetAlpha(0)
-        end
-        if container and container.PortraitMask then
-            container.PortraitMask:Hide()
+        if container then
+            if container.Portrait then container.Portrait:SetAlpha(0) end
+            if container.PortraitMask then container.PortraitMask:Hide() end
         end
     end
     
@@ -372,7 +417,7 @@ function UnitFrames:StyleFocusFrame()
         end
     end
     
-    -- Resize bars
+    -- Resize health bar
     if main and p.ufHealthHeight then
         local healthContainer = main.HealthBarsContainer
         if healthContainer then
@@ -383,8 +428,25 @@ function UnitFrames:StyleFocusFrame()
         end
     end
     
+    -- Resize mana bar
     if main and main.ManaBar and p.ufManaHeight then
         main.ManaBar:SetHeight(p.ufManaHeight)
+    end
+    
+    -- Apply bar width scale
+    if p.ufBarScale and p.ufBarScale ~= 1.0 and main then
+        local healthContainer = main.HealthBarsContainer
+        if healthContainer then
+            local defaultWidth = 126
+            healthContainer:SetWidth(defaultWidth * p.ufBarScale)
+            if healthContainer.HealthBar then
+                healthContainer.HealthBar:SetWidth(defaultWidth * p.ufBarScale)
+            end
+        end
+        if main.ManaBar then
+            local defaultManaWidth = 134
+            main.ManaBar:SetWidth(defaultManaWidth * p.ufBarScale)
+        end
     end
 end
 
@@ -423,6 +485,7 @@ function UnitFrames:DebugPlayerFrame()
             local main = content.PlayerFrameContentMain
             print("    .HealthBarsContainer:", main.HealthBarsContainer and "YES" or "NO")
             print("    .StatusTexture:", main.StatusTexture and "YES" or "NO")
+            print("    .ManaBarArea:", main.ManaBarArea and "YES" or "NO")
             
             if main.HealthBarsContainer then
                 local hc = main.HealthBarsContainer
@@ -430,10 +493,12 @@ function UnitFrames:DebugPlayerFrame()
                 print("      .HealthBarMask:", hc.HealthBarMask and "YES" or "NO")
             end
             
-            print("    .ManaBar:", main.ManaBar and "YES" or "NO")
-            if main.ManaBar then
-                print("      .ManaBarMask:", main.ManaBar.ManaBarMask and "YES" or "NO")
+            if main.ManaBarArea then
+                print("      .ManaBarArea.ManaBar:", main.ManaBarArea.ManaBar and "YES" or "NO")
             end
+            
+            -- Also check direct ManaBar path
+            print("    .ManaBar (direct):", main.ManaBar and "YES" or "NO")
         end
     end
 end

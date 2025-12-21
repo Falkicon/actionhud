@@ -641,7 +641,7 @@ Enable it in Gameplay Enhancements to use these features.]]
             appearanceHeader = { name = "Appearance", type = "header", order = 10 },
             hidePortraits = {
                 name = "Hide Portraits",
-                desc = "Hide the circular portrait images on frames.",
+                desc = "Hide the circular portrait image plus portrait-area elements (rest indicator, corner embellishment, combat icon).",
                 type = "toggle", order = 11, width = 1.0,
                 disabled = function() return not self.db.profile.ufEnabled end,
                 get = function(info) return self.db.profile.ufHidePortraits end,
@@ -652,7 +652,7 @@ Enable it in Gameplay Enhancements to use these features.]]
             },
             hideBorders = {
                 name = "Hide Borders",
-                desc = "Remove frame borders and decorations for a clean look.",
+                desc = "Remove the frame border/decoration texture. Note: This also hides the gold ring around the portrait (they're one texture).",
                 type = "toggle", order = 12, width = 1.0,
                 disabled = function() return not self.db.profile.ufEnabled end,
                 get = function(info) return self.db.profile.ufHideBorders end,
