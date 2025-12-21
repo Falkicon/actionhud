@@ -83,23 +83,9 @@ local function ApplyFontToBar(bar, fontPath, fontSize, alwaysShow)
             -- Force text visibility if always show is enabled
             if alwaysShow then
                 textEl:Show()
+                textEl:SetAlpha(1)
             end
         end
-    end
-    
-    -- Force the main text visible if alwaysShow is enabled
-    if alwaysShow and bar.TextString then
-        bar.TextString:Show()
-        -- Override Blizzard's visibility control
-        bar.lockShow = 1
-    end
-end
-
--- Force text visibility on a status bar (called on updates)
-local function ForceTextVisibility(bar)
-    if not bar then return end
-    if bar.TextString then
-        bar.TextString:Show()
     end
 end
 
