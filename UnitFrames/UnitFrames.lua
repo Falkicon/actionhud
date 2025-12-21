@@ -80,9 +80,53 @@ function UnitFrames:InstallHooks()
         end
     end)
     
+    -- Power bar updates - Blizzard resets texture on power changes
+    self:RegisterEvent("UNIT_DISPLAYPOWER", function(event, unit)
+        if unit == "player" and isStylingActive and self.db.profile.ufStylePlayer then
+            C_Timer.After(0.05, function() self:StylePlayerFrame() end)
+        elseif unit == "target" and isStylingActive and self.db.profile.ufStyleTarget then
+            C_Timer.After(0.05, function() self:StyleTargetFrame() end)
+        elseif unit == "focus" and isStylingActive and self.db.profile.ufStyleFocus then
+            C_Timer.After(0.05, function() self:StyleFocusFrame() end)
+        end
+    end)
+    
+    -- Hook the player mana bar's SetStatusBarTexture to intercept Blizzard resets
+    local main = PlayerFrame.PlayerFrameContent and PlayerFrame.PlayerFrameContent.PlayerFrameContentMain
+    local manaBar = main and main.ManaBarArea and main.ManaBarArea.ManaBar
+    if manaBar and not manaBar.ahHooked then
+        local origSetTexture = manaBar.SetStatusBarTexture
+        manaBar.SetStatusBarTexture = function(self, texture, ...)
+            if isStylingActive and addon.db.profile.ufFlatBars and addon.db.profile.ufStylePlayer then
+                origSetTexture(self, FLAT_BAR_TEXTURE, ...)
+            else
+                origSetTexture(self, texture, ...)
+            end
+        end
+        manaBar.ahHooked = true
+    end
+    
     hooksInstalled = true
     addon:Log("UnitFrames: Hooks installed", "discovery")
     return true
+end
+
+-- Create or get background frame for a unit frame
+local backgrounds = {}
+local function GetOrCreateBackground(parentFrame, name)
+    if backgrounds[name] then return backgrounds[name] end
+    
+    local bg = CreateFrame("Frame", "ActionHudUF_BG_" .. name, parentFrame, "BackdropTemplate")
+    bg:SetBackdrop({
+        bgFile = "Interface\\Buttons\\WHITE8x8",
+        edgeFile = "Interface\\Buttons\\WHITE8x8",
+        edgeSize = 1,
+    })
+    bg:SetBackdropColor(0, 0, 0, 0.7)
+    bg:SetBackdropBorderColor(0.2, 0.2, 0.2, 0.8)
+    bg:SetFrameStrata("BACKGROUND")
+    backgrounds[name] = bg
+    return bg
 end
 
 -- Apply flat texture to a status bar and force color update
@@ -255,6 +299,20 @@ function UnitFrames:StylePlayerFrame()
             manaBar:SetWidth(defaultManaWidth * p.ufBarScale)
         end
     end
+    
+    -- Add background behind bars
+    if p.ufShowBackground and main then
+        local healthContainer = main.HealthBarsContainer
+        if healthContainer then
+            local bg = GetOrCreateBackground(PlayerFrame, "Player")
+            bg:ClearAllPoints()
+            bg:SetPoint("TOPLEFT", healthContainer, "TOPLEFT", -2, 2)
+            bg:SetPoint("BOTTOMRIGHT", manaBar or healthContainer, "BOTTOMRIGHT", 2, -2)
+            bg:Show()
+        end
+    elseif backgrounds["Player"] then
+        backgrounds["Player"]:Hide()
+    end
 end
 
 -- Style the Target Frame
@@ -354,6 +412,20 @@ function UnitFrames:StyleTargetFrame()
             main.ManaBar:SetWidth(defaultManaWidth * p.ufBarScale)
         end
     end
+    
+    -- Add background behind bars
+    if p.ufShowBackground and main then
+        local healthContainer = main.HealthBarsContainer
+        if healthContainer then
+            local bg = GetOrCreateBackground(TargetFrame, "Target")
+            bg:ClearAllPoints()
+            bg:SetPoint("TOPLEFT", healthContainer, "TOPLEFT", -2, 2)
+            bg:SetPoint("BOTTOMRIGHT", main.ManaBar or healthContainer, "BOTTOMRIGHT", 2, -2)
+            bg:Show()
+        end
+    elseif backgrounds["Target"] then
+        backgrounds["Target"]:Hide()
+    end
 end
 
 -- Style the Focus Frame (uses same structure as TargetFrameTemplate)
@@ -447,6 +519,20 @@ function UnitFrames:StyleFocusFrame()
             local defaultManaWidth = 134
             main.ManaBar:SetWidth(defaultManaWidth * p.ufBarScale)
         end
+    end
+    
+    -- Add background behind bars
+    if p.ufShowBackground and main then
+        local healthContainer = main.HealthBarsContainer
+        if healthContainer then
+            local bg = GetOrCreateBackground(FocusFrame, "Focus")
+            bg:ClearAllPoints()
+            bg:SetPoint("TOPLEFT", healthContainer, "TOPLEFT", -2, 2)
+            bg:SetPoint("BOTTOMRIGHT", main.ManaBar or healthContainer, "BOTTOMRIGHT", 2, -2)
+            bg:Show()
+        end
+    elseif backgrounds["Focus"] then
+        backgrounds["Focus"]:Hide()
     end
 end
 

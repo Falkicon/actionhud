@@ -672,6 +672,17 @@ Enable it in Gameplay Enhancements to use these features.]]
                     ActionHud:GetModule("UnitFrames"):UpdateLayout()
                 end,
             },
+            showBackground = {
+                name = "Show Background",
+                desc = "Add a dark semi-transparent background behind the bars.",
+                type = "toggle", order = 14, width = 1.0,
+                disabled = function() return not self.db.profile.ufEnabled end,
+                get = function(info) return self.db.profile.ufShowBackground end,
+                set = function(info, val) 
+                    self.db.profile.ufShowBackground = val
+                    ActionHud:GetModule("UnitFrames"):UpdateLayout()
+                end,
+            },
             
             -- Sizing Section
             sizingHeader = { name = "Bar Sizing", type = "header", order = 20 },

@@ -76,6 +76,7 @@ local defaults = {
         ufStylePlayer = true,        -- Style the Player Frame
         ufStyleTarget = true,        -- Style the Target Frame
         ufStyleFocus = true,         -- Style the Focus Frame
+        ufShowBackground = true,     -- Show dark background behind bars
 
         -- Minimap Icon (LibDBIcon)
         minimap = {
