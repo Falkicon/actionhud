@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased - Midnight Branch]
 
+### Added
+- **Tracked Bars Compact Mode**: New option to hide cooldown bars and show icons only for a more compact display.
+- **Timer on Icon**: New option to display the countdown timer centered on the icon instead of on the bar.
+    - Stack count automatically repositions to bottom-right when enabled.
+
 ### Changed
 - **TrackedBuffs/TrackedBars Style-Only**: Simplified to style-only approach for Midnight (12.0) compatibility.
     - Hooks into Blizzard's native `BuffIconCooldownViewer` and `BuffBarCooldownViewer` frames.
