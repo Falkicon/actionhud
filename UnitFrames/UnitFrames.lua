@@ -83,28 +83,25 @@ function UnitFrames:InstallHooks()
     -- Power bar updates - Blizzard resets texture on power changes
     self:RegisterEvent("UNIT_DISPLAYPOWER", function(event, unit)
         if unit == "player" and isStylingActive and self.db.profile.ufStylePlayer then
-            C_Timer.After(0.05, function() self:StylePlayerFrame() end)
+            C_Timer.After(0.1, function() self:StylePlayerFrame() end)
         elseif unit == "target" and isStylingActive and self.db.profile.ufStyleTarget then
-            C_Timer.After(0.05, function() self:StyleTargetFrame() end)
+            C_Timer.After(0.1, function() self:StyleTargetFrame() end)
         elseif unit == "focus" and isStylingActive and self.db.profile.ufStyleFocus then
-            C_Timer.After(0.05, function() self:StyleFocusFrame() end)
+            C_Timer.After(0.1, function() self:StyleFocusFrame() end)
         end
     end)
     
-    -- Hook the player mana bar's SetStatusBarTexture to intercept Blizzard resets
-    local main = PlayerFrame.PlayerFrameContent and PlayerFrame.PlayerFrameContent.PlayerFrameContentMain
-    local manaBar = main and main.ManaBarArea and main.ManaBarArea.ManaBar
-    if manaBar and not manaBar.ahHooked then
-        local origSetTexture = manaBar.SetStatusBarTexture
-        manaBar.SetStatusBarTexture = function(self, texture, ...)
-            if isStylingActive and addon.db.profile.ufFlatBars and addon.db.profile.ufStylePlayer then
-                origSetTexture(self, FLAT_BAR_TEXTURE, ...)
-            else
-                origSetTexture(self, texture, ...)
+    -- Power value updates - re-apply flat texture periodically since Blizzard may reset it
+    self:RegisterEvent("UNIT_POWER_FREQUENT", function(event, unit)
+        if unit == "player" and isStylingActive and self.db.profile.ufStylePlayer and self.db.profile.ufFlatBars then
+            -- Throttle: only apply every ~0.5 seconds
+            local now = GetTime()
+            if not self.lastPowerStyle or (now - self.lastPowerStyle) > 0.5 then
+                self.lastPowerStyle = now
+                self:ApplyPlayerPowerBarFlat()
             end
         end
-        manaBar.ahHooked = true
-    end
+    end)
     
     hooksInstalled = true
     addon:Log("UnitFrames: Hooks installed", "discovery")
@@ -119,14 +116,22 @@ local function GetOrCreateBackground(parentFrame, name)
     local bg = CreateFrame("Frame", "ActionHudUF_BG_" .. name, parentFrame, "BackdropTemplate")
     bg:SetBackdrop({
         bgFile = "Interface\\Buttons\\WHITE8x8",
-        edgeFile = "Interface\\Buttons\\WHITE8x8",
-        edgeSize = 1,
+        edgeFile = nil,  -- No border, cleaner look
+        edgeSize = 0,
     })
-    bg:SetBackdropColor(0, 0, 0, 0.7)
-    bg:SetBackdropBorderColor(0.2, 0.2, 0.2, 0.8)
+    bg:SetBackdropColor(0, 0, 0, 0.75)
     bg:SetFrameStrata("BACKGROUND")
     backgrounds[name] = bg
     return bg
+end
+
+-- Apply flat texture to player power bar only (for throttled updates)
+function UnitFrames:ApplyPlayerPowerBarFlat()
+    local main = PlayerFrame.PlayerFrameContent and PlayerFrame.PlayerFrameContent.PlayerFrameContentMain
+    local manaBar = main and main.ManaBarArea and main.ManaBarArea.ManaBar
+    if manaBar then
+        ApplyFlatTexture(manaBar, "player", "mana")
+    end
 end
 
 -- Apply flat texture to a status bar and force color update
@@ -306,8 +311,12 @@ function UnitFrames:StylePlayerFrame()
         if healthContainer then
             local bg = GetOrCreateBackground(PlayerFrame, "Player")
             bg:ClearAllPoints()
-            bg:SetPoint("TOPLEFT", healthContainer, "TOPLEFT", -2, 2)
-            bg:SetPoint("BOTTOMRIGHT", manaBar or healthContainer, "BOTTOMRIGHT", 2, -2)
+            bg:SetPoint("TOPLEFT", healthContainer, "TOPLEFT", -3, 3)
+            if manaBar and manaBar:IsShown() then
+                bg:SetPoint("BOTTOMRIGHT", manaBar, "BOTTOMRIGHT", 3, -3)
+            else
+                bg:SetPoint("BOTTOMRIGHT", healthContainer, "BOTTOMRIGHT", 3, -3)
+            end
             bg:Show()
         end
     elseif backgrounds["Player"] then
@@ -419,8 +428,14 @@ function UnitFrames:StyleTargetFrame()
         if healthContainer then
             local bg = GetOrCreateBackground(TargetFrame, "Target")
             bg:ClearAllPoints()
-            bg:SetPoint("TOPLEFT", healthContainer, "TOPLEFT", -2, 2)
-            bg:SetPoint("BOTTOMRIGHT", main.ManaBar or healthContainer, "BOTTOMRIGHT", 2, -2)
+            -- Use fixed width to ensure consistent coverage
+            local barWidth = healthContainer:GetWidth() or 126
+            bg:SetPoint("TOPRIGHT", healthContainer, "TOPRIGHT", 4, 3)
+            if main.ManaBar and main.ManaBar:IsShown() then
+                bg:SetPoint("BOTTOMLEFT", healthContainer, "TOPLEFT", -4, -(healthContainer:GetHeight() + main.ManaBar:GetHeight() + 4))
+            else
+                bg:SetPoint("BOTTOMLEFT", healthContainer, "BOTTOMLEFT", -4, -3)
+            end
             bg:Show()
         end
     elseif backgrounds["Target"] then
@@ -527,8 +542,12 @@ function UnitFrames:StyleFocusFrame()
         if healthContainer then
             local bg = GetOrCreateBackground(FocusFrame, "Focus")
             bg:ClearAllPoints()
-            bg:SetPoint("TOPLEFT", healthContainer, "TOPLEFT", -2, 2)
-            bg:SetPoint("BOTTOMRIGHT", main.ManaBar or healthContainer, "BOTTOMRIGHT", 2, -2)
+            bg:SetPoint("TOPRIGHT", healthContainer, "TOPRIGHT", 4, 3)
+            if main.ManaBar and main.ManaBar:IsShown() then
+                bg:SetPoint("BOTTOMLEFT", healthContainer, "TOPLEFT", -4, -(healthContainer:GetHeight() + main.ManaBar:GetHeight() + 4))
+            else
+                bg:SetPoint("BOTTOMLEFT", healthContainer, "BOTTOMLEFT", -4, -3)
+            end
             bg:Show()
         end
     elseif backgrounds["Focus"] then
