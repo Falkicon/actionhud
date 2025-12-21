@@ -11,7 +11,7 @@ A lightweight, high-performance action bar HUD for World of Warcraft Retail. Dis
 
 ## Features
 
-- **Action Bar Mirroring** – Dynamically synchronizes with Blizzard's **Action Bar 1** and **Action Bar 6** layout (rows/columns) from Edit Mode.
+- **Action Bar Mirroring** – Dynamically synchronizes with Blizzard's **Action Bar 1** and **Action Bar 2** layout (rows/columns) from Edit Mode.
 - **Stance/Form Support** – Automatically updates for Druid forms, Rogue stealth, and other bar swaps.
 - **Visual Feedback**:
   - **Yellow Glow** – Proc tracking via Spell Activation Overlay.
