@@ -684,6 +684,44 @@ Enable it in Gameplay Enhancements to use these features.]]
                 end,
             },
             
+            -- Typography Section
+            typographyHeader = { name = "Typography", type = "header", order = 15 },
+            fontName = {
+                name = "Font",
+                desc = "Font for health and power bar text.",
+                type = "select", order = 16, width = 1.5,
+                dialogControl = "LSM30_Font",
+                values = function() return LSM:HashTable("font") end,
+                disabled = function() return not self.db.profile.ufEnabled end,
+                get = function(info) return self.db.profile.ufFontName end,
+                set = function(info, val) 
+                    self.db.profile.ufFontName = val
+                    ActionHud:GetModule("UnitFrames"):UpdateLayout()
+                end,
+            },
+            fontSize = {
+                name = "Font Size",
+                desc = "Size of the health and power bar text.",
+                type = "range", min = 6, max = 18, step = 1, order = 17, width = 1.0,
+                disabled = function() return not self.db.profile.ufEnabled end,
+                get = function(info) return self.db.profile.ufFontSize end,
+                set = function(info, val) 
+                    self.db.profile.ufFontSize = val
+                    ActionHud:GetModule("UnitFrames"):UpdateLayout()
+                end,
+            },
+            alwaysShowText = {
+                name = "Always Show Text",
+                desc = "Always show health and power values (not just on hover).",
+                type = "toggle", order = 18, width = 1.0,
+                disabled = function() return not self.db.profile.ufEnabled end,
+                get = function(info) return self.db.profile.ufAlwaysShowText end,
+                set = function(info, val) 
+                    self.db.profile.ufAlwaysShowText = val
+                    ActionHud:GetModule("UnitFrames"):UpdateLayout()
+                end,
+            },
+            
             -- Sizing Section
             sizingHeader = { name = "Bar Sizing", type = "header", order = 20 },
             healthHeight = {

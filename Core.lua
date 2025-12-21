@@ -77,6 +77,9 @@ local defaults = {
         ufStyleTarget = true,        -- Style the Target Frame
         ufStyleFocus = true,         -- Style the Focus Frame
         ufShowBackground = true,     -- Show dark background behind bars
+        ufFontName = "Friz Quadrata TT",  -- Font for bar text (LibSharedMedia name)
+        ufFontSize = 10,             -- Font size for bar text
+        ufAlwaysShowText = true,     -- Always show health/mana text (not just on hover)
 
         -- Minimap Icon (LibDBIcon)
         minimap = {

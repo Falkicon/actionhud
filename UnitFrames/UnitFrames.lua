@@ -1,6 +1,7 @@
 local addonName, ns = ...
 local addon = LibStub("AceAddon-3.0"):GetAddon("ActionHud")
 local UnitFrames = addon:NewModule("UnitFrames", "AceEvent-3.0")
+local LSM = LibStub("LibSharedMedia-3.0")
 
 -- Style-only approach: We hook into Blizzard's unit frames (PlayerFrame, TargetFrame, FocusFrame)
 -- and apply custom styling. This is Midnight-safe as we only modify visual properties.
@@ -59,6 +60,46 @@ local function HideTexture(texture)
     end
     if texture.SetAtlas then
         texture:SetAtlas(nil)
+    end
+end
+
+-- Apply font to a status bar's text elements
+local function ApplyFontToBar(bar, fontPath, fontSize, alwaysShow)
+    if not bar then return end
+    
+    -- Common text elements on status bars
+    local textElements = {
+        bar.TextString,      -- Main text
+        bar.LeftText,        -- Left-aligned text
+        bar.RightText,       -- Right-aligned text
+        bar.ManaBarText,     -- Mana bar specific
+        bar.HealthBarText,   -- Health bar specific
+    }
+    
+    for _, textEl in ipairs(textElements) do
+        if textEl and textEl.SetFont then
+            textEl:SetFont(fontPath, fontSize, "OUTLINE")
+            
+            -- Force text visibility if always show is enabled
+            if alwaysShow then
+                textEl:Show()
+            end
+        end
+    end
+    
+    -- Force the main text visible if alwaysShow is enabled
+    if alwaysShow and bar.TextString then
+        bar.TextString:Show()
+        -- Override Blizzard's visibility control
+        bar.lockShow = 1
+    end
+end
+
+-- Force text visibility on a status bar (called on updates)
+local function ForceTextVisibility(bar)
+    if not bar then return end
+    if bar.TextString then
+        bar.TextString:Show()
     end
 end
 
@@ -324,6 +365,21 @@ function UnitFrames:StylePlayerFrame()
     elseif backgrounds["Player"] then
         backgrounds["Player"]:Hide()
     end
+    
+    -- Apply font styling
+    if p.ufFontName and main then
+        local fontPath = LSM:Fetch("font", p.ufFontName) or "Fonts\\FRIZQT__.TTF"
+        local fontSize = p.ufFontSize or 10
+        local alwaysShow = p.ufAlwaysShowText
+        
+        local healthContainer = main.HealthBarsContainer
+        if healthContainer and healthContainer.HealthBar then
+            ApplyFontToBar(healthContainer.HealthBar, fontPath, fontSize, alwaysShow)
+        end
+        if manaBar then
+            ApplyFontToBar(manaBar, fontPath, fontSize, alwaysShow)
+        end
+    end
 end
 
 -- Style the Target Frame
@@ -441,6 +497,21 @@ function UnitFrames:StyleTargetFrame()
     elseif backgrounds["Target"] then
         backgrounds["Target"]:Hide()
     end
+    
+    -- Apply font styling
+    if p.ufFontName and main then
+        local fontPath = LSM:Fetch("font", p.ufFontName) or "Fonts\\FRIZQT__.TTF"
+        local fontSize = p.ufFontSize or 10
+        local alwaysShow = p.ufAlwaysShowText
+        
+        local healthContainer = main.HealthBarsContainer
+        if healthContainer and healthContainer.HealthBar then
+            ApplyFontToBar(healthContainer.HealthBar, fontPath, fontSize, alwaysShow)
+        end
+        if main.ManaBar then
+            ApplyFontToBar(main.ManaBar, fontPath, fontSize, alwaysShow)
+        end
+    end
 end
 
 -- Style the Focus Frame (uses same structure as TargetFrameTemplate)
@@ -552,6 +623,21 @@ function UnitFrames:StyleFocusFrame()
         end
     elseif backgrounds["Focus"] then
         backgrounds["Focus"]:Hide()
+    end
+    
+    -- Apply font styling
+    if p.ufFontName and main then
+        local fontPath = LSM:Fetch("font", p.ufFontName) or "Fonts\\FRIZQT__.TTF"
+        local fontSize = p.ufFontSize or 10
+        local alwaysShow = p.ufAlwaysShowText
+        
+        local healthContainer = main.HealthBarsContainer
+        if healthContainer and healthContainer.HealthBar then
+            ApplyFontToBar(healthContainer.HealthBar, fontPath, fontSize, alwaysShow)
+        end
+        if main.ManaBar then
+            ApplyFontToBar(main.ManaBar, fontPath, fontSize, alwaysShow)
+        end
     end
 end
 
