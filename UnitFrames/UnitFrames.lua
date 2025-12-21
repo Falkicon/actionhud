@@ -81,9 +81,53 @@ local function ApplyFontToText(fontString, fontPath, fontSize, outline)
     end
 end
 
+-- Safe numeric display transform for Midnight secret values
+local function SafeNumericTransform(bar, value, valueMax)
+    -- Check if either value is secret
+    local isValueSecret = issecretvalue and issecretvalue(value)
+    local isMaxSecret = issecretvalue and issecretvalue(valueMax)
+    
+    if isValueSecret or isMaxSecret then
+        -- For health bars, we can use the helper that returns readable percentages
+        -- Blizzard code often stores the unit on the bar itself as bar.unit
+        local unit = bar.unit
+        if unit then
+            -- Try to determine if this is a health bar or power bar
+            -- Health bars usually have HealthBar in their name or a specific mixin
+            local isHealth = bar:GetName() and bar:GetName():find("Health")
+            
+            if isHealth then
+                local percent = UnitHealthPercent(unit)
+                if percent then
+                    return string.format("%.0f%%", percent), "100%"
+                end
+            end
+        end
+        
+        -- Fallback for power or when unit/percent is unavailable
+        return "???", "???"
+    end
+    
+    -- If NOT secret, use standard abbreviation
+    return AbbreviateLargeNumbers(value), AbbreviateLargeNumbers(valueMax)
+end
+
 -- Apply font to a status bar's text elements
 local function ApplyFontToBar(bar, fontPath, fontSize, alwaysShow)
     if not bar then return end
+    
+    -- Set forceShow if requested
+    if alwaysShow then
+        bar.forceShow = true
+        
+        -- Apply safe numeric transform to handle secret values gracefully
+        bar.numericDisplayTransformFunc = function(v, vMax)
+            return SafeNumericTransform(bar, v, vMax)
+        end
+    else
+        bar.forceShow = nil
+        bar.numericDisplayTransformFunc = nil
+    end
     
     -- Common text elements on status bars
     local textElements = {
@@ -427,9 +471,11 @@ function UnitFrames:StylePlayerFrame()
         if main then
             local healthContainer = main.HealthBarsContainer
             if healthContainer and healthContainer.HealthBar then
+                healthContainer.HealthBar.unit = "player" -- Ensure unit is set for safe transform
                 ApplyFontToBar(healthContainer.HealthBar, fontPath, fontSize, alwaysShow)
             end
             if manaBar then
+                manaBar.unit = "player" -- Ensure unit is set for safe transform
                 ApplyFontToBar(manaBar, fontPath, fontSize, alwaysShow)
             end
         end
@@ -540,9 +586,11 @@ function UnitFrames:StyleTargetFrame()
         if main then
             local healthContainer = main.HealthBarsContainer
             if healthContainer and healthContainer.HealthBar then
+                healthContainer.HealthBar.unit = "target"
                 ApplyFontToBar(healthContainer.HealthBar, fontPath, fontSize, alwaysShow)
             end
             if main.ManaBar then
+                main.ManaBar.unit = "target"
                 ApplyFontToBar(main.ManaBar, fontPath, fontSize, alwaysShow)
             end
             
@@ -648,9 +696,11 @@ function UnitFrames:StyleFocusFrame()
         if main then
             local healthContainer = main.HealthBarsContainer
             if healthContainer and healthContainer.HealthBar then
+                healthContainer.HealthBar.unit = "focus"
                 ApplyFontToBar(healthContainer.HealthBar, fontPath, fontSize, alwaysShow)
             end
             if main.ManaBar then
+                main.ManaBar.unit = "focus"
                 ApplyFontToBar(main.ManaBar, fontPath, fontSize, alwaysShow)
             end
             
