@@ -437,6 +437,9 @@ function UnitFrames:StyleTargetFrame()
             if main.ManaBar and main.ManaBar.ManaBarMask then
                 main.ManaBar.ManaBarMask:Hide()
             end
+            
+            -- Hide ReputationColor (the blue/green bar showing unit type)
+            HideTexture(main.ReputationColor)
         end
     end
     
@@ -560,6 +563,9 @@ function UnitFrames:StyleFocusFrame()
             if main.ManaBar and main.ManaBar.ManaBarMask then
                 main.ManaBar.ManaBarMask:Hide()
             end
+            
+            -- Hide ReputationColor (the blue/green bar showing unit type)
+            HideTexture(main.ReputationColor)
         end
     end
     
