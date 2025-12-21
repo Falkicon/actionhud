@@ -85,19 +85,52 @@ function UnitFrames:InstallHooks()
     return true
 end
 
--- Apply flat texture to a status bar and preserve/reapply color
-local function ApplyFlatTexture(bar)
+-- Apply flat texture to a status bar and force color update
+local function ApplyFlatTexture(bar, unit, barType)
     if not bar then return end
     bar:SetStatusBarTexture(FLAT_BAR_TEXTURE)
     
-    -- Force the bar to re-color itself
-    -- Health bars are colored by UnitFrameHealthBar functions
-    if bar.lockColor then
-        -- Bar has a locked color, get and reapply it
-        local r, g, b = bar:GetStatusBarColor()
-        if r and g and b then
-            bar:SetStatusBarColor(r, g, b)
+    -- Force color based on bar type
+    if barType == "health" then
+        -- For health bars, use class color or green
+        if unit and UnitIsPlayer(unit) then
+            local _, class = UnitClass(unit)
+            if class then
+                local color = RAID_CLASS_COLORS[class]
+                if color then
+                    bar:SetStatusBarColor(color.r, color.g, color.b)
+                    return
+                end
+            end
         end
+        -- Default green for health
+        bar:SetStatusBarColor(0, 0.8, 0)
+    elseif barType == "mana" then
+        -- Get power type and color appropriately
+        if unit then
+            local powerType = UnitPowerType(unit)
+            local color = PowerBarColor[powerType]
+            if color then
+                bar:SetStatusBarColor(color.r, color.g, color.b)
+                return
+            end
+        end
+        -- Default blue for mana
+        bar:SetStatusBarColor(0, 0.5, 1)
+    end
+end
+
+-- Aggressively hide a texture (try multiple methods)
+local function HideTexture(texture)
+    if not texture then return end
+    texture:SetAlpha(0)
+    texture:Hide()
+    -- Also try clearing the texture
+    if texture.SetTexture then
+        texture:SetTexture(nil)
+    end
+    if texture.SetAtlas then
+        texture:SetAtlas(nil)
     end
 end
 
@@ -125,36 +158,36 @@ function UnitFrames:StylePlayerFrame()
     -- Hide borders/frame textures
     if p.ufHideBorders then
         if container then
-            -- Main frame textures
-            if container.FrameTexture then container.FrameTexture:SetAlpha(0) end
-            if container.VehicleFrameTexture then container.VehicleFrameTexture:SetAlpha(0) end
-            if container.AlternatePowerFrameTexture then container.AlternatePowerFrameTexture:SetAlpha(0) end
-            if container.FrameFlash then container.FrameFlash:SetAlpha(0) end
+            -- Main frame textures - use aggressive hiding
+            HideTexture(container.FrameTexture)
+            HideTexture(container.VehicleFrameTexture)
+            HideTexture(container.AlternatePowerFrameTexture)
+            HideTexture(container.FrameFlash)
         end
         
         -- Contextual elements (corner icon, rest indicator, etc.)
         if contextual then
             -- The yellow corner arrow/embellishment
-            if contextual.PlayerPortraitCornerIcon then contextual.PlayerPortraitCornerIcon:SetAlpha(0) end
+            HideTexture(contextual.PlayerPortraitCornerIcon)
             -- Combat sword icon
-            if contextual.AttackIcon then contextual.AttackIcon:SetAlpha(0) end
+            HideTexture(contextual.AttackIcon)
             -- Zzz rest animation
             if contextual.PlayerRestLoop then contextual.PlayerRestLoop:Hide() end
             -- PVP icons
-            if contextual.PVPIcon then contextual.PVPIcon:SetAlpha(0) end
-            if contextual.PrestigePortrait then contextual.PrestigePortrait:SetAlpha(0) end
-            if contextual.PrestigeBadge then contextual.PrestigeBadge:SetAlpha(0) end
+            HideTexture(contextual.PVPIcon)
+            HideTexture(contextual.PrestigePortrait)
+            HideTexture(contextual.PrestigeBadge)
             -- Group indicator
-            if contextual.GroupIndicator then contextual.GroupIndicator:SetAlpha(0) end
+            if contextual.GroupIndicator then contextual.GroupIndicator:Hide() end
             -- Leader/Guide icons
-            if contextual.LeaderIcon then contextual.LeaderIcon:SetAlpha(0) end
-            if contextual.GuideIcon then contextual.GuideIcon:SetAlpha(0) end
-            if contextual.RoleIcon then contextual.RoleIcon:SetAlpha(0) end
+            HideTexture(contextual.LeaderIcon)
+            HideTexture(contextual.GuideIcon)
+            HideTexture(contextual.RoleIcon)
         end
         
         -- Status texture (resting flash on portrait area)
         if main and main.StatusTexture then
-            main.StatusTexture:SetAlpha(0)
+            HideTexture(main.StatusTexture)
         end
         
         -- Hide the bar masks (these create curved edges)
@@ -169,14 +202,14 @@ function UnitFrames:StylePlayerFrame()
         end
     end
     
-    -- Apply flat bar texture
+    -- Apply flat bar texture with proper colors
     if p.ufFlatBars and main then
         local healthContainer = main.HealthBarsContainer
         if healthContainer and healthContainer.HealthBar then
-            ApplyFlatTexture(healthContainer.HealthBar)
+            ApplyFlatTexture(healthContainer.HealthBar, "player", "health")
         end
         if main.ManaBar then
-            ApplyFlatTexture(main.ManaBar)
+            ApplyFlatTexture(main.ManaBar, "player", "mana")
         end
     end
     
@@ -220,21 +253,21 @@ function UnitFrames:StyleTargetFrame()
     -- Hide borders/frame textures
     if p.ufHideBorders then
         if container then
-            if container.FrameTexture then container.FrameTexture:SetAlpha(0) end
-            if container.Flash then container.Flash:SetAlpha(0) end
-            if container.BossPortraitFrameTexture then container.BossPortraitFrameTexture:SetAlpha(0) end
+            HideTexture(container.FrameTexture)
+            HideTexture(container.Flash)
+            HideTexture(container.BossPortraitFrameTexture)
         end
         
         -- Contextual elements
         if contextual then
-            if contextual.HighLevelTexture then contextual.HighLevelTexture:SetAlpha(0) end
-            if contextual.PetBattleIcon then contextual.PetBattleIcon:SetAlpha(0) end
-            if contextual.PvpIcon then contextual.PvpIcon:SetAlpha(0) end
-            if contextual.PrestigePortrait then contextual.PrestigePortrait:SetAlpha(0) end
-            if contextual.PrestigeBadge then contextual.PrestigeBadge:SetAlpha(0) end
-            if contextual.NumericalThreat then contextual.NumericalThreat:SetAlpha(0) end
-            if contextual.QuestIcon then contextual.QuestIcon:SetAlpha(0) end
-            if contextual.RaidTargetIcon then contextual.RaidTargetIcon:SetAlpha(0) end
+            HideTexture(contextual.HighLevelTexture)
+            HideTexture(contextual.PetBattleIcon)
+            HideTexture(contextual.PvpIcon)
+            HideTexture(contextual.PrestigePortrait)
+            HideTexture(contextual.PrestigeBadge)
+            if contextual.NumericalThreat then contextual.NumericalThreat:Hide() end
+            HideTexture(contextual.QuestIcon)
+            HideTexture(contextual.RaidTargetIcon)
         end
         
         -- Hide the bar masks
@@ -249,14 +282,14 @@ function UnitFrames:StyleTargetFrame()
         end
     end
     
-    -- Apply flat bar texture
+    -- Apply flat bar texture with proper colors
     if p.ufFlatBars and main then
         local healthContainer = main.HealthBarsContainer
         if healthContainer and healthContainer.HealthBar then
-            ApplyFlatTexture(healthContainer.HealthBar)
+            ApplyFlatTexture(healthContainer.HealthBar, "target", "health")
         end
         if main.ManaBar then
-            ApplyFlatTexture(main.ManaBar)
+            ApplyFlatTexture(main.ManaBar, "target", "mana")
         end
     end
     
@@ -299,21 +332,21 @@ function UnitFrames:StyleFocusFrame()
     -- Hide borders/frame textures
     if p.ufHideBorders then
         if container then
-            if container.FrameTexture then container.FrameTexture:SetAlpha(0) end
-            if container.Flash then container.Flash:SetAlpha(0) end
-            if container.BossPortraitFrameTexture then container.BossPortraitFrameTexture:SetAlpha(0) end
+            HideTexture(container.FrameTexture)
+            HideTexture(container.Flash)
+            HideTexture(container.BossPortraitFrameTexture)
         end
         
         -- Contextual elements
         if contextual then
-            if contextual.HighLevelTexture then contextual.HighLevelTexture:SetAlpha(0) end
-            if contextual.PetBattleIcon then contextual.PetBattleIcon:SetAlpha(0) end
-            if contextual.PvpIcon then contextual.PvpIcon:SetAlpha(0) end
-            if contextual.PrestigePortrait then contextual.PrestigePortrait:SetAlpha(0) end
-            if contextual.PrestigeBadge then contextual.PrestigeBadge:SetAlpha(0) end
-            if contextual.NumericalThreat then contextual.NumericalThreat:SetAlpha(0) end
-            if contextual.QuestIcon then contextual.QuestIcon:SetAlpha(0) end
-            if contextual.RaidTargetIcon then contextual.RaidTargetIcon:SetAlpha(0) end
+            HideTexture(contextual.HighLevelTexture)
+            HideTexture(contextual.PetBattleIcon)
+            HideTexture(contextual.PvpIcon)
+            HideTexture(contextual.PrestigePortrait)
+            HideTexture(contextual.PrestigeBadge)
+            if contextual.NumericalThreat then contextual.NumericalThreat:Hide() end
+            HideTexture(contextual.QuestIcon)
+            HideTexture(contextual.RaidTargetIcon)
         end
         
         -- Hide the bar masks
@@ -328,14 +361,14 @@ function UnitFrames:StyleFocusFrame()
         end
     end
     
-    -- Apply flat bar texture
+    -- Apply flat bar texture with proper colors
     if p.ufFlatBars and main then
         local healthContainer = main.HealthBarsContainer
         if healthContainer and healthContainer.HealthBar then
-            ApplyFlatTexture(healthContainer.HealthBar)
+            ApplyFlatTexture(healthContainer.HealthBar, "focus", "health")
         end
         if main.ManaBar then
-            ApplyFlatTexture(main.ManaBar)
+            ApplyFlatTexture(main.ManaBar, "focus", "mana")
         end
     end
     
