@@ -63,6 +63,13 @@ local function HideTexture(texture)
     end
 end
 
+-- Apply font to a FontString element
+local function ApplyFontToText(fontString, fontPath, fontSize, outline)
+    if fontString and fontString.SetFont then
+        fontString:SetFont(fontPath, fontSize, outline or "OUTLINE")
+    end
+end
+
 -- Apply font to a status bar's text elements
 local function ApplyFontToBar(bar, fontPath, fontSize, alwaysShow)
     if not bar then return end
@@ -88,6 +95,9 @@ local function ApplyFontToBar(bar, fontPath, fontSize, alwaysShow)
         end
     end
 end
+
+-- Normalized bar width for all frames (default from TargetFrame which is wider)
+local NORMALIZED_BAR_WIDTH = 126
 
 function UnitFrames:OnInitialize()
     self.db = addon.db
@@ -318,19 +328,18 @@ function UnitFrames:StylePlayerFrame()
         manaBar:SetHeight(p.ufManaHeight)
     end
     
-    -- Apply bar width scale (skip during combat)
-    if p.ufBarScale and p.ufBarScale ~= 1.0 and main and not InCombatLockdown() then
+    -- Apply bar width - normalize to standard width, then apply scale (skip during combat)
+    if main and not InCombatLockdown() then
         local healthContainer = main.HealthBarsContainer
+        local scaledWidth = NORMALIZED_BAR_WIDTH * (p.ufBarScale or 1.0)
         if healthContainer then
-            local defaultWidth = 124  -- Default from XML
-            healthContainer:SetWidth(defaultWidth * p.ufBarScale)
+            healthContainer:SetWidth(scaledWidth)
             if healthContainer.HealthBar then
-                healthContainer.HealthBar:SetWidth(defaultWidth * p.ufBarScale)
+                healthContainer.HealthBar:SetWidth(scaledWidth)
             end
         end
         if manaBar then
-            local defaultManaWidth = 124  -- Default from XML
-            manaBar:SetWidth(defaultManaWidth * p.ufBarScale)
+            manaBar:SetWidth(scaledWidth)
         end
     end
     
@@ -353,18 +362,25 @@ function UnitFrames:StylePlayerFrame()
     end
     
     -- Apply font styling
-    if p.ufFontName and main then
+    if p.ufFontName then
         local fontPath = LSM:Fetch("font", p.ufFontName) or "Fonts\\FRIZQT__.TTF"
         local fontSize = p.ufFontSize or 10
         local alwaysShow = p.ufAlwaysShowText
         
-        local healthContainer = main.HealthBarsContainer
-        if healthContainer and healthContainer.HealthBar then
-            ApplyFontToBar(healthContainer.HealthBar, fontPath, fontSize, alwaysShow)
+        -- Bar text
+        if main then
+            local healthContainer = main.HealthBarsContainer
+            if healthContainer and healthContainer.HealthBar then
+                ApplyFontToBar(healthContainer.HealthBar, fontPath, fontSize, alwaysShow)
+            end
+            if manaBar then
+                ApplyFontToBar(manaBar, fontPath, fontSize, alwaysShow)
+            end
         end
-        if manaBar then
-            ApplyFontToBar(manaBar, fontPath, fontSize, alwaysShow)
-        end
+        
+        -- Name and level text (global frame names for PlayerFrame)
+        ApplyFontToText(PlayerName, fontPath, fontSize)
+        ApplyFontToText(PlayerLevelText, fontPath, fontSize)
     end
 end
 
@@ -450,19 +466,18 @@ function UnitFrames:StyleTargetFrame()
         main.ManaBar:SetHeight(p.ufManaHeight)
     end
     
-    -- Apply bar width scale (skip during combat)
-    if p.ufBarScale and p.ufBarScale ~= 1.0 and main and not InCombatLockdown() then
+    -- Apply bar width - normalize to standard width, then apply scale (skip during combat)
+    if main and not InCombatLockdown() then
         local healthContainer = main.HealthBarsContainer
+        local scaledWidth = NORMALIZED_BAR_WIDTH * (p.ufBarScale or 1.0)
         if healthContainer then
-            local defaultWidth = 126  -- Default from XML
-            healthContainer:SetWidth(defaultWidth * p.ufBarScale)
+            healthContainer:SetWidth(scaledWidth)
             if healthContainer.HealthBar then
-                healthContainer.HealthBar:SetWidth(defaultWidth * p.ufBarScale)
+                healthContainer.HealthBar:SetWidth(scaledWidth)
             end
         end
         if main.ManaBar then
-            local defaultManaWidth = 134  -- Default from XML
-            main.ManaBar:SetWidth(defaultManaWidth * p.ufBarScale)
+            main.ManaBar:SetWidth(scaledWidth)
         end
     end
     
@@ -485,17 +500,24 @@ function UnitFrames:StyleTargetFrame()
     end
     
     -- Apply font styling
-    if p.ufFontName and main then
+    if p.ufFontName then
         local fontPath = LSM:Fetch("font", p.ufFontName) or "Fonts\\FRIZQT__.TTF"
         local fontSize = p.ufFontSize or 10
         local alwaysShow = p.ufAlwaysShowText
         
-        local healthContainer = main.HealthBarsContainer
-        if healthContainer and healthContainer.HealthBar then
-            ApplyFontToBar(healthContainer.HealthBar, fontPath, fontSize, alwaysShow)
-        end
-        if main.ManaBar then
-            ApplyFontToBar(main.ManaBar, fontPath, fontSize, alwaysShow)
+        -- Bar text
+        if main then
+            local healthContainer = main.HealthBarsContainer
+            if healthContainer and healthContainer.HealthBar then
+                ApplyFontToBar(healthContainer.HealthBar, fontPath, fontSize, alwaysShow)
+            end
+            if main.ManaBar then
+                ApplyFontToBar(main.ManaBar, fontPath, fontSize, alwaysShow)
+            end
+            
+            -- Name and level text
+            ApplyFontToText(main.Name, fontPath, fontSize)
+            ApplyFontToText(main.LevelText, fontPath, fontSize)
         end
     end
 end
@@ -577,19 +599,18 @@ function UnitFrames:StyleFocusFrame()
         main.ManaBar:SetHeight(p.ufManaHeight)
     end
     
-    -- Apply bar width scale (skip during combat)
-    if p.ufBarScale and p.ufBarScale ~= 1.0 and main and not InCombatLockdown() then
+    -- Apply bar width - normalize to standard width, then apply scale (skip during combat)
+    if main and not InCombatLockdown() then
         local healthContainer = main.HealthBarsContainer
+        local scaledWidth = NORMALIZED_BAR_WIDTH * (p.ufBarScale or 1.0)
         if healthContainer then
-            local defaultWidth = 126
-            healthContainer:SetWidth(defaultWidth * p.ufBarScale)
+            healthContainer:SetWidth(scaledWidth)
             if healthContainer.HealthBar then
-                healthContainer.HealthBar:SetWidth(defaultWidth * p.ufBarScale)
+                healthContainer.HealthBar:SetWidth(scaledWidth)
             end
         end
         if main.ManaBar then
-            local defaultManaWidth = 134
-            main.ManaBar:SetWidth(defaultManaWidth * p.ufBarScale)
+            main.ManaBar:SetWidth(scaledWidth)
         end
     end
     
@@ -612,17 +633,24 @@ function UnitFrames:StyleFocusFrame()
     end
     
     -- Apply font styling
-    if p.ufFontName and main then
+    if p.ufFontName then
         local fontPath = LSM:Fetch("font", p.ufFontName) or "Fonts\\FRIZQT__.TTF"
         local fontSize = p.ufFontSize or 10
         local alwaysShow = p.ufAlwaysShowText
         
-        local healthContainer = main.HealthBarsContainer
-        if healthContainer and healthContainer.HealthBar then
-            ApplyFontToBar(healthContainer.HealthBar, fontPath, fontSize, alwaysShow)
-        end
-        if main.ManaBar then
-            ApplyFontToBar(main.ManaBar, fontPath, fontSize, alwaysShow)
+        -- Bar text
+        if main then
+            local healthContainer = main.HealthBarsContainer
+            if healthContainer and healthContainer.HealthBar then
+                ApplyFontToBar(healthContainer.HealthBar, fontPath, fontSize, alwaysShow)
+            end
+            if main.ManaBar then
+                ApplyFontToBar(main.ManaBar, fontPath, fontSize, alwaysShow)
+            end
+            
+            -- Name and level text (Focus uses same structure as Target)
+            ApplyFontToText(main.Name, fontPath, fontSize)
+            ApplyFontToText(main.LevelText, fontPath, fontSize)
         end
     end
 end
