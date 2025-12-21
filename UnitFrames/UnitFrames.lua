@@ -212,6 +212,72 @@ end
 
 -- Create or get background frame for a unit frame
 local backgrounds = {}
+-- Standardize bar layout, anchoring, and growth direction
+local function EnsureBarLayout(main, frameKey, p)
+    if not main or InCombatLockdown() then return end
+    
+    local healthContainer = main.HealthBarsContainer
+    local manaBar = (frameKey == "Player") and (main.ManaBarArea and main.ManaBarArea.ManaBar) or main.ManaBar
+    
+    if not healthContainer then return end
+    
+    local scaledWidth = NORMALIZED_BAR_WIDTH * (p.ufBarScale or 1.0)
+    local healthHeight = p.ufHealthHeight or NORMALIZED_HEALTH_HEIGHT
+    local manaHeight = p.ufManaHeight or NORMALIZED_MANA_HEIGHT
+    
+    -- Normalize HealthBarsContainer: Ensure it grows downwards
+    if not anchorsApplied[frameKey .. "HealthContainer"] then
+        -- For Target and Focus, the default anchor is BOTTOMRIGHT, which makes it grow UP.
+        -- We want to switch it to TOPLEFT so it grows DOWN.
+        if frameKey == "Target" or frameKey == "Focus" then
+            local left = healthContainer:GetLeft()
+            local top = healthContainer:GetTop()
+            if left and top then
+                healthContainer:ClearAllPoints()
+                -- Anchor to UIParent temporarily or its parent using absolute coordinates to switch anchor type
+                healthContainer:SetPoint("TOPLEFT", healthContainer:GetParent(), "BOTTOMLEFT", left, top)
+                anchorsApplied[frameKey .. "HealthContainer"] = true
+            end
+        else
+            -- Player frame is already TOPLEFT by default
+            anchorsApplied[frameKey .. "HealthContainer"] = true
+        end
+    end
+    
+    -- Sizing
+    healthContainer:SetWidth(scaledWidth)
+    healthContainer:SetHeight(healthHeight)
+    
+    if healthContainer.HealthBar then
+        healthContainer.HealthBar:SetWidth(scaledWidth)
+        healthContainer.HealthBar:SetHeight(healthHeight)
+        
+        -- Force HealthBar to fill the container exactly (one-time)
+        if not anchorsApplied[frameKey .. "HealthBarInternal"] then
+            healthContainer.HealthBar:ClearAllPoints()
+            healthContainer.HealthBar:SetPoint("TOPLEFT", healthContainer, "TOPLEFT", 0, 0)
+            healthContainer.HealthBar:SetPoint("BOTTOMRIGHT", healthContainer, "BOTTOMRIGHT", 0, 0)
+            anchorsApplied[frameKey .. "HealthBarInternal"] = true
+        end
+    end
+    
+    -- Mana/Power bar layout
+    if manaBar then
+        manaBar:SetWidth(scaledWidth)
+        manaBar:SetHeight(manaHeight)
+        
+        -- One-time anchor fix: Align to bottom of health container with 1px gap
+        if not anchorsApplied[frameKey .. "ManaBar"] then
+            manaBar:ClearAllPoints()
+            -- Anchor TOPLEFT to HealthContainer BOTTOMLEFT with 1px gap
+            manaBar:SetPoint("TOPLEFT", healthContainer, "BOTTOMLEFT", 0, -1)
+            -- Anchor BOTTOMRIGHT to ensure it fills width and has correct height
+            manaBar:SetPoint("BOTTOMRIGHT", healthContainer, "BOTTOMRIGHT", 0, -(1 + manaHeight))
+            anchorsApplied[frameKey .. "ManaBar"] = true
+        end
+    end
+end
+
 local function GetOrCreateBackground(parentFrame, name)
     if backgrounds[name] then return backgrounds[name] end
     
@@ -326,30 +392,13 @@ function UnitFrames:StylePlayerFrame()
         end
     end
     
-    -- Apply bar dimensions - normalize width and height (skip during combat)
-    if main and not InCombatLockdown() then
-        local healthContainer = main.HealthBarsContainer
-        local scaledWidth = NORMALIZED_BAR_WIDTH * (p.ufBarScale or 1.0)
-        local healthHeight = p.ufHealthHeight or NORMALIZED_HEALTH_HEIGHT
-        local manaHeight = p.ufManaHeight or NORMALIZED_MANA_HEIGHT
-        
-        if healthContainer then
-            healthContainer:SetWidth(scaledWidth)
-            healthContainer:SetHeight(healthHeight)
-            if healthContainer.HealthBar then
-                healthContainer.HealthBar:SetWidth(scaledWidth)
-                healthContainer.HealthBar:SetHeight(healthHeight)
-            end
-        end
-        if manaBar then
-            manaBar:SetWidth(scaledWidth)
-            manaBar:SetHeight(manaHeight)
-        end
-    end
+    -- Standardize bar layout, anchoring, and growth direction
+    EnsureBarLayout(main, "Player", p)
     
     -- Add background behind bars (tight padding)
     if p.ufShowBackground and main then
         local healthContainer = main.HealthBarsContainer
+        local manaBar = main.ManaBarArea and main.ManaBarArea.ManaBar
         if healthContainer then
             local bg = GetOrCreateBackground(PlayerFrame, "Player")
             bg:ClearAllPoints()
@@ -457,33 +506,8 @@ function UnitFrames:StyleTargetFrame()
         end
     end
     
-    -- Apply bar dimensions - normalize width and height (skip during combat)
-    if main and not InCombatLockdown() then
-        local healthContainer = main.HealthBarsContainer
-        local scaledWidth = NORMALIZED_BAR_WIDTH * (p.ufBarScale or 1.0)
-        local healthHeight = p.ufHealthHeight or NORMALIZED_HEALTH_HEIGHT
-        local manaHeight = p.ufManaHeight or NORMALIZED_MANA_HEIGHT
-        
-        if healthContainer then
-            healthContainer:SetWidth(scaledWidth)
-            healthContainer:SetHeight(healthHeight)
-            if healthContainer.HealthBar then
-                healthContainer.HealthBar:SetWidth(scaledWidth)
-                healthContainer.HealthBar:SetHeight(healthHeight)
-            end
-        end
-        if main.ManaBar then
-            main.ManaBar:SetWidth(scaledWidth)
-            main.ManaBar:SetHeight(manaHeight)
-            
-            -- One-time anchor fix: Blizzard default has x=8 offset, realign to left edge
-            if not anchorsApplied["TargetMana"] then
-                main.ManaBar:ClearAllPoints()
-                main.ManaBar:SetPoint("TOPLEFT", healthContainer, "BOTTOMLEFT", 0, 0)
-                anchorsApplied["TargetMana"] = true
-            end
-        end
-    end
+    -- Standardize bar layout, anchoring, and growth direction
+    EnsureBarLayout(main, "Target", p)
     
     -- Add background behind bars (tight padding)
     if p.ufShowBackground and main then
@@ -590,33 +614,8 @@ function UnitFrames:StyleFocusFrame()
         end
     end
     
-    -- Apply bar dimensions - normalize width and height (skip during combat)
-    if main and not InCombatLockdown() then
-        local healthContainer = main.HealthBarsContainer
-        local scaledWidth = NORMALIZED_BAR_WIDTH * (p.ufBarScale or 1.0)
-        local healthHeight = p.ufHealthHeight or NORMALIZED_HEALTH_HEIGHT
-        local manaHeight = p.ufManaHeight or NORMALIZED_MANA_HEIGHT
-        
-        if healthContainer then
-            healthContainer:SetWidth(scaledWidth)
-            healthContainer:SetHeight(healthHeight)
-            if healthContainer.HealthBar then
-                healthContainer.HealthBar:SetWidth(scaledWidth)
-                healthContainer.HealthBar:SetHeight(healthHeight)
-            end
-        end
-        if main.ManaBar then
-            main.ManaBar:SetWidth(scaledWidth)
-            main.ManaBar:SetHeight(manaHeight)
-            
-            -- One-time anchor fix: Blizzard default has offset, realign to left edge
-            if not anchorsApplied["FocusMana"] then
-                main.ManaBar:ClearAllPoints()
-                main.ManaBar:SetPoint("TOPLEFT", healthContainer, "BOTTOMLEFT", 0, 0)
-                anchorsApplied["FocusMana"] = true
-            end
-        end
-    end
+    -- Standardize bar layout, anchoring, and growth direction
+    EnsureBarLayout(main, "Focus", p)
     
     -- Add background behind bars (tight padding)
     if p.ufShowBackground and main then
