@@ -39,6 +39,7 @@ function UnitFrames:InstallHooks()
                 self:StylePlayerFrame()
             end
         end)
+        addon:Log("UnitFrames: Hooked PlayerFrame_Update", "discovery")
     end
     
     if PlayerFrame_UpdateArt then
@@ -47,6 +48,7 @@ function UnitFrames:InstallHooks()
                 self:StylePlayerFrame()
             end
         end)
+        addon:Log("UnitFrames: Hooked PlayerFrame_UpdateArt", "discovery")
     end
     
     -- TargetFrame hooks - these are MIXIN methods, hook on the frame object
@@ -56,6 +58,7 @@ function UnitFrames:InstallHooks()
                 self:StyleTargetFrame()
             end
         end)
+        addon:Log("UnitFrames: Hooked TargetFrame:Update", "discovery")
     end
     
     -- FocusFrame hooks - also mixin methods
@@ -65,6 +68,7 @@ function UnitFrames:InstallHooks()
                 self:StyleFocusFrame()
             end
         end)
+        addon:Log("UnitFrames: Hooked FocusFrame:Update", "discovery")
     end
     
     -- Register for target changed event to catch initial styling
@@ -85,216 +89,259 @@ function UnitFrames:InstallHooks()
     return true
 end
 
--- Get the correct frame elements for PlayerFrame
-function UnitFrames:GetPlayerFrameElements()
-    if not PlayerFrame then return nil end
-    
-    local elements = {}
-    
-    -- Portrait: PlayerFrame.PlayerFrameContainer.PlayerPortrait
-    if PlayerFrame.PlayerFrameContainer then
-        elements.portrait = PlayerFrame.PlayerFrameContainer.PlayerPortrait
-        elements.frameTexture = PlayerFrame.PlayerFrameContainer.FrameTexture
-        elements.vehicleTexture = PlayerFrame.PlayerFrameContainer.VehicleFrameTexture
-        elements.alternatePowerTexture = PlayerFrame.PlayerFrameContainer.AlternatePowerFrameTexture
-    end
-    
-    -- Main content
-    if PlayerFrame.PlayerFrameContent and PlayerFrame.PlayerFrameContent.PlayerFrameContentMain then
-        local main = PlayerFrame.PlayerFrameContent.PlayerFrameContentMain
-        
-        -- Health bar container and bar
-        if main.HealthBarsContainer then
-            elements.healthContainer = main.HealthBarsContainer
-            elements.healthBar = main.HealthBarsContainer.HealthBar
-            elements.healthMask = main.HealthBarsContainer.HealthBarMask
-        end
-        
-        -- Mana bar
-        elements.manaBar = main.ManaBar
-        if main.ManaBar then
-            elements.manaMask = main.ManaBar.ManaBarMask
-        end
-    end
-    
-    return elements
-end
-
--- Get the correct frame elements for TargetFrame
-function UnitFrames:GetTargetFrameElements(frame)
-    frame = frame or TargetFrame
-    if not frame then return nil end
-    
-    local elements = {}
-    
-    -- Portrait: TargetFrame.TargetFrameContainer.Portrait
-    if frame.TargetFrameContainer then
-        elements.portrait = frame.TargetFrameContainer.Portrait
-        elements.frameTexture = frame.TargetFrameContainer.FrameTexture
-    end
-    
-    -- Main content
-    if frame.TargetFrameContent and frame.TargetFrameContent.TargetFrameContentMain then
-        local main = frame.TargetFrameContent.TargetFrameContentMain
-        
-        -- Health bar container and bar
-        if main.HealthBarsContainer then
-            elements.healthContainer = main.HealthBarsContainer
-            elements.healthBar = main.HealthBarsContainer.HealthBar
-            elements.healthMask = main.HealthBarsContainer.HealthBarMask
-        end
-        
-        -- Mana bar
-        elements.manaBar = main.ManaBar
-        if main.ManaBar then
-            elements.manaMask = main.ManaBar.ManaBarMask
-        end
-        
-        -- Name text
-        elements.name = main.Name
-    end
-    
-    return elements
-end
-
 -- Style the Player Frame
+-- Exact paths from Blizzard's PlayerFrame.xml:
+--   Portrait: PlayerFrame.PlayerFrameContainer.PlayerPortrait
+--   PortraitMask: PlayerFrame.PlayerFrameContainer.PlayerPortraitMask
+--   FrameTexture: PlayerFrame.PlayerFrameContainer.FrameTexture
+--   HealthBar: PlayerFrame.PlayerFrameContent.PlayerFrameContentMain.HealthBarsContainer.HealthBar
+--   HealthBarMask: PlayerFrame.PlayerFrameContent.PlayerFrameContentMain.HealthBarsContainer.HealthBarMask
+--   ManaBar: PlayerFrame.PlayerFrameContent.PlayerFrameContentMain.ManaBar
+--   ManaBarMask: PlayerFrame.PlayerFrameContent.PlayerFrameContentMain.ManaBar.ManaBarMask
 function UnitFrames:StylePlayerFrame()
-    local elements = self:GetPlayerFrameElements()
-    if not elements then return end
+    if not PlayerFrame then return end
     
     local p = self.db.profile
+    local container = PlayerFrame.PlayerFrameContainer
+    local content = PlayerFrame.PlayerFrameContent
+    local main = content and content.PlayerFrameContentMain
     
     -- Hide portrait
-    if p.ufHidePortraits and elements.portrait then
-        elements.portrait:SetAlpha(0)
+    if p.ufHidePortraits then
+        if container and container.PlayerPortrait then
+            container.PlayerPortrait:SetAlpha(0)
+        end
+        if container and container.PlayerPortraitMask then
+            container.PlayerPortraitMask:Hide()
+        end
     end
     
-    -- Hide borders/frame texture
+    -- Hide borders/frame textures
     if p.ufHideBorders then
-        if elements.frameTexture then elements.frameTexture:SetAlpha(0) end
-        if elements.vehicleTexture then elements.vehicleTexture:SetAlpha(0) end
-        if elements.alternatePowerTexture then elements.alternatePowerTexture:SetAlpha(0) end
+        if container then
+            if container.FrameTexture then container.FrameTexture:SetAlpha(0) end
+            if container.VehicleFrameTexture then container.VehicleFrameTexture:SetAlpha(0) end
+            if container.AlternatePowerFrameTexture then container.AlternatePowerFrameTexture:SetAlpha(0) end
+            if container.FrameFlash then container.FrameFlash:SetAlpha(0) end
+        end
+        
+        -- Hide the bar masks (these create curved edges)
+        if main then
+            local healthContainer = main.HealthBarsContainer
+            if healthContainer and healthContainer.HealthBarMask then
+                healthContainer.HealthBarMask:Hide()
+            end
+            if main.ManaBar and main.ManaBar.ManaBarMask then
+                main.ManaBar.ManaBarMask:Hide()
+            end
+        end
     end
     
     -- Apply flat bar texture
-    if p.ufFlatBars then
-        if elements.healthBar then
-            elements.healthBar:SetStatusBarTexture(FLAT_BAR_TEXTURE)
+    if p.ufFlatBars and main then
+        local healthContainer = main.HealthBarsContainer
+        if healthContainer and healthContainer.HealthBar then
+            healthContainer.HealthBar:SetStatusBarTexture(FLAT_BAR_TEXTURE)
         end
-        if elements.manaBar then
-            elements.manaBar:SetStatusBarTexture(FLAT_BAR_TEXTURE)
+        if main.ManaBar then
+            main.ManaBar:SetStatusBarTexture(FLAT_BAR_TEXTURE)
         end
-    end
-    
-    -- Hide masks for cleaner look (masks create the curved edges)
-    if p.ufHideBorders then
-        if elements.healthMask then elements.healthMask:Hide() end
-        if elements.manaMask then elements.manaMask:Hide() end
     end
     
     -- Resize bars
-    if elements.healthContainer and p.ufHealthHeight then
-        elements.healthContainer:SetHeight(p.ufHealthHeight)
-        if elements.healthBar then
-            elements.healthBar:SetHeight(p.ufHealthHeight)
+    if main and p.ufHealthHeight then
+        local healthContainer = main.HealthBarsContainer
+        if healthContainer then
+            healthContainer:SetHeight(p.ufHealthHeight)
+            if healthContainer.HealthBar then
+                healthContainer.HealthBar:SetHeight(p.ufHealthHeight)
+            end
         end
     end
     
-    if elements.manaBar and p.ufManaHeight then
-        elements.manaBar:SetHeight(p.ufManaHeight)
+    if main and main.ManaBar and p.ufManaHeight then
+        main.ManaBar:SetHeight(p.ufManaHeight)
     end
 end
 
 -- Style the Target Frame
+-- Exact paths from Blizzard's TargetFrame.xml (TargetFrameTemplate):
+--   Portrait: TargetFrame.TargetFrameContainer.Portrait
+--   PortraitMask: TargetFrame.TargetFrameContainer.PortraitMask
+--   FrameTexture: TargetFrame.TargetFrameContainer.FrameTexture
+--   HealthBar: TargetFrame.TargetFrameContent.TargetFrameContentMain.HealthBarsContainer.HealthBar
+--   HealthBarMask: TargetFrame.TargetFrameContent.TargetFrameContentMain.HealthBarsContainer.HealthBarMask
+--   ManaBar: TargetFrame.TargetFrameContent.TargetFrameContentMain.ManaBar
+--   ManaBarMask: TargetFrame.TargetFrameContent.TargetFrameContentMain.ManaBar.ManaBarMask
 function UnitFrames:StyleTargetFrame()
-    local elements = self:GetTargetFrameElements(TargetFrame)
-    if not elements then return end
+    if not TargetFrame then return end
     
     local p = self.db.profile
+    local container = TargetFrame.TargetFrameContainer
+    local content = TargetFrame.TargetFrameContent
+    local main = content and content.TargetFrameContentMain
     
     -- Hide portrait
-    if p.ufHidePortraits and elements.portrait then
-        elements.portrait:SetAlpha(0)
+    if p.ufHidePortraits then
+        if container and container.Portrait then
+            container.Portrait:SetAlpha(0)
+        end
+        if container and container.PortraitMask then
+            container.PortraitMask:Hide()
+        end
     end
     
-    -- Hide borders/frame texture
+    -- Hide borders/frame textures
     if p.ufHideBorders then
-        if elements.frameTexture then elements.frameTexture:SetAlpha(0) end
+        if container then
+            if container.FrameTexture then container.FrameTexture:SetAlpha(0) end
+            if container.Flash then container.Flash:SetAlpha(0) end
+            if container.BossPortraitFrameTexture then container.BossPortraitFrameTexture:SetAlpha(0) end
+        end
+        
+        -- Hide the bar masks
+        if main then
+            local healthContainer = main.HealthBarsContainer
+            if healthContainer and healthContainer.HealthBarMask then
+                healthContainer.HealthBarMask:Hide()
+            end
+            if main.ManaBar and main.ManaBar.ManaBarMask then
+                main.ManaBar.ManaBarMask:Hide()
+            end
+        end
     end
     
     -- Apply flat bar texture
-    if p.ufFlatBars then
-        if elements.healthBar then
-            elements.healthBar:SetStatusBarTexture(FLAT_BAR_TEXTURE)
+    if p.ufFlatBars and main then
+        local healthContainer = main.HealthBarsContainer
+        if healthContainer and healthContainer.HealthBar then
+            healthContainer.HealthBar:SetStatusBarTexture(FLAT_BAR_TEXTURE)
         end
-        if elements.manaBar then
-            elements.manaBar:SetStatusBarTexture(FLAT_BAR_TEXTURE)
+        if main.ManaBar then
+            main.ManaBar:SetStatusBarTexture(FLAT_BAR_TEXTURE)
         end
-    end
-    
-    -- Hide masks
-    if p.ufHideBorders then
-        if elements.healthMask then elements.healthMask:Hide() end
-        if elements.manaMask then elements.manaMask:Hide() end
     end
     
     -- Resize bars
-    if elements.healthContainer and p.ufHealthHeight then
-        elements.healthContainer:SetHeight(p.ufHealthHeight)
-        if elements.healthBar then
-            elements.healthBar:SetHeight(p.ufHealthHeight)
+    if main and p.ufHealthHeight then
+        local healthContainer = main.HealthBarsContainer
+        if healthContainer then
+            healthContainer:SetHeight(p.ufHealthHeight)
+            if healthContainer.HealthBar then
+                healthContainer.HealthBar:SetHeight(p.ufHealthHeight)
+            end
         end
     end
     
-    if elements.manaBar and p.ufManaHeight then
-        elements.manaBar:SetHeight(p.ufManaHeight)
+    if main and main.ManaBar and p.ufManaHeight then
+        main.ManaBar:SetHeight(p.ufManaHeight)
     end
 end
 
--- Style the Focus Frame
+-- Style the Focus Frame (uses same structure as TargetFrameTemplate)
 function UnitFrames:StyleFocusFrame()
-    -- FocusFrame uses the same structure as TargetFrame
-    local elements = self:GetTargetFrameElements(FocusFrame)
-    if not elements then return end
+    if not FocusFrame then return end
     
     local p = self.db.profile
+    local container = FocusFrame.TargetFrameContainer
+    local content = FocusFrame.TargetFrameContent
+    local main = content and content.TargetFrameContentMain
     
     -- Hide portrait
-    if p.ufHidePortraits and elements.portrait then
-        elements.portrait:SetAlpha(0)
+    if p.ufHidePortraits then
+        if container and container.Portrait then
+            container.Portrait:SetAlpha(0)
+        end
+        if container and container.PortraitMask then
+            container.PortraitMask:Hide()
+        end
     end
     
-    -- Hide borders/frame texture
+    -- Hide borders/frame textures
     if p.ufHideBorders then
-        if elements.frameTexture then elements.frameTexture:SetAlpha(0) end
+        if container then
+            if container.FrameTexture then container.FrameTexture:SetAlpha(0) end
+            if container.Flash then container.Flash:SetAlpha(0) end
+            if container.BossPortraitFrameTexture then container.BossPortraitFrameTexture:SetAlpha(0) end
+        end
+        
+        -- Hide the bar masks
+        if main then
+            local healthContainer = main.HealthBarsContainer
+            if healthContainer and healthContainer.HealthBarMask then
+                healthContainer.HealthBarMask:Hide()
+            end
+            if main.ManaBar and main.ManaBar.ManaBarMask then
+                main.ManaBar.ManaBarMask:Hide()
+            end
+        end
     end
     
     -- Apply flat bar texture
-    if p.ufFlatBars then
-        if elements.healthBar then
-            elements.healthBar:SetStatusBarTexture(FLAT_BAR_TEXTURE)
+    if p.ufFlatBars and main then
+        local healthContainer = main.HealthBarsContainer
+        if healthContainer and healthContainer.HealthBar then
+            healthContainer.HealthBar:SetStatusBarTexture(FLAT_BAR_TEXTURE)
         end
-        if elements.manaBar then
-            elements.manaBar:SetStatusBarTexture(FLAT_BAR_TEXTURE)
+        if main.ManaBar then
+            main.ManaBar:SetStatusBarTexture(FLAT_BAR_TEXTURE)
         end
-    end
-    
-    -- Hide masks
-    if p.ufHideBorders then
-        if elements.healthMask then elements.healthMask:Hide() end
-        if elements.manaMask then elements.manaMask:Hide() end
     end
     
     -- Resize bars
-    if elements.healthContainer and p.ufHealthHeight then
-        elements.healthContainer:SetHeight(p.ufHealthHeight)
-        if elements.healthBar then
-            elements.healthBar:SetHeight(p.ufHealthHeight)
+    if main and p.ufHealthHeight then
+        local healthContainer = main.HealthBarsContainer
+        if healthContainer then
+            healthContainer:SetHeight(p.ufHealthHeight)
+            if healthContainer.HealthBar then
+                healthContainer.HealthBar:SetHeight(p.ufHealthHeight)
+            end
         end
     end
     
-    if elements.manaBar and p.ufManaHeight then
-        elements.manaBar:SetHeight(p.ufManaHeight)
+    if main and main.ManaBar and p.ufManaHeight then
+        main.ManaBar:SetHeight(p.ufManaHeight)
+    end
+end
+
+-- Debug function to print frame structure
+function UnitFrames:DebugPlayerFrame()
+    if not PlayerFrame then
+        print("PlayerFrame not found")
+        return
+    end
+    
+    print("=== PlayerFrame Debug ===")
+    print("PlayerFrameContainer:", PlayerFrame.PlayerFrameContainer and "YES" or "NO")
+    
+    if PlayerFrame.PlayerFrameContainer then
+        local c = PlayerFrame.PlayerFrameContainer
+        print("  .PlayerPortrait:", c.PlayerPortrait and "YES" or "NO")
+        print("  .PlayerPortraitMask:", c.PlayerPortraitMask and "YES" or "NO")
+        print("  .FrameTexture:", c.FrameTexture and "YES" or "NO")
+    end
+    
+    print("PlayerFrameContent:", PlayerFrame.PlayerFrameContent and "YES" or "NO")
+    
+    if PlayerFrame.PlayerFrameContent then
+        local content = PlayerFrame.PlayerFrameContent
+        print("  .PlayerFrameContentMain:", content.PlayerFrameContentMain and "YES" or "NO")
+        
+        if content.PlayerFrameContentMain then
+            local main = content.PlayerFrameContentMain
+            print("    .HealthBarsContainer:", main.HealthBarsContainer and "YES" or "NO")
+            
+            if main.HealthBarsContainer then
+                local hc = main.HealthBarsContainer
+                print("      .HealthBar:", hc.HealthBar and "YES" or "NO")
+                print("      .HealthBarMask:", hc.HealthBarMask and "YES" or "NO")
+            end
+            
+            print("    .ManaBar:", main.ManaBar and "YES" or "NO")
+            if main.ManaBar then
+                print("      .ManaBarMask:", main.ManaBar.ManaBarMask and "YES" or "NO")
+            end
+        end
     end
 end
 
@@ -330,6 +377,9 @@ function UnitFrames:SetupStyling()
     
     isStylingActive = true
     
+    -- Debug: print frame structure
+    -- self:DebugPlayerFrame()
+    
     -- Apply to all frames
     self:RefreshAllFrames()
     
@@ -361,4 +411,19 @@ end
 
 function UnitFrames:ApplyLayoutPosition(yOffset)
     -- Unit frames are independent of HUD positioning
+end
+
+-- Slash command for debugging
+SLASH_AHUF1 = "/ahuf"
+SlashCmdList["AHUF"] = function(msg)
+    if msg == "debug" then
+        UnitFrames:DebugPlayerFrame()
+    elseif msg == "style" then
+        UnitFrames:RefreshAllFrames()
+        print("ActionHud UnitFrames: Refreshed all frames")
+    else
+        print("ActionHud UnitFrames commands:")
+        print("  /ahuf debug - Print frame structure")
+        print("  /ahuf style - Force refresh styling")
+    end
 end
