@@ -39,6 +39,7 @@ A compact action bar HUD overlay that displays ability icons, cooldowns, and pro
 | `Cooldowns/Cooldowns.lua` | Essential/Utility cooldown icons (custom proxies) |
 | `Cooldowns/TrackedBars.lua` | Tracked Bars reskin (hooks BuffBarCooldownViewer, sidecar positioning) |
 | `Cooldowns/TrackedBuffs.lua` | Tracked Buffs reskin (hooks BuffIconCooldownViewer) |
+| `Nameplates/Nameplates.lua` | Nameplate reskin (hooks NamePlateDriverFrame, Player Frame portrait) |
 | `SettingsUI.lua` | Blizzard Settings API integration (no external libs) |
 | `ActionHud.toc` | Addon metadata and load order |
 
@@ -140,6 +141,38 @@ Uses a **"hide-only" visibility model** with custom proxy frames:
 
 For detailed Blizzard frame structure and API reference, see `Docs/proxy-system.md`.
 
+#### Nameplates Module (Style-Only Approach)
+
+**Midnight (12.0) Compatibility:** Uses the same style-only approach as TrackedBuffs/TrackedBars.
+
+| Blizzard Frame | ActionHud Hook |
+|----------------|----------------|
+| `NamePlateDriverFrame` | `OnNamePlateAdded`, `UpdateNamePlateOptions` |
+| `PlayerFrame` | Portrait visibility |
+
+**Design:**
+1. Hook into `NamePlateDriverFrame:OnNamePlateAdded()` to style new nameplates
+2. Style operations only:
+   - Hide border textures for clean look
+   - Apply flat solid bar texture
+   - Adjust bar height and width
+   - Style class resource bars (mana, runes)
+3. Player Frame portrait can be hidden independently
+
+**Available Settings:**
+
+| Setting | Description |
+|---------|-------------|
+| Enable Nameplate Styling | Master toggle for all nameplate styling |
+| Hide Borders | Remove frame borders for minimal look |
+| Flat Bar Texture | Use solid color texture instead of gradients |
+| Health Bar Height | Pixel height of health bars (2-20) |
+| Bar Width Scale | Scale multiplier for bar width (0.5-1.5) |
+| Class Bar Height | Pixel height of class resource bars |
+| Hide Player Portrait | Hide the portrait on the Player Frame |
+
+**Note:** Requires `/reload` to apply styling to existing nameplates.
+
 ---
 
 ## SavedVariables
@@ -174,6 +207,15 @@ Stored in `ActionHudDB.profile`:
   -- TrackedBars Compact Mode
   barsCompactMode = false,    -- Hide bars, show icons only
   barsTimerOnIcon = false,    -- Move timer text on top of icon
+  
+  -- Nameplates Reskin
+  npEnabled = false,          -- Master toggle
+  npHideBorders = true,       -- Hide frame borders
+  npFlatBars = true,          -- Solid bar texture
+  npBarHeight = 4,            -- Health bar height (pixels)
+  npBarScale = 1.0,           -- Width scale multiplier
+  npClassBarHeight = 4,       -- Class bar height (pixels)
+  npHidePlayerPortrait = false, -- Hide Player Frame portrait
 }
 ```
 

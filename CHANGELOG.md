@@ -6,6 +6,12 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased - Midnight Branch]
 
 ### Added
+- **Nameplates Module**: New reskin module for Blizzard's default nameplates.
+    - Hide borders for a clean, minimal appearance
+    - Flat solid bar textures (like personal resources)
+    - Adjustable health bar height and width scale
+    - Class resource bar (mana, runes) sizing
+    - Player Frame portrait visibility toggle
 - **Tracked Bars Compact Mode**: New option to hide cooldown bars and show icons only for a more compact display.
 - **Timer on Icon**: New option to display the countdown timer centered on the icon instead of on the bar.
     - Stack count automatically repositions to bottom-right when enabled.

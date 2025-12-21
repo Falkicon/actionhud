@@ -54,6 +54,15 @@ local defaults = {
         styleExternalDefensives = true,  -- 12.0+ (Midnight)
         defensivesCountFontSize = 9,
         defensivesTimerFontSize = "small",
+        
+        -- Nameplates Reskin
+        npEnabled = false,           -- Master toggle for nameplate styling
+        npHideBorders = true,        -- Hide frame borders for clean look
+        npFlatBars = true,           -- Use flat solid bar texture
+        npBarHeight = 4,             -- Health bar height in pixels
+        npBarScale = 1.0,            -- Width scale multiplier (0.5-1.5)
+        npClassBarHeight = 4,        -- Class resource bar height
+        npHidePlayerPortrait = false, -- Hide portrait on Player Frame
 
         -- Minimap Icon (LibDBIcon)
         minimap = {

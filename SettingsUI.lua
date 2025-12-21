@@ -507,6 +507,111 @@ Enable it in Gameplay Enhancements to use these features.]]
             },
         },
     }
+    
+    -- SUB: Nameplates
+    local nameplateOptions = {
+        name = "Nameplates",
+        handler = ActionHud,
+        type = "group",
+        args = {
+            infoNote = {
+                type = "description", order = 0,
+                name = [[Apply clean styling to Blizzard's default nameplates.
+
+|cffffcc00Note:|r Changes take effect on new nameplates. Use |cff00ff00/reload|r to apply to all existing nameplates.
+]],
+            },
+            enable = {
+                name = "Enable Nameplate Styling",
+                desc = "Apply ActionHud styling to all nameplates (player, friendly, enemy).",
+                type = "toggle", order = 1, width = "full",
+                get = function(info) return self.db.profile.npEnabled end,
+                set = function(info, val) 
+                    self.db.profile.npEnabled = val
+                    ActionHud:GetModule("Nameplates"):UpdateLayout()
+                end,
+            },
+            
+            -- Appearance Section
+            appearanceHeader = { name = "Appearance", type = "header", order = 10 },
+            hideBorders = {
+                name = "Hide Borders",
+                desc = "Remove the frame borders for a clean, minimal look.",
+                type = "toggle", order = 11, width = 1.0,
+                disabled = function() return not self.db.profile.npEnabled end,
+                get = function(info) return self.db.profile.npHideBorders end,
+                set = function(info, val) 
+                    self.db.profile.npHideBorders = val
+                    ActionHud:GetModule("Nameplates"):UpdateLayout()
+                end,
+            },
+            flatBars = {
+                name = "Flat Bar Texture",
+                desc = "Use a solid flat texture instead of gradient bars.",
+                type = "toggle", order = 12, width = 1.0,
+                disabled = function() return not self.db.profile.npEnabled end,
+                get = function(info) return self.db.profile.npFlatBars end,
+                set = function(info, val) 
+                    self.db.profile.npFlatBars = val
+                    ActionHud:GetModule("Nameplates"):UpdateLayout()
+                end,
+            },
+            
+            -- Sizing Section
+            sizingHeader = { name = "Sizing", type = "header", order = 20 },
+            barHeight = {
+                name = "Health Bar Height",
+                desc = "Height of the health bar in pixels.",
+                type = "range", min = 2, max = 20, step = 1, order = 21,
+                disabled = function() return not self.db.profile.npEnabled end,
+                get = function(info) return self.db.profile.npBarHeight end,
+                set = function(info, val) 
+                    self.db.profile.npBarHeight = val
+                    ActionHud:GetModule("Nameplates"):UpdateLayout()
+                end,
+            },
+            barScale = {
+                name = "Bar Width Scale",
+                desc = "Scale the width of health bars (1.0 = default).",
+                type = "range", min = 0.5, max = 1.5, step = 0.05, order = 22,
+                disabled = function() return not self.db.profile.npEnabled end,
+                get = function(info) return self.db.profile.npBarScale end,
+                set = function(info, val) 
+                    self.db.profile.npBarScale = val
+                    ActionHud:GetModule("Nameplates"):UpdateLayout()
+                end,
+            },
+            classBarHeight = {
+                name = "Class Bar Height",
+                desc = "Height of the class resource bar (mana, runes, etc.).",
+                type = "range", min = 2, max = 20, step = 1, order = 23,
+                disabled = function() return not self.db.profile.npEnabled end,
+                get = function(info) return self.db.profile.npClassBarHeight end,
+                set = function(info, val) 
+                    self.db.profile.npClassBarHeight = val
+                    ActionHud:GetModule("Nameplates"):UpdateLayout()
+                end,
+            },
+            
+            -- Player Frame Section
+            playerFrameHeader = { name = "Player Frame", type = "header", order = 30 },
+            playerFrameNote = {
+                type = "description", order = 31,
+                name = "These options affect the fixed Player Frame UI, not nameplates.",
+            },
+            hidePlayerPortrait = {
+                name = "Hide Player Portrait",
+                desc = "Hide the circular portrait on the Player Frame.",
+                type = "toggle", order = 32, width = "full",
+                disabled = function() return not self.db.profile.npEnabled end,
+                get = function(info) return self.db.profile.npHidePlayerPortrait end,
+                set = function(info, val) 
+                    self.db.profile.npHidePlayerPortrait = val
+                    ActionHud:GetModule("Nameplates"):UpdateLayout()
+                end,
+            },
+        },
+    }
 
     -- SUB: Layout
     -- Helper to get LayoutManager
@@ -793,6 +898,10 @@ Enable it in Gameplay Enhancements to use these features.]]
     
     LibStub("AceConfig-3.0"):RegisterOptionsTable("ActionHud_Tracked", trackedOptions)
     LibStub("AceConfigDialog-3.0"):AddToBlizOptions("ActionHud_Tracked", "Tracked Abilities", "ActionHud")
+    
+    -- 7. Nameplates (independent of HUD)
+    LibStub("AceConfig-3.0"):RegisterOptionsTable("ActionHud_Nameplates", nameplateOptions)
+    LibStub("AceConfigDialog-3.0"):AddToBlizOptions("ActionHud_Nameplates", "Nameplates", "ActionHud")
     
     -- 8-9. Meta settings
     local profiles = LibStub("AceDBOptions-3.0"):GetOptionsTable(self.db)
