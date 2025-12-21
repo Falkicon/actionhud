@@ -467,17 +467,11 @@ function UnitFrames:StyleTargetFrame()
             if healthContainer.HealthBar then
                 healthContainer.HealthBar:SetWidth(scaledWidth)
                 healthContainer.HealthBar:SetHeight(healthHeight)
-                -- Ensure health bar fills the container
-                healthContainer.HealthBar:ClearAllPoints()
-                healthContainer.HealthBar:SetAllPoints(healthContainer)
             end
         end
         if main.ManaBar then
             main.ManaBar:SetWidth(scaledWidth)
             main.ManaBar:SetHeight(manaHeight)
-            -- Re-anchor mana bar to align with health bar (Blizzard default has x=8 offset)
-            main.ManaBar:ClearAllPoints()
-            main.ManaBar:SetPoint("TOPLEFT", healthContainer, "BOTTOMLEFT", 0, 0)
         end
     end
     
@@ -599,17 +593,11 @@ function UnitFrames:StyleFocusFrame()
             if healthContainer.HealthBar then
                 healthContainer.HealthBar:SetWidth(scaledWidth)
                 healthContainer.HealthBar:SetHeight(healthHeight)
-                -- Ensure health bar fills the container
-                healthContainer.HealthBar:ClearAllPoints()
-                healthContainer.HealthBar:SetAllPoints(healthContainer)
             end
         end
         if main.ManaBar then
             main.ManaBar:SetWidth(scaledWidth)
             main.ManaBar:SetHeight(manaHeight)
-            -- Re-anchor mana bar to align with health bar (Blizzard default has offset)
-            main.ManaBar:ClearAllPoints()
-            main.ManaBar:SetPoint("TOPLEFT", healthContainer, "BOTTOMLEFT", 0, 0)
         end
     end
     
