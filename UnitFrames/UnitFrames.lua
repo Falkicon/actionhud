@@ -1,7 +1,6 @@
 local addonName, ns = ...
 local addon = LibStub("AceAddon-3.0"):GetAddon("ActionHud")
 local UnitFrames = addon:NewModule("UnitFrames", "AceEvent-3.0")
-local Utils = ns.Utils
 
 -- Style-only approach: We hook into Blizzard's unit frames (PlayerFrame, TargetFrame, FocusFrame)
 -- and apply custom styling. This is Midnight-safe as we only modify visual properties.
@@ -11,9 +10,6 @@ local hooksInstalled = false
 
 -- Flat bar texture (solid color, no gradient)
 local FLAT_BAR_TEXTURE = "Interface\\Buttons\\WHITE8x8"
-
--- Cache for original textures (for potential restoration)
-local originalTextures = {}
 
 function UnitFrames:OnInitialize()
     self.db = addon.db
@@ -30,49 +26,40 @@ end
 
 function UnitFrames:OnDisable()
     isStylingActive = false
-    -- Note: Can't fully undo styling due to hooksecurefunc limitations
-    -- User must reload to restore default appearance
 end
 
 -- Install hooks on the unit frames (only once, can't be removed)
 function UnitFrames:InstallHooks()
     if hooksInstalled then return true end
     
-    -- PlayerFrame hooks
-    if PlayerFrame then
-        -- Hook art update to re-apply styling
+    -- PlayerFrame hooks - these ARE global functions
+    if PlayerFrame_Update then
+        hooksecurefunc("PlayerFrame_Update", function()
+            if isStylingActive and self.db.profile.ufStylePlayer then
+                self:StylePlayerFrame()
+            end
+        end)
+    end
+    
+    if PlayerFrame_UpdateArt then
         hooksecurefunc("PlayerFrame_UpdateArt", function()
             if isStylingActive and self.db.profile.ufStylePlayer then
                 self:StylePlayerFrame()
             end
         end)
-        
-        -- Hook status update
-        hooksecurefunc("PlayerFrame_UpdateStatus", function()
-            if isStylingActive and self.db.profile.ufStylePlayer then
-                self:StylePlayerFrame()
-            end
-        end)
     end
     
-    -- TargetFrame hooks
-    if TargetFrame then
-        hooksecurefunc("TargetFrame_Update", function()
-            if isStylingActive and self.db.profile.ufStyleTarget then
-                self:StyleTargetFrame()
-            end
-        end)
-        
-        hooksecurefunc("TargetFrame_CheckClassification", function()
+    -- TargetFrame hooks - these are MIXIN methods, hook on the frame object
+    if TargetFrame and TargetFrame.Update then
+        hooksecurefunc(TargetFrame, "Update", function()
             if isStylingActive and self.db.profile.ufStyleTarget then
                 self:StyleTargetFrame()
             end
         end)
     end
     
-    -- FocusFrame hooks (shares code with TargetFrame)
-    if FocusFrame then
-        -- FocusFrame uses TargetFrame functions but we can hook its specific update
+    -- FocusFrame hooks - also mixin methods
+    if FocusFrame and FocusFrame.Update then
         hooksecurefunc(FocusFrame, "Update", function()
             if isStylingActive and self.db.profile.ufStyleFocus then
                 self:StyleFocusFrame()
@@ -80,281 +67,234 @@ function UnitFrames:InstallHooks()
         end)
     end
     
+    -- Register for target changed event to catch initial styling
+    self:RegisterEvent("PLAYER_TARGET_CHANGED", function()
+        if isStylingActive and self.db.profile.ufStyleTarget then
+            C_Timer.After(0.1, function() self:StyleTargetFrame() end)
+        end
+    end)
+    
+    self:RegisterEvent("PLAYER_FOCUS_CHANGED", function()
+        if isStylingActive and self.db.profile.ufStyleFocus then
+            C_Timer.After(0.1, function() self:StyleFocusFrame() end)
+        end
+    end)
+    
     hooksInstalled = true
     addon:Log("UnitFrames: Hooks installed", "discovery")
     return true
 end
 
+-- Get the correct frame elements for PlayerFrame
+function UnitFrames:GetPlayerFrameElements()
+    if not PlayerFrame then return nil end
+    
+    local elements = {}
+    
+    -- Portrait: PlayerFrame.PlayerFrameContainer.PlayerPortrait
+    if PlayerFrame.PlayerFrameContainer then
+        elements.portrait = PlayerFrame.PlayerFrameContainer.PlayerPortrait
+        elements.frameTexture = PlayerFrame.PlayerFrameContainer.FrameTexture
+        elements.vehicleTexture = PlayerFrame.PlayerFrameContainer.VehicleFrameTexture
+        elements.alternatePowerTexture = PlayerFrame.PlayerFrameContainer.AlternatePowerFrameTexture
+    end
+    
+    -- Main content
+    if PlayerFrame.PlayerFrameContent and PlayerFrame.PlayerFrameContent.PlayerFrameContentMain then
+        local main = PlayerFrame.PlayerFrameContent.PlayerFrameContentMain
+        
+        -- Health bar container and bar
+        if main.HealthBarsContainer then
+            elements.healthContainer = main.HealthBarsContainer
+            elements.healthBar = main.HealthBarsContainer.HealthBar
+            elements.healthMask = main.HealthBarsContainer.HealthBarMask
+        end
+        
+        -- Mana bar
+        elements.manaBar = main.ManaBar
+        if main.ManaBar then
+            elements.manaMask = main.ManaBar.ManaBarMask
+        end
+    end
+    
+    return elements
+end
+
+-- Get the correct frame elements for TargetFrame
+function UnitFrames:GetTargetFrameElements(frame)
+    frame = frame or TargetFrame
+    if not frame then return nil end
+    
+    local elements = {}
+    
+    -- Portrait: TargetFrame.TargetFrameContainer.Portrait
+    if frame.TargetFrameContainer then
+        elements.portrait = frame.TargetFrameContainer.Portrait
+        elements.frameTexture = frame.TargetFrameContainer.FrameTexture
+    end
+    
+    -- Main content
+    if frame.TargetFrameContent and frame.TargetFrameContent.TargetFrameContentMain then
+        local main = frame.TargetFrameContent.TargetFrameContentMain
+        
+        -- Health bar container and bar
+        if main.HealthBarsContainer then
+            elements.healthContainer = main.HealthBarsContainer
+            elements.healthBar = main.HealthBarsContainer.HealthBar
+            elements.healthMask = main.HealthBarsContainer.HealthBarMask
+        end
+        
+        -- Mana bar
+        elements.manaBar = main.ManaBar
+        if main.ManaBar then
+            elements.manaMask = main.ManaBar.ManaBarMask
+        end
+        
+        -- Name text
+        elements.name = main.Name
+    end
+    
+    return elements
+end
+
 -- Style the Player Frame
 function UnitFrames:StylePlayerFrame()
-    if not PlayerFrame then return end
+    local elements = self:GetPlayerFrameElements()
+    if not elements then return end
     
     local p = self.db.profile
     
-    -- Get the content containers (structure varies by WoW version)
-    local content = PlayerFrame.PlayerFrameContent
-    if not content then return end
-    
-    local main = content.PlayerFrameContentMain
-    if not main then return end
-    
     -- Hide portrait
-    if p.ufHidePortraits then
-        self:HidePortrait(main)
+    if p.ufHidePortraits and elements.portrait then
+        elements.portrait:SetAlpha(0)
     end
     
-    -- Hide borders
+    -- Hide borders/frame texture
     if p.ufHideBorders then
-        self:HideBorders(PlayerFrame)
-        self:HideBorders(main)
+        if elements.frameTexture then elements.frameTexture:SetAlpha(0) end
+        if elements.vehicleTexture then elements.vehicleTexture:SetAlpha(0) end
+        if elements.alternatePowerTexture then elements.alternatePowerTexture:SetAlpha(0) end
     end
     
     -- Apply flat bar texture
     if p.ufFlatBars then
-        self:ApplyFlatBars(main)
+        if elements.healthBar then
+            elements.healthBar:SetStatusBarTexture(FLAT_BAR_TEXTURE)
+        end
+        if elements.manaBar then
+            elements.manaBar:SetStatusBarTexture(FLAT_BAR_TEXTURE)
+        end
+    end
+    
+    -- Hide masks for cleaner look (masks create the curved edges)
+    if p.ufHideBorders then
+        if elements.healthMask then elements.healthMask:Hide() end
+        if elements.manaMask then elements.manaMask:Hide() end
     end
     
     -- Resize bars
-    if p.ufHealthHeight or p.ufManaHeight then
-        self:ResizeBars(main, p.ufHealthHeight, p.ufManaHeight)
+    if elements.healthContainer and p.ufHealthHeight then
+        elements.healthContainer:SetHeight(p.ufHealthHeight)
+        if elements.healthBar then
+            elements.healthBar:SetHeight(p.ufHealthHeight)
+        end
     end
     
-    -- Style class power bar
-    if p.ufClassBarHeight then
-        self:StyleClassPowerBar(main)
+    if elements.manaBar and p.ufManaHeight then
+        elements.manaBar:SetHeight(p.ufManaHeight)
     end
 end
 
 -- Style the Target Frame
 function UnitFrames:StyleTargetFrame()
-    if not TargetFrame then return end
+    local elements = self:GetTargetFrameElements(TargetFrame)
+    if not elements then return end
     
     local p = self.db.profile
     
-    -- TargetFrame has a different structure
-    local content = TargetFrame.TargetFrameContent
-    if not content then return end
-    
-    local main = content.TargetFrameContentMain
-    if not main then return end
-    
     -- Hide portrait
-    if p.ufHidePortraits then
-        self:HidePortrait(main)
+    if p.ufHidePortraits and elements.portrait then
+        elements.portrait:SetAlpha(0)
     end
     
-    -- Hide borders
+    -- Hide borders/frame texture
     if p.ufHideBorders then
-        self:HideBorders(TargetFrame)
-        self:HideBorders(main)
+        if elements.frameTexture then elements.frameTexture:SetAlpha(0) end
     end
     
     -- Apply flat bar texture
     if p.ufFlatBars then
-        self:ApplyFlatBars(main)
+        if elements.healthBar then
+            elements.healthBar:SetStatusBarTexture(FLAT_BAR_TEXTURE)
+        end
+        if elements.manaBar then
+            elements.manaBar:SetStatusBarTexture(FLAT_BAR_TEXTURE)
+        end
+    end
+    
+    -- Hide masks
+    if p.ufHideBorders then
+        if elements.healthMask then elements.healthMask:Hide() end
+        if elements.manaMask then elements.manaMask:Hide() end
     end
     
     -- Resize bars
-    if p.ufHealthHeight or p.ufManaHeight then
-        self:ResizeBars(main, p.ufHealthHeight, p.ufManaHeight)
+    if elements.healthContainer and p.ufHealthHeight then
+        elements.healthContainer:SetHeight(p.ufHealthHeight)
+        if elements.healthBar then
+            elements.healthBar:SetHeight(p.ufHealthHeight)
+        end
+    end
+    
+    if elements.manaBar and p.ufManaHeight then
+        elements.manaBar:SetHeight(p.ufManaHeight)
     end
 end
 
 -- Style the Focus Frame
 function UnitFrames:StyleFocusFrame()
-    if not FocusFrame then return end
+    -- FocusFrame uses the same structure as TargetFrame
+    local elements = self:GetTargetFrameElements(FocusFrame)
+    if not elements then return end
     
     local p = self.db.profile
     
-    -- FocusFrame has similar structure to TargetFrame
-    local content = FocusFrame.TargetFrameContent
-    if not content then return end
-    
-    local main = content.TargetFrameContentMain
-    if not main then return end
-    
     -- Hide portrait
-    if p.ufHidePortraits then
-        self:HidePortrait(main)
+    if p.ufHidePortraits and elements.portrait then
+        elements.portrait:SetAlpha(0)
     end
     
-    -- Hide borders
+    -- Hide borders/frame texture
     if p.ufHideBorders then
-        self:HideBorders(FocusFrame)
-        self:HideBorders(main)
+        if elements.frameTexture then elements.frameTexture:SetAlpha(0) end
     end
     
     -- Apply flat bar texture
     if p.ufFlatBars then
-        self:ApplyFlatBars(main)
+        if elements.healthBar then
+            elements.healthBar:SetStatusBarTexture(FLAT_BAR_TEXTURE)
+        end
+        if elements.manaBar then
+            elements.manaBar:SetStatusBarTexture(FLAT_BAR_TEXTURE)
+        end
+    end
+    
+    -- Hide masks
+    if p.ufHideBorders then
+        if elements.healthMask then elements.healthMask:Hide() end
+        if elements.manaMask then elements.manaMask:Hide() end
     end
     
     -- Resize bars
-    if p.ufHealthHeight or p.ufManaHeight then
-        self:ResizeBars(main, p.ufHealthHeight, p.ufManaHeight)
-    end
-end
-
--- Hide the portrait area
-function UnitFrames:HidePortrait(main)
-    if not main then return end
-    
-    -- Try different portrait locations based on frame structure
-    local portraitFrame = main.PortraitFrame
-    if portraitFrame then
-        if portraitFrame.Portrait then
-            portraitFrame.Portrait:SetAlpha(0)
-        end
-        if portraitFrame.PortraitMask then
-            portraitFrame.PortraitMask:SetAlpha(0)
-        end
-        -- Hide the entire portrait frame background
-        for _, region in pairs({portraitFrame:GetRegions()}) do
-            if region:IsObjectType("Texture") then
-                region:SetAlpha(0)
-            end
+    if elements.healthContainer and p.ufHealthHeight then
+        elements.healthContainer:SetHeight(p.ufHealthHeight)
+        if elements.healthBar then
+            elements.healthBar:SetHeight(p.ufHealthHeight)
         end
     end
     
-    -- Also try direct Portrait key (some frames)
-    if main.Portrait then
-        main.Portrait:SetAlpha(0)
-    end
-end
-
--- Hide border decorations
-function UnitFrames:HideBorders(frame)
-    if not frame then return end
-    
-    -- Hide frame-level textures that are borders/decorations
-    local regions = {frame:GetRegions()}
-    for _, region in ipairs(regions) do
-        if region:IsObjectType("Texture") then
-            local name = region:GetDebugName() or ""
-            -- Hide textures that look like borders/decorations
-            if name:find("Border") or name:find("Ring") or name:find("Decoration") 
-               or name:find("Frame") or name:find("Background") then
-                region:SetAlpha(0)
-            end
-        end
-    end
-    
-    -- Also check for named border elements
-    if frame.Border then
-        frame.Border:SetAlpha(0)
-    end
-    if frame.BorderLeft then frame.BorderLeft:SetAlpha(0) end
-    if frame.BorderRight then frame.BorderRight:SetAlpha(0) end
-    if frame.BorderTop then frame.BorderTop:SetAlpha(0) end
-    if frame.BorderBottom then frame.BorderBottom:SetAlpha(0) end
-end
-
--- Apply flat texture to status bars
-function UnitFrames:ApplyFlatBars(main)
-    if not main then return end
-    
-    -- Health bar
-    local healthBarContainer = main.HealthBarContainer or main.HealthBarsContainer
-    if healthBarContainer then
-        local healthBar = healthBarContainer.HealthBar or healthBarContainer.healthBar
-        if healthBar and healthBar.SetStatusBarTexture then
-            healthBar:SetStatusBarTexture(FLAT_BAR_TEXTURE)
-        end
-    end
-    
-    -- Mana bar
-    local manaBar = main.ManaBar or main.manaBar
-    if manaBar and manaBar.SetStatusBarTexture then
-        manaBar:SetStatusBarTexture(FLAT_BAR_TEXTURE)
-    end
-    
-    -- Also try PowerBar (alternative name)
-    local powerBar = main.PowerBar or main.powerBar
-    if powerBar and powerBar.SetStatusBarTexture then
-        powerBar:SetStatusBarTexture(FLAT_BAR_TEXTURE)
-    end
-end
-
--- Resize health and mana bars
-function UnitFrames:ResizeBars(main, healthHeight, manaHeight)
-    if not main then return end
-    
-    local p = self.db.profile
-    
-    -- Health bar
-    if healthHeight then
-        local healthBarContainer = main.HealthBarContainer or main.HealthBarsContainer
-        if healthBarContainer then
-            healthBarContainer:SetHeight(healthHeight)
-        end
-    end
-    
-    -- Mana bar
-    if manaHeight then
-        local manaBar = main.ManaBar or main.manaBar or main.PowerBar or main.powerBar
-        if manaBar then
-            manaBar:SetHeight(manaHeight)
-        end
-    end
-    
-    -- Apply bar width scale
-    if p.ufBarScale and p.ufBarScale ~= 1.0 then
-        local healthBarContainer = main.HealthBarContainer or main.HealthBarsContainer
-        if healthBarContainer then
-            local width = healthBarContainer:GetWidth()
-            healthBarContainer:SetWidth(width * p.ufBarScale)
-        end
-        
-        local manaBar = main.ManaBar or main.manaBar or main.PowerBar or main.powerBar
-        if manaBar then
-            local width = manaBar:GetWidth()
-            manaBar:SetWidth(width * p.ufBarScale)
-        end
-    end
-end
-
--- Style the class power bar (combo points, holy power, etc.)
-function UnitFrames:StyleClassPowerBar(main)
-    if not main then return end
-    
-    local p = self.db.profile
-    
-    -- Try to find class power bar
-    local classPowerBar = main.ClassPowerBar
-    if not classPowerBar then
-        -- Try PlayerFrame directly
-        if PlayerFrame and PlayerFrame.classPowerBar then
-            classPowerBar = PlayerFrame.classPowerBar
-        end
-    end
-    
-    if classPowerBar then
-        if p.ufClassBarHeight then
-            classPowerBar:SetHeight(p.ufClassBarHeight)
-        end
-        
-        -- Apply flat texture to class bar segments if they exist
-        if p.ufFlatBars then
-            for i = 1, 10 do
-                local segment = classPowerBar["ClassPowerBarSegment" .. i]
-                if segment and segment.SetStatusBarTexture then
-                    segment:SetStatusBarTexture(FLAT_BAR_TEXTURE)
-                elseif segment and segment.SetTexture then
-                    segment:SetTexture(FLAT_BAR_TEXTURE)
-                end
-            end
-        end
-    end
-    
-    -- Also try the alternate power bar (some classes)
-    local alternatePowerBar = main.AlternatePowerBar
-    if alternatePowerBar then
-        if p.ufClassBarHeight then
-            alternatePowerBar:SetHeight(p.ufClassBarHeight)
-        end
-        if p.ufFlatBars and alternatePowerBar.SetStatusBarTexture then
-            alternatePowerBar:SetStatusBarTexture(FLAT_BAR_TEXTURE)
-        end
+    if elements.manaBar and p.ufManaHeight then
+        elements.manaBar:SetHeight(p.ufManaHeight)
     end
 end
 
@@ -386,11 +326,7 @@ function UnitFrames:SetupStyling()
     end
     
     -- Install hooks (only once)
-    if not self:InstallHooks() then
-        -- Retry if frames weren't ready
-        C_Timer.After(1.0, function() self:SetupStyling() end)
-        return
-    end
+    self:InstallHooks()
     
     isStylingActive = true
     
@@ -406,6 +342,8 @@ function UnitFrames:UpdateLayout()
     
     if p.ufEnabled then
         isStylingActive = true
+        -- Re-install hooks if not done yet
+        self:InstallHooks()
         self:RefreshAllFrames()
     else
         isStylingActive = false
