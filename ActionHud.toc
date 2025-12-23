@@ -21,6 +21,7 @@ Cooldowns\Cooldowns.lua
 Cooldowns\TrackedBars.lua
 Cooldowns\TrackedBuffs.lua
 Cooldowns\TrackedDefensives.lua
+CustomUnitFrames.lua
 UnitFrames\UnitFrames.lua
 Trinkets.lua
 SettingsUI.lua

@@ -17,49 +17,38 @@ To support both Retail (11.x) and Midnight (12.x) with a single codebase, Action
 | **Aura Duration** | `C_UnitAuras.GetAuraDurationRemaining` | `Duration` Object + `EvaluateRemainingDuration` | `Utils.GetDurationSafe` |
 | **Time Formatting** | `string.format("%.1f", s)` | `SecondsFormatter:Format(s)` | `Utils.FormatTime` |
 | **StatusBar Timer** | `frame:SetValue(val)` | `frame:SetTimerDuration(dur, interp, dir)` | `Utils.SetTimerSafe` |
-| **Absorbs** | `UnitGetTotalAbsorbs` | `UnitHealPredictionCalculator` | `UnitFrames (Pending)` |
+| **Absorbs** | `UnitGetTotalAbsorbs` | `UnitHealPredictionCalculator` | `UnitFrames` (Integrated) |
 | **Boolean Colors** | Local Color Tables | `C_CurveUtil.EvaluateColorFromBoolean` | `Utils.Cap.HasBooleanColor` |
-| **Secrecy Detection**| `issecretvalue(val)` | `C_Secrets.ShouldUnitComparisonBeSecret` | `Utils.IsSecretSafe` |
-| **Class Resources** | Secret Returns | **Non-Secret** (Safe to Read) | `Resources (Restore)` |
+| **Secrecy Detection**| `issecretvalue(val)` | `C_Secrets.GetSpellAuraSecrecy` | `Utils.IsValueSecret` |
+| **Class Resources** | Secret Returns | **Non-Secret** (Interpretive fragments) | `Resources` (Fractional) |
 
-## 3. Implementation Status (Phase 7 - Complete)
+## 3. Post-Transition Reference
 
-The transition to the "Royal" interpretive API model is now complete. All modules have been removed from Standby and are now fully functional on Midnight Beta/PTR using the new native wrappers.
+The transition to the "Royal" interpretive API model is complete. ActionHud now operates in a fully hybrid mode, using native interpretive objects where available.
 
-| Module | Status | Transition Method |
-|---|---|---|
-| **Tracked Bars** | ✅ Active | Async Styling + `SetTimerDuration` support |
-| **Tracked Buffs** | ✅ Active | Async Styling + `SetAlpha(0)` Stripping |
-| **External Defensives**| ✅ Active | Async Styling |
-| **Unit Frames** | ✅ Active | `UnitHealPredictionCalculator` integrated |
-| **Action Bars** | ✅ Active | `GetActionDisplayCount` + `SetCooldownFromDurationObject` |
-
-## 4. Diagnostic Workflow
-
-Addon developers and testers should use the following command to track API readiness:
-
+### Diagnostic Workflow
+Tester command to verify ongoing environment stability:
 ```bash
 /ah testapi
 ```
 
-This command reports:
-- **Build Info**: Confirms if the client is Retail, PTR, or Beta.
-- **Capabilities**: Shows exactly which Royal APIs are detected.
-- **Readiness Score**: A heuristic value indicating how much of the Royal transition is implemented.
+### Ongoing Maintenance
+- **Capability Updates**: As Blizzard rolls out the `C_Secrets` namespace, update `Utils.IsValueSecret` to prefer native secrecy queries over `pcall` tests.
+- **Whitelist Monitoring**: Monitor GCD and Skyriding vigor spell IDs for any changes in secrecy status.
+- **Interpretive Absorb Tuning**: Fine-tune `UnitHealPredictionCalculator` values as new encounter mechanics are added to Beta.
 
-## 5. Roadmap (Complete)
+## 4. Feature Roadmap: Central HUD Absorbs
 
-1.  **Phase 1 (Discovery)**: Implement `Utils.Cap` and Standby guards. ✅
-2.  **Phase 2 (Diagnostics)**: Enhance `/ah testapi` for daily build tracking. ✅
-3.  **Phase 3 (Version Detection)**: Refine threshold (120000) for PTR/Beta detection. ✅
-4.  **Phase 4 (Safety Guards)**: Implement `pcall` and `SafeLTE` for secret value comparison. ✅
-5.  **Phase 5 (Duration & Resource Migration)**: ✅
-    - Restore Class Resource bars (confirmed non-secret).
-    - Implement `Utils.GetActionDisplayCountSafe`.
-6.  **Phase 6 (Royal Styling)**: ✅
-    - Restore styling to Tracked Abilities using Async Styling (`C_Timer.After(0)`).
-    - Integrated `Utils.SetCooldownSafe` for native Duration object support.
-7.  **Phase 7 (Absorb Transition)**: ✅
-    - Migrate UnitFrames to `UnitHealPredictionCalculator`.
-    - Restore Unit Frame styling on Royal.
+While Unit Frame styling is integrated, the custom central HUD (`Resources.lua`) requires a manual implementation of the absorb/prediction overlay system using the interpretive model.
+
+### Next Steps: `Resources` Module Integration
+1. **Calculator Lifecycle**: Initialize a `UnitHealPredictionCalculator` in `Resources:OnEnable` and cache it in the module scope.
+2. **Overlay Bars**: 
+   - Create `playerAbsorb` and `targetAbsorb` StatusBar overlays for both Player and Target health bars.
+   - Use `FLAT_BAR_TEXTURE` with high transparency (e.g., alpha 0.4) and specialized coloring (Teal for absorbs, Green for heals).
+3. **Update Logic**:
+   - Register `UNIT_HEAL_PREDICTION` and `UNIT_ABSORB_AMOUNT_CHANGED` events.
+   - Use `Utils.GetUnitHealsSafe(unit, calculator)` to retrieve data from the appropriate model (Legacy vs. Royal).
+   - **Interpretive Constraint**: On Royal clients, ensure the absorb bar is anchored to the *end* of the current health bar value without direct math on secret health totals (using Blizzard's native interpretive anchoring logic if possible).
+4. **Settings**: Add toggles in `SettingsUI.lua` for "Show Absorbs on HUD" and "Show Heal Prediction on HUD."
 

@@ -62,7 +62,6 @@ L["PROTECTED (Standard Aura logic will crash)"] = true
 L["API test complete."] = true
 L["[MIDNIGHT BETA & PTR NOTICE]"] = true
 L["Blizzard is currently transitioning to the new 'Royal' interpretive API model. Styling for Tracked Abilities is temporarily disabled on this client to ensure stability. We are monitoring Blizzard's API changes and will restore these features as soon as possible."] = true
-L["Blizzard is currently transitioning to the new 'Royal' interpretive API model. Unit Frame styling is temporarily disabled on this client to ensure stability."] = true
 
 -- Settings UI - General
 L["Lock Frame"] = true
@@ -129,6 +128,10 @@ L["Player-Target Gap"] = true
 L["Space between player and target bars."] = true
 L["Bar Spacing"] = true
 L["Health Bar"] = true
+L["Show Heal Prediction"] = true
+L["Show incoming heals as an overlay on the health bar."] = true
+L["Show Absorbs"] = true
+L["Show damage absorption shields as an overlay on the health bar."] = true
 L["Height"] = true
 L["Power Bar"] = true
 L["Class Resource"] = true
@@ -186,6 +189,8 @@ L["Apply ActionHud styling to the External Defensives frame."] = true
 
 -- Settings UI - Unit Frames
 L["Unit Frames"] = true
+L["Unit Frame Styling:"] = true
+L["ActionHud applies a modern, minimalist aesthetic to Blizzard's unit frames. This module uses a style-only approach that is safe for the Midnight (12.0) environment."] = true
 L["Experimental Feature:"] = true
 L["Due to Blizzard's API changes in Midnight (12.0), traditional unit frame customization is significantly restricted. ActionHud's styling approach balances these technical limitations with a modern, minimalist aesthetic. This feature will continue to evolve as new APIs become available."] = true
 L["Note:"] = true
@@ -225,6 +230,15 @@ L["Target Frame"] = true
 L["Apply styling to the Target Frame."] = true
 L["Focus Frame"] = true
 L["Apply styling to the Focus Frame."] = true
+
+-- Settings UI - Custom Unit Frames (12.0+)
+L["Custom Unit Frames"] = true
+L["Custom frames for Player and Target with advanced support for Midnight's 'Secret Values'."] = true
+L["Enable Custom Unit Frames"] = true
+L["Show custom Player and Target frames."] = true
+L["Health Height"] = true
+L["Power Height"] = true
+L["Bar Width"] = true
 
 -- Settings UI - Trinkets
 L["Trinkets"] = true
@@ -272,6 +286,8 @@ L["Debug Events"] = true
 L["Logs key HUD events to the chat window."] = true
 L["Debug Proxies"] = true
 L["Logs detailed information about tracked buff/bar population and aura changes."] = true
+L["Debug Resources"] = true
+L["Logs health, heal prediction, and absorb values for HUD bars."] = true
 L["Debug Layout"] = true
 L["Logs layout positioning calculations including stack order, heights, gaps, and Y offsets."] = true
 L["Debug Containers"] = true

@@ -19,8 +19,12 @@ local playerGroup, targetGroup
 local playerHealth, playerPower, playerClassBar
 local targetHealth, targetPower
 local classSegments = {}
+local healCalculator -- Shared calculator for Royal clients
 
 local Utils = ns.Utils
+
+-- Flat bar texture (solid color, no gradient)
+local FLAT_BAR_TEXTURE = "Interface\\Buttons\\WHITE8x8"
 
 -- Configuration Cache
 local RCFG = {
@@ -54,13 +58,33 @@ local RuneSpecColors = {
 
 local function CreateBar(parent)
 	local bar = CreateFrame("StatusBar", nil, parent)
-	bar:SetStatusBarTexture("Interface\\Buttons\\WHITE8x8")
+	bar:SetStatusBarTexture(FLAT_BAR_TEXTURE)
 	bar:SetMinMaxValues(0, 1)
 	bar:SetValue(1)
 
 	bar.bg = bar:CreateTexture(nil, "BACKGROUND")
 	bar.bg:SetAllPoints()
 	bar.bg:SetColorTexture(0, 0, 0, 0.5)
+
+	-- Add Predict/Absorb overlays if this is a health bar
+	-- We'll initialize them later in CreateBar if type is set, or just always for safety
+	bar.predict = CreateFrame("StatusBar", nil, bar)
+	bar.predict:SetStatusBarTexture(FLAT_BAR_TEXTURE)
+	bar.predict:SetAllPoints()
+	bar.predict:SetAlpha(0.4)
+	bar.predict:SetStatusBarColor(0, 0.8, 0) -- Green for heals
+	bar.predict:SetFrameLevel(bar:GetFrameLevel() + 1)
+	bar.predict:Hide()
+
+	bar.absorb = CreateFrame("StatusBar", nil, bar)
+	bar.absorb:SetStatusBarTexture(FLAT_BAR_TEXTURE)
+	bar.absorb:SetAlpha(0.6) -- Higher alpha for visibility
+	bar.absorb:SetStatusBarColor(0, 1, 1) -- Brighter teal for absorbs
+	bar.absorb:SetFrameLevel(bar:GetFrameLevel() + 2) -- Top layer
+	if bar.absorb.SetReverseFill then
+		bar.absorb:SetReverseFill(true)
+	end
+	bar.absorb:Hide()
 
 	return bar
 end
@@ -303,6 +327,12 @@ end
 local function UpdateBarValue(bar, unit)
 	if not bar or not UnitExists(unit) then
 		bar:SetValue(0)
+		if bar.predict then
+			bar.predict:Hide()
+		end
+		if bar.absorb then
+			bar.absorb:Hide()
+		end
 		return
 	end
 
@@ -315,9 +345,106 @@ local function UpdateBarValue(bar, unit)
 		max = UnitPowerMax(unit)
 	end
 
-	-- Passthrough: StatusBars in 12.0 handle secret values correctly
+	-- PASSTHROUGH: Update the main bar value FIRST. 
+	-- StatusBars in 12.0 handle secret values correctly. 
+	-- Doing this first ensures basic health/power display works even if prediction fails.
 	bar:SetMinMaxValues(0, max)
 	bar:SetValue(cur)
+
+	-- Update Predict/Absorb for health bars
+	if bar.type == "HEALTH" and (RCFG.showPredict or RCFG.showAbsorbs) then
+		local incomingHeals, _, _, _, calcAbsorb = Utils.GetUnitHealsSafe(unit, healCalculator)
+		
+		-- Use a safe helper for direct API calls that might return secret values
+		local function GetRawUnitAbsorb(u)
+			if not UnitGetTotalAbsorbs then return 0 end
+			local val = UnitGetTotalAbsorbs(u)
+			if type(val) == "nil" then return 0 end
+			return val
+		end
+
+		local unitAbsorb = GetRawUnitAbsorb(unit)
+		
+		-- Helper to check if a value is "active" (non-zero or secret)
+		local function IsActive(v)
+			if Utils.IsValueSecret(v) then return true end
+			local num = tonumber(v)
+			return num and num > 0
+		end
+
+		-- 1. Heal Prediction (Incoming Heals)
+		if RCFG.showPredict and IsActive(incomingHeals) then
+			bar.predict:SetMinMaxValues(0, max)
+			if Utils.IsValueSecret(cur) then
+				-- Royal: Anchor to current health texture and fill to the right
+				local tex = bar:GetStatusBarTexture()
+				if tex then
+					bar.predict:ClearAllPoints()
+					bar.predict:SetPoint("TOPLEFT", tex, "TOPRIGHT")
+					bar.predict:SetPoint("BOTTOMLEFT", tex, "BOTTOMRIGHT")
+					-- Set width to full bar width to ensure correct SetValue scaling
+					bar.predict:SetWidth(bar:GetWidth())
+					bar.predict:SetValue(incomingHeals)
+					bar.predict:Show()
+				end
+			else
+				-- Legacy: Stack but cap at max
+				bar.predict:ClearAllPoints()
+				bar.predict:SetAllPoints()
+				local curNum = tonumber(cur) or 0
+				local healNum = tonumber(incomingHeals) or 0
+				bar.predict:SetValue(math.min(max, curNum + healNum))
+				bar.predict:Show()
+			end
+		else
+			bar.predict:Hide()
+		end
+
+		-- 2. Absorbs (Shields) - Reverse Fill from Right
+		if RCFG.showAbsorbs and (IsActive(calcAbsorb) or IsActive(unitAbsorb)) then
+			bar.absorb:SetMinMaxValues(0, max)
+			bar.absorb:ClearAllPoints()
+			bar.absorb:SetAllPoints()
+			
+			-- Force reverse fill state
+			if bar.absorb.SetReverseFill then
+				bar.absorb:SetReverseFill(true)
+			end
+
+			-- Prefer secret value for pass-through, or max of numbers
+			local absorbValue = 0
+			if Utils.IsValueSecret(calcAbsorb) then
+				absorbValue = calcAbsorb
+			elseif Utils.IsValueSecret(unitAbsorb) then
+				absorbValue = unitAbsorb
+			else
+				absorbValue = math.max(tonumber(calcAbsorb) or 0, tonumber(unitAbsorb) or 0)
+			end
+
+			bar.absorb:SetValue(absorbValue)
+			bar.absorb:Show()
+		else
+			bar.absorb:Hide()
+		end
+
+		-- Debug logging (Safe)
+		if addon.db.profile.debugResources then
+			local function s(v)
+				return Utils.IsValueSecret(v) and "<secret>" or tostring(v)
+			end
+			addon:Log(
+				string.format(
+					"Resources: %s Health update: cur=%s max=%s predict=%s absorb=%s",
+					unit,
+					s(cur),
+					s(max),
+					s(incomingHeals),
+					s(calcAbsorb ~= 0 and calcAbsorb or unitAbsorb)
+				),
+				"resources"
+			)
+		end
+	end
 end
 
 function Resources:OnInitialize()
@@ -330,6 +457,11 @@ function Resources:OnEnable()
 		return
 	end
 
+	-- Initialize Royal calculator if available
+	if not healCalculator and Utils.Cap.HasHealCalculator then
+		healCalculator = Utils.CreateHealCalculator()
+	end
+
 	if not container then
 		container = CreateFrame("Frame", "ActionHudResources", main)
 		playerGroup = CreateFrame("Frame", nil, container)
@@ -337,6 +469,7 @@ function Resources:OnEnable()
 
 		playerHealth = CreateBar(playerGroup)
 		playerHealth.type = "HEALTH"
+		playerHealth:SetClipsChildren(true)
 		playerPower = CreateBar(playerGroup)
 		playerPower.type = "POWER"
 
@@ -344,6 +477,7 @@ function Resources:OnEnable()
 
 		targetHealth = CreateBar(targetGroup)
 		targetHealth.type = "HEALTH"
+		targetHealth:SetClipsChildren(true)
 		targetPower = CreateBar(targetGroup)
 		targetPower.type = "POWER"
 	end
@@ -351,6 +485,8 @@ function Resources:OnEnable()
 	self:RegisterEvent("PLAYER_TARGET_CHANGED", "OnEvent")
 	self:RegisterEvent("PLAYER_ENTERING_WORLD", "OnEvent")
 	self:RegisterEvent("UNIT_HEALTH", "OnEvent")
+	self:RegisterEvent("UNIT_HEAL_PREDICTION", "OnEvent")
+	self:RegisterEvent("UNIT_ABSORB_AMOUNT_CHANGED", "OnEvent")
 	self:RegisterEvent("UNIT_POWER_UPDATE", "OnEvent")
 	self:RegisterEvent("UNIT_DISPLAYPOWER", "OnEvent")
 	self:RegisterEvent("UNIT_MAXPOWER", "OnEvent")
@@ -381,7 +517,7 @@ function Resources:OnEvent(event, unit)
 		UpdateBarColor(targetPower, "target")
 		UpdateBarValue(targetHealth, "target")
 		UpdateBarValue(targetPower, "target")
-	elseif event == "UNIT_HEALTH" then
+	elseif event == "UNIT_HEALTH" or event == "UNIT_HEAL_PREDICTION" or event == "UNIT_ABSORB_AMOUNT_CHANGED" then
 		if unit == "player" then
 			UpdateBarValue(playerHealth, "player")
 		end
@@ -511,6 +647,8 @@ function Resources:UpdateLayout()
 	RCFG.healthEnabled = db.resHealthEnabled ~= false
 	RCFG.powerEnabled = db.resPowerEnabled ~= false
 	RCFG.classEnabled = db.resClassEnabled ~= false
+	RCFG.showPredict = db.resShowPredict ~= false
+	RCFG.showAbsorbs = db.resShowAbsorbs ~= false
 	RCFG.healthHeight = db.resHealthHeight or 6
 	RCFG.powerHeight = db.resPowerHeight or 6
 	RCFG.classHeight = db.resClassHeight or 4

@@ -418,6 +418,32 @@ function ActionHud:SetupOptions()
 							self:RefreshLayout()
 						end,
 					},
+					showPredict = {
+						name = L["Show Heal Prediction"],
+						desc = L["Show incoming heals as an overlay on the health bar."],
+						type = "toggle",
+						order = 3,
+						get = function(info)
+							return self.db.profile.resShowPredict ~= false
+						end,
+						set = function(info, val)
+							self.db.profile.resShowPredict = val
+							self:RefreshLayout()
+						end,
+					},
+					showAbsorbs = {
+						name = L["Show Absorbs"],
+						desc = L["Show damage absorption shields as an overlay on the health bar."],
+						type = "toggle",
+						order = 4,
+						get = function(info)
+							return self.db.profile.resShowAbsorbs ~= false
+						end,
+						set = function(info, val)
+							self.db.profile.resShowAbsorbs = val
+							self:RefreshLayout()
+						end,
+					},
 				},
 			},
 			powerGroup = {
@@ -1003,9 +1029,9 @@ function ActionHud:SetupOptions()
 				type = "description",
 				order = 0.1,
 				name = "|cffffcc00"
-					.. L["Experimental Feature:"]
+					.. L["Unit Frame Styling:"]
 					.. "|r\n"
-					.. L["Due to Blizzard's API changes in Midnight (12.0), traditional unit frame customization is significantly restricted. ActionHud's styling approach balances these technical limitations with a modern, minimalist aesthetic. This feature will continue to evolve as new APIs become available."]
+					.. L["ActionHud applies a modern, minimalist aesthetic to Blizzard's unit frames. This module uses a style-only approach that is safe for the Midnight (12.0) environment."]
 					.. "\n\n|cffffcc00"
 					.. L["Note:"]
 					.. "|r "
@@ -1018,13 +1044,7 @@ function ActionHud:SetupOptions()
 				type = "toggle",
 				order = 1,
 				width = "full",
-				disabled = function()
-					return ns.Utils.Cap.IsRoyal
-				end,
 				get = function(info)
-					if ns.Utils.Cap.IsRoyal then
-						return false
-					end
 					return self.db.profile.ufEnabled
 				end,
 				set = function(info, val)
@@ -1295,6 +1315,89 @@ function ActionHud:SetupOptions()
 				set = function(info, val)
 					self.db.profile.ufStyleFocus = val
 					ActionHud:GetModule("UnitFrames"):UpdateLayout()
+				end,
+			},
+		},
+	}
+
+	-- SUB: Custom Unit Frames (New Module 12.0+)
+	local customUfOptions = {
+		name = L["Custom Unit Frames"],
+		handler = ActionHud,
+		type = "group",
+		args = {
+			note = {
+				type = "description",
+				order = 0.1,
+				name = "|cffffcc00" .. L["Custom Unit Frames"] .. "|r\n" .. L["Custom frames for Player and Target with advanced support for Midnight's 'Secret Values'."] .. "\n",
+			},
+			enable = {
+				name = L["Enable Custom Unit Frames"],
+				desc = L["Show custom Player and Target frames."],
+				type = "toggle",
+				order = 1,
+				width = "full",
+				get = function(info)
+					return self.db.profile.customUfEnabled
+				end,
+				set = function(info, val)
+					self.db.profile.customUfEnabled = val
+					ActionHud:GetModule("CustomUnitFrames"):UpdateLayout()
+				end,
+			},
+			sizingHeader = { name = L["Bar Sizing"], type = "header", order = 10 },
+			healthHeight = {
+				name = L["Health Height"],
+				type = "range",
+				min = 10,
+				max = 60,
+				step = 1,
+				order = 11,
+				disabled = function()
+					return not self.db.profile.customUfEnabled
+				end,
+				get = function(info)
+					return self.db.profile.customUfHealthHeight
+				end,
+				set = function(info, val)
+					self.db.profile.customUfHealthHeight = val
+					ActionHud:GetModule("CustomUnitFrames"):UpdateLayout()
+				end,
+			},
+			powerHeight = {
+				name = L["Power Height"],
+				type = "range",
+				min = 2,
+				max = 30,
+				step = 1,
+				order = 12,
+				disabled = function()
+					return not self.db.profile.customUfEnabled
+				end,
+				get = function(info)
+					return self.db.profile.customUfPowerHeight
+				end,
+				set = function(info, val)
+					self.db.profile.customUfPowerHeight = val
+					ActionHud:GetModule("CustomUnitFrames"):UpdateLayout()
+				end,
+			},
+			width = {
+				name = L["Bar Width"],
+				type = "range",
+				min = 100,
+				max = 400,
+				step = 1,
+				order = 13,
+				disabled = function()
+					return not self.db.profile.customUfEnabled
+				end,
+				get = function(info)
+					return self.db.profile.customUfWidth
+				end,
+				set = function(info, val)
+					self.db.profile.customUfWidth = val
+					ActionHud:GetModule("CustomUnitFrames"):UpdateLayout()
 				end,
 			},
 		},
@@ -1747,6 +1850,18 @@ function ActionHud:SetupOptions()
 					self.db.profile.debugProxy = val
 				end,
 			},
+			resources = {
+				name = L["Debug Resources"],
+				desc = L["Logs health, heal prediction, and absorb values for HUD bars."],
+				type = "toggle",
+				order = 14.5,
+				get = function(info)
+					return self.db.profile.debugResources
+				end,
+				set = function(info, val)
+					self.db.profile.debugResources = val
+				end,
+			},
 			layout = {
 				name = L["Debug Layout"],
 				desc = L["Logs layout positioning calculations including stack order, heights, gaps, and Y offsets."],
@@ -1802,6 +1917,9 @@ function ActionHud:SetupOptions()
 					end
 					if p.debugProxy then
 						table.insert(activeTypes, L["Proxies"])
+					end
+					if p.debugResources then
+						table.insert(activeTypes, L["Resources"])
 					end
 					if p.debugLayout then
 						table.insert(activeTypes, L["Layout"])
@@ -1898,6 +2016,9 @@ function ActionHud:SetupOptions()
 	-- 7. Unit Frames (Player/Target/Focus)
 	LibStub("AceConfig-3.0"):RegisterOptionsTable("ActionHud_UnitFrames", unitFrameOptions)
 	LibStub("AceConfigDialog-3.0"):AddToBlizOptions("ActionHud_UnitFrames", L["Unit Frames"], "ActionHud")
+
+	LibStub("AceConfig-3.0"):RegisterOptionsTable("ActionHud_CustomUnitFrames", customUfOptions)
+	LibStub("AceConfigDialog-3.0"):AddToBlizOptions("ActionHud_CustomUnitFrames", L["Custom Unit Frames"], "ActionHud")
 
 	LibStub("AceConfig-3.0"):RegisterOptionsTable("ActionHud_Trinkets", trinketOptions)
 	LibStub("AceConfigDialog-3.0"):AddToBlizOptions("ActionHud_Trinkets", L["Trinkets"], "ActionHud")

@@ -27,6 +27,8 @@ local defaults = {
 		resHealthHeight = 6,
 		resPowerHeight = 3,
 		resClassHeight = 3,
+		resShowPredict = true,
+		resShowAbsorbs = true,
 		resOffset = 1,
 		resSpacing = 0,
 		resGap = 2,
@@ -76,6 +78,12 @@ local defaults = {
 		ufFontName = "Arial Narrow", -- Font for bar text (LibSharedMedia name)
 		ufFontSize = 11, -- Font size for bar text
 
+		-- Custom Unit Frames (Player/Target) - New Module (12.0+)
+		customUfEnabled = false, -- Master toggle for custom frames
+		customUfHealthHeight = 30,
+		customUfPowerHeight = 10,
+		customUfWidth = 200,
+
 		-- Dynamic Layout Settings
 		barPriority = "bar1",
 		barAlignment = "CENTER",
@@ -91,6 +99,7 @@ local defaults = {
 		debugEvents = false,
 		debugShowBlizzardFrames = false,
 		debugProxy = false,
+		debugResources = false,
 		debugLayout = false,
 		debugContainers = false,
 
@@ -213,6 +222,9 @@ function ActionHud:Log(msg, debugType)
 		shouldPrint = enabled
 	elseif debugType == "proxy" then
 		enabled = p.debugProxy
+		shouldPrint = enabled
+	elseif debugType == "resources" then
+		enabled = p.debugResources
 		shouldPrint = enabled
 	elseif debugType == "layout" then
 		enabled = p.debugLayout

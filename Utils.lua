@@ -115,26 +115,32 @@ end
 
 -- Helper: Get heal prediction data (compatible with both models)
 function Utils.GetUnitHealsSafe(unit, calculator)
+	local function Pass(v)
+		if type(v) == "nil" then return 0 end
+		return v
+	end
+
 	if calculator and UnitGetDetailedHealPrediction then
 		-- Royal Model
 		local ok = pcall(UnitGetDetailedHealPrediction, unit, "player", calculator)
 		if ok then
-			local incomingHeals, incomingHealsFromHealer, incomingHealsFromOthers, incomingHealsClamped =
-				calculator:GetIncomingHeals()
-			return incomingHeals or 0,
-				incomingHealsFromHealer or 0,
-				incomingHealsFromOthers or 0,
-				incomingHealsClamped or 0
+			local h1, h2, h3, h4 = calculator:GetIncomingHeals()
+			local abs = calculator.GetTotalAbsorbs and calculator:GetTotalAbsorbs()
+
+			-- Return raw values (can be secret)
+			-- We use type check instead of 'or' to avoid boolean test crash
+			return Pass(h1), Pass(h2), Pass(h3), Pass(h4), Pass(abs)
 		end
 	end
 
 	-- Legacy Model
 	if UnitGetIncomingHeals then
-		local incomingHeals = UnitGetIncomingHeals(unit) or 0
-		return incomingHeals, incomingHeals, 0, incomingHeals -- Simplified fallback
+		local h = UnitGetIncomingHeals(unit)
+		local a = UnitGetTotalAbsorbs and UnitGetTotalAbsorbs(unit)
+		return Pass(h), Pass(h), 0, Pass(h), Pass(a) -- Simplified fallback
 	end
 
-	return 0, 0, 0, 0
+	return 0, 0, 0, 0, 0
 end
 
 -- Helper: Safe cooldown setup (Midnight Royal Beta 4+)
@@ -413,6 +419,54 @@ function Utils.GetUnitColor(unit, barType, mult)
 		return 0, 0, 0.8 * mult -- Default blue
 	end
 	return 1, 1, 1
+end
+
+-- Helper: Get unit health percentage safely (Midnight Royal 12.0+)
+function Utils.GetUnitHealthSafe(unit)
+	if UnitHealthPercent and CurveConstants and CurveConstants.ScaleTo100 then
+		-- In 12.0+, this returns a readable 0-100 number even in combat
+		local ok, percent = pcall(UnitHealthPercent, unit, true, CurveConstants.ScaleTo100)
+		if ok then
+			return percent, true
+		end
+	end
+
+	-- Fallback for legacy or if UnitHealthPercent failed
+	local cur = UnitHealth(unit, true) -- Get displayable value
+	local max = UnitHealthMax(unit, true)
+	
+	if type(cur) == "number" and type(max) == "number" and max > 0 then
+		return (cur / max) * 100, false
+	end
+	
+	return nil
+end
+
+-- Helper: Check if value is a Midnight secret value
+function Utils.IsValueSecret(value)
+	if not Utils.IS_MIDNIGHT then return false end
+	if type(value) == "nil" then return false end
+	
+	-- Official checker is the most reliable
+	if _G.issecretvalue then
+		local ok, secret = pcall(_G.issecretvalue, value)
+		return ok and (secret == true)
+	end
+
+	-- Fallback: Secrets only exist for numbers/strings/userdata in combat.
+	-- Tables and booleans are never "secret values" themselves.
+	local t = type(value)
+	if t ~= "number" and t ~= "string" and t ~= "userdata" then
+		return false
+	end
+
+	-- Robust fallback: Try an operation that secrets are known to block.
+	-- We use a simpler comparison to avoid overflow errors.
+	local ok = pcall(function()
+		local _ = (value == 0) or (value ~= nil)
+	end)
+
+	return not ok
 end
 
 -- ============================================================================
