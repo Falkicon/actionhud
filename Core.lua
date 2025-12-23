@@ -552,12 +552,12 @@ function ActionHud:RunMidnightAPITest()
 	-- 1. Capability Status
 	print("|cff33ff99" .. L["Detected Capabilities:"] .. "|r")
 	local caps = {
-		{ name = "IS_MIDNIGHT (Internal)", val = Utils.IS_MIDNIGHT },
-		{ name = "IsRoyal", val = Utils.Cap.IsRoyal },
-		{ name = "HasSecondsFormatter", val = Utils.Cap.HasSecondsFormatter },
-		{ name = "HasHealCalculator", val = Utils.Cap.HasHealCalculator },
-		{ name = "IsAuraLegacy", val = Utils.Cap.IsAuraLegacy },
-		{ name = "HasBooleanColor", val = Utils.Cap.HasBooleanColor },
+		{ name = L["IS_MIDNIGHT (Internal)"], val = Utils.IS_MIDNIGHT },
+		{ name = L["IsRoyal"], val = Utils.Cap.IsRoyal },
+		{ name = L["HasSecondsFormatter"], val = Utils.Cap.HasSecondsFormatter },
+		{ name = L["HasHealCalculator"], val = Utils.Cap.HasHealCalculator },
+		{ name = L["IsAuraLegacy"], val = Utils.Cap.IsAuraLegacy },
+		{ name = L["HasBooleanColor"], val = Utils.Cap.HasBooleanColor },
 	}
 	for _, cap in ipairs(caps) do
 		local color = cap.val and "|cff00ff00" or "|cffffcc00"

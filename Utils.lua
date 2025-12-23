@@ -14,8 +14,8 @@ local RAID_CLASS_COLORS = RAID_CLASS_COLORS
 local PowerBarColor = PowerBarColor
 
 -- Midnight (12.0) compatibility (per Secret Values guide 13)
--- Threshold 120001 is for 12.0.0+ (Pre-patch/Beta).
-Utils.IS_MIDNIGHT = ((select(4, GetBuildInfo())) or 0) >= 120001
+-- Threshold 120000 is for 12.0.0+ (PTR/Pre-patch).
+Utils.IS_MIDNIGHT = ((select(4, GetBuildInfo())) or 0) >= 120000
 
 -- Capability Detection table
 Utils.Cap = {}

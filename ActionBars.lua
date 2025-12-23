@@ -576,6 +576,14 @@ function AB:UpdateCooldown(btn)
 		isEnabled = true
 	end
 
+	-- @midnight-cleanup: Remove boolean test guard once interpretive APIs are implemented
+	local ok, isEnabledBool = pcall(function()
+		return isEnabled and true or false
+	end)
+	if not ok then
+		isEnabled = false
+	end
+
 	if isEnabled and duration and (Utils.IsValueSecret(duration) or Utils.SafeCompare(duration, 0, ">")) then
 		btn.cd:SetCooldown(start, duration)
 		btn.cd:Show()
@@ -628,7 +636,15 @@ function AB:UpdateState(btn)
 	-- Defensive check for Midnight: if count is a string (secret), don't compare it to numbers
 	local countNum = not countIsSecret and tonumber(count) or nil
 
-	if not countIsSecret and (not countNum or countNum <= 1) then
+	-- @midnight-cleanup: Remove manual comparison guard once interpretive APIs are implemented
+	local function SafeLTE(val, threshold)
+		local ok, result = pcall(function()
+			return val <= threshold
+		end)
+		return ok and result or false
+	end
+
+	if not countIsSecret and (not countNum or SafeLTE(countNum, 1)) then
 		if chargeInfo then
 			count = chargeInfo.currentCharges
 			countIsSecret = Utils.IsValueSecret(count)

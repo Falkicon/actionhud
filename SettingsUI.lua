@@ -725,7 +725,7 @@ function ActionHud:SetupOptions()
 				type = "description",
 				order = 0,
 				name = "|cffff4444"
-					.. L["[BETA NOTICE]"]
+					.. L["[MIDNIGHT BETA & PTR NOTICE]"]
 					.. "|r "
 					.. L["Blizzard is currently transitioning to the new 'Royal' interpretive API model. Styling for Tracked Abilities is temporarily disabled on this client to ensure stability. We are monitoring Blizzard's API changes and will restore these features as soon as possible."]
 					.. "\n",
@@ -1035,7 +1035,7 @@ function ActionHud:SetupOptions()
 				type = "description",
 				order = 0,
 				name = "|cffff4444"
-					.. L["[BETA NOTICE]"]
+					.. L["[MIDNIGHT BETA & PTR NOTICE]"]
 					.. "|r "
 					.. L["Blizzard is currently transitioning to the new 'Royal' interpretive API model. Unit Frame styling is temporarily disabled on this client to ensure stability."]
 					.. "\n",
