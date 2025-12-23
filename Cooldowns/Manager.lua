@@ -1,4 +1,5 @@
 local addonName, ns = ...
+local L = LibStub("AceLocale-3.0"):GetLocale("ActionHud")
 local addon = LibStub("AceAddon-3.0"):GetAddon("ActionHud")
 local Manager = addon:NewModule("CooldownManager", "AceEvent-3.0")
 ns.CooldownManager = Manager
@@ -41,9 +42,9 @@ function Manager:OnEnable()
 		CVarCallbackRegistry:RegisterCallback("cooldownViewerEnabled", self.OnCVarChanged, self)
 	end
 
-	addon:Log("CooldownManager Enabled", "proxy")
+	addon:Log(L["CooldownManager Enabled"], "proxy")
 	local blizzEnabled = self:IsBlizzardCooldownViewerEnabled()
-	addon:Log("Blizzard Cooldown Manager enabled: " .. tostring(blizzEnabled), "proxy")
+	addon:Log(string.format(L["Blizzard Cooldown Manager enabled: %s"], tostring(blizzEnabled)), "proxy")
 end
 
 function Manager:OnDisable()
@@ -64,7 +65,7 @@ function Manager:OnEvent(event, ...)
 end
 
 function Manager:OnCVarChanged(cvarName, value)
-	addon:Log("CVar Changed: " .. tostring(cvarName) .. " = " .. tostring(value), "proxy")
+	addon:Log(string.format(L["CVar Changed: %s = %s"], tostring(cvarName), tostring(value)), "proxy")
 
 	-- Notify all dependent modules to refresh their layout and visibility
 	local modules = { "Cooldowns", "TrackedBars", "TrackedBuffs", "TrackedDefensives" }
@@ -142,7 +143,7 @@ function Manager:HideBlizzardFrame(frameName)
 		-- Use Alpha/Mouse instead of function override to avoid taint in 12.0
 		frame:SetAlpha(0)
 		frame:SetPropagateMouseClicks(true) -- Let clicks pass through to our proxies
-		addon:Log("Visual-hidden Blizzard frame: " .. frameName, "frames")
+		addon:Log(string.format(L["Visual-hidden Blizzard frame: %s"], frameName), "frames")
 	end
 end
 
@@ -156,7 +157,7 @@ function Manager:ShowBlizzardFrame(frameName)
 		hiddenFrames[frameName] = nil
 		frame:SetAlpha(1)
 		frame:SetPropagateMouseClicks(false)
-		addon:Log("Restored Blizzard frame: " .. frameName, "frames")
+		addon:Log(string.format(L["Restored Blizzard frame: %s"], frameName), "frames")
 	end
 end
 
@@ -283,13 +284,13 @@ end
 -- ============================================================================
 
 function Manager:FindPotentialTargets()
-	addon:Log("Scanning for Blizzard CooldownViewer frames...", "discovery")
+	addon:Log(L["Scanning for Blizzard CooldownViewer frames..."], "discovery")
 	for k, v in pairs(_G) do
 		if type(k) == "string" and (k:match("Viewer$") or k:match("Tracked")) then
 			if type(v) == "table" and v.GetObjectType then
 				local ok, objType = pcall(v.GetObjectType, v)
 				if ok and (objType == "Frame" or objType == "Button") then
-					addon:Log("Found: " .. k .. " (Type: " .. objType .. ")", "discovery")
+					addon:Log(string.format(L["Found: %s (Type: %s)"], k, objType), "discovery")
 				end
 			end
 		end
@@ -297,19 +298,19 @@ function Manager:FindPotentialTargets()
 end
 
 function Manager:DumpTrackedBuffInfo()
-	print("|cff33ff99ActionHud:|r Dumping Cooldown Manager Info...")
+	print("|cff33ff99" .. L["ActionHud:"] .. "|r " .. L["Dumping Cooldown Manager Info..."])
 
 	local categories = {
-		{ name = "Essential", cat = Enum.CooldownViewerCategory and Enum.CooldownViewerCategory.Essential },
-		{ name = "Utility", cat = Enum.CooldownViewerCategory and Enum.CooldownViewerCategory.Utility },
-		{ name = "TrackedBuff", cat = Enum.CooldownViewerCategory and Enum.CooldownViewerCategory.TrackedBuff },
-		{ name = "TrackedBar", cat = Enum.CooldownViewerCategory and Enum.CooldownViewerCategory.TrackedBar },
+		{ name = L["Essential"], cat = Enum.CooldownViewerCategory and Enum.CooldownViewerCategory.Essential },
+		{ name = L["Utility"], cat = Enum.CooldownViewerCategory and Enum.CooldownViewerCategory.Utility },
+		{ name = L["TrackedBuff"], cat = Enum.CooldownViewerCategory and Enum.CooldownViewerCategory.TrackedBuff },
+		{ name = L["TrackedBar"], cat = Enum.CooldownViewerCategory and Enum.CooldownViewerCategory.TrackedBar },
 	}
 
 	for _, catInfo in ipairs(categories) do
 		if catInfo.cat then
 			local ids = self:GetCooldownIDsForCategory(catInfo.cat, catInfo.name)
-			print(string.format("|cff00ff00%s:|r %d items", catInfo.name, #ids))
+			print(string.format("|cff00ff00" .. L["%s: %d items"], catInfo.name, #ids))
 			for _, cooldownID in ipairs(ids) do
 				local info = self:GetCooldownInfoForID(cooldownID)
 				if info then
@@ -332,5 +333,5 @@ function Manager:DumpTrackedBuffInfo()
 			end
 		end
 	end
-	print("|cff33ff99ActionHud:|r Dump complete.")
+	print("|cff33ff99" .. L["ActionHud:"] .. "|r " .. L["Dump complete."])
 end

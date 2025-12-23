@@ -2,15 +2,16 @@
 -- Central layout system for ActionHud vertical stack positioning
 
 local addonName, ns = ...
+local L = LibStub("AceLocale-3.0"):GetLocale("ActionHud")
 local addon = LibStub("AceAddon-3.0"):GetAddon("ActionHud")
 local LayoutManager = addon:NewModule("LayoutManager")
 ns.LayoutManager = LayoutManager
 
 -- Module display names for UI
 local MODULE_NAMES = {
-	resources = "Resource Bars",
-	actionBars = "Action Bars",
-	cooldowns = "Cooldowns",
+	resources = L["Resource Bars"],
+	actionBars = L["Action Bars"],
+	cooldowns = L["Cooldowns"],
 }
 
 -- Default stack order and gaps

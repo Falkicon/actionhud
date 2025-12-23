@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 
 
 
+
+## [2.8.0] - 2025-12-23
+
+### Changed
+- - Implemented Midnight Capability & Standby System
+- Added /ah testapi diagnostic tool
+- Defensive guards for Royal API transition (Beta 5+)
+- Refined version detection (Threshold 120001)
+- Added @midnight-cleanup tags for future API restoration
+
 ## [2.7.4] - 2025-12-22
 
 ### Changed

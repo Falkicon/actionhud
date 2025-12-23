@@ -284,3 +284,30 @@ For detailed implementation docs, see the `Docs/` folder:
 1. Maintain separation between `Core.lua` (logic) and `SettingsUI.lua` (config)
 2. Test stance/form bar swaps (Druid, Rogue) when modifying slot logic
 3. Prefer smaller, focused modules over large monolithic files
+
+---
+
+## Tooling and Localization
+
+### Standard Workflows
+- **Linting**: `@lint` or `mcp_AddonDevTools_lint_addon("ActionHud")`
+- **Formatting**: `mcp_AddonDevTools_format_addon("ActionHud")` (uses StyLua)
+- **Testing**: `mcp_AddonDevTools_run_tests("ActionHud")` (executes `Tests/test_utils.lua`)
+
+### Localization (AceLocale-3.0)
+ActionHud uses standard localization patterns. All UI strings must be wrapped in `L["KEY"]`.
+
+- **Base Locale**: `Locales/enUS.lua`
+- **Settings UI Pattern**:
+  ```lua
+  local L = LibStub("AceLocale-3.0"):GetLocale("ActionHud")
+  -- ...
+  name = L["Lock Frame"],
+  desc = L["Lock the HUD in place. Uncheck to drag."],
+  ```
+- **Adding Strings**: When adding new UI elements, update `Locales/enUS.lua` with the new key.
+
+### Unit Testing
+Critical utility functions in `Utils.lua` (especially Midnight-safe comparisons) are covered by unit tests in `Tests/test_utils.lua`.
+- **Mocking**: The test environment mocks necessary WoW APIs (`GetBuildInfo`, `issecretvalue`, etc.).
+- **Execution**: Run via the `run_tests` tool or manually with a Lua interpreter if available.

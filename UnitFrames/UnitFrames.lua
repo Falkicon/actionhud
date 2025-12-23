@@ -362,14 +362,8 @@ function UnitFrames:ApplyPlayerPowerBarFlat()
 end
 
 -- Style the Player Frame
--- PlayerFrame structure:
---   Portrait: PlayerFrame.PlayerFrameContainer.PlayerPortrait
---   FrameTexture: PlayerFrame.PlayerFrameContainer.FrameTexture (includes portrait ring AND bar decorations)
---   HealthBar: PlayerFrame.PlayerFrameContent.PlayerFrameContentMain.HealthBarsContainer.HealthBar
---   ManaBar: PlayerFrame.PlayerFrameContent.PlayerFrameContentMain.ManaBarArea.ManaBar (note: inside ManaBarArea!)
---   Contextual: PlayerFrame.PlayerFrameContent.PlayerFrameContentContextual (Zzz, arrow, etc.)
 function UnitFrames:StylePlayerFrame()
-	if not PlayerFrame then
+	if not PlayerFrame or InCombatLockdown() or Utils.Cap.IsRoyal then
 		return
 	end
 
@@ -546,13 +540,8 @@ function UnitFrames:StylePlayerFrame()
 end
 
 -- Style the Target Frame
--- TargetFrame structure:
---   Portrait: TargetFrame.TargetFrameContainer.Portrait
---   FrameTexture: TargetFrame.TargetFrameContainer.FrameTexture
---   HealthBar: TargetFrame.TargetFrameContent.TargetFrameContentMain.HealthBarsContainer.HealthBar
---   ManaBar: TargetFrame.TargetFrameContent.TargetFrameContentMain.ManaBar (directly under main, no ManaBarArea!)
 function UnitFrames:StyleTargetFrame()
-	if not TargetFrame then
+	if not TargetFrame or InCombatLockdown() or Utils.Cap.IsRoyal then
 		return
 	end
 
@@ -671,7 +660,7 @@ end
 
 -- Style the Focus Frame (uses same structure as TargetFrameTemplate)
 function UnitFrames:StyleFocusFrame()
-	if not FocusFrame then
+	if not FocusFrame or InCombatLockdown() or Utils.Cap.IsRoyal then
 		return
 	end
 
@@ -860,6 +849,17 @@ end
 
 -- Main setup function
 function UnitFrames:SetupStyling()
+	-- Capability Check: If we are on a "Royal" client (Beta 5+), enter standby
+	-- These features are currently broken due to API transition (Duration objects/SecondsFormatter)
+	if Utils.Cap.IsRoyal then
+		if not self.notifiedStandby then
+			addon:Log("UnitFrames: Entering STANDBY mode for 12.0 'Royal' transition.", "discovery")
+			self.notifiedStandby = true
+		end
+		isStylingActive = false
+		return
+	end
+
 	local p = self.db.profile
 
 	if not p.ufEnabled then

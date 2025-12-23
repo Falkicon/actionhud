@@ -25,6 +25,9 @@ function TrackedDefensives:OnEnable()
 
 	addon:Log("TrackedDefensives:OnEnable (style-only mode)", "discovery")
 
+	-- Register for combat end to apply deferred styling
+	self:RegisterEvent("PLAYER_REGEN_ENABLED", "OnCombatEnd")
+
 	-- Delay initial setup to ensure Blizzard frames are loaded
 	C_Timer.After(0.5, function()
 		self:SetupStyling()
@@ -33,6 +36,14 @@ end
 
 function TrackedDefensives:OnDisable()
 	isStylingActive = false
+	self:UnregisterEvent("PLAYER_REGEN_ENABLED")
+end
+
+-- When combat ends, apply styling to any frames that were acquired during combat
+function TrackedDefensives:OnCombatEnd()
+	if isStylingActive then
+		self:ForceStyleAllItems()
+	end
 end
 
 -- Get the Blizzard frame we're styling
@@ -59,7 +70,10 @@ function TrackedDefensives:InstallHooks()
 		if blizzFrame.AuraContainer.UpdateAuraFrames then
 			hooksecurefunc(blizzFrame.AuraContainer, "UpdateAuraFrames", function()
 				if isStylingActive then
-					self:ApplyStyling()
+					-- Async injection for combat safety
+					C_Timer.After(0, function()
+						self:ApplyStyling()
+					end)
 				end
 			end)
 		end
@@ -68,7 +82,8 @@ function TrackedDefensives:InstallHooks()
 	-- Also hook Show to catch initial display
 	hooksecurefunc(blizzFrame, "Show", function()
 		if isStylingActive then
-			C_Timer.After(0.1, function()
+			-- Async injection for combat safety
+			C_Timer.After(0, function()
 				self:ApplyStyling()
 			end)
 		end
@@ -96,21 +111,29 @@ function TrackedDefensives:ForceStyleAllItems()
 		return
 	end
 
-	local children = { blizzFrame.AuraContainer:GetChildren() }
-	for _, child in ipairs(children) do
-		self:StyleItemFrame(child)
+	local count = 0
+	local success, err = pcall(function()
+		local children = { blizzFrame.AuraContainer:GetChildren() }
+		for _, child in ipairs(children) do
+			self:StyleItemFrame(child)
+			count = count + 1
+		end
+	end)
+
+	if not success then
+		addon:Log("TrackedDefensives: ForceStyleAllItems failed: " .. tostring(err), "discovery")
 	end
 end
 
 -- Style an individual item frame (aura icon)
 function TrackedDefensives:StyleItemFrame(itemFrame)
-	if not itemFrame then
+	if not itemFrame or Utils.Cap.IsRoyal then
 		return
 	end
 
 	local p = self.db.profile
 
-	-- Remove Blizzard's decorative elements
+	-- Remove Blizzard's decorative elements (Utils helper handles combat safety)
 	self:StripBlizzardDecorations(itemFrame)
 
 	-- Apply custom timer font size if specified
@@ -140,6 +163,14 @@ function TrackedDefensives:StyleItemFrame(itemFrame)
 			itemFrame.count:SetFont("Fonts\\FRIZQT__.TTF", countSize, "OUTLINE")
 		end
 	end
+
+	-- Apply standard icon crop (safe texture coordinate change)
+	if itemFrame.Icon then
+		Utils.ApplyIconCrop(itemFrame.Icon, 1, 1)
+	end
+	if itemFrame.icon then
+		Utils.ApplyIconCrop(itemFrame.icon, 1, 1)
+	end
 end
 
 -- Remove Blizzard's decorative textures
@@ -150,18 +181,21 @@ function TrackedDefensives:StripBlizzardDecorations(itemFrame)
 	end
 
 	Utils.StripBlizzardDecorations(itemFrame)
-
-	-- Apply standard icon crop to the icon texture
-	if itemFrame.Icon then
-		Utils.ApplyIconCrop(itemFrame.Icon, 1, 1)
-	end
-	if itemFrame.icon then
-		Utils.ApplyIconCrop(itemFrame.icon, 1, 1)
-	end
 end
 
 -- Main setup function
 function TrackedDefensives:SetupStyling()
+	-- Capability Check: If we are on a "Royal" client (Beta 5+), enter standby
+	-- These features are currently broken due to API transition (Duration objects/SecondsFormatter)
+	if Utils.Cap.IsRoyal then
+		if not self.notifiedStandby then
+			addon:Log("TrackedDefensives: Entering STANDBY mode for 12.0 'Royal' transition.", "discovery")
+			self.notifiedStandby = true
+		end
+		isStylingActive = false
+		return
+	end
+
 	local blizzFrame = self:GetBlizzardFrame()
 	if not blizzFrame then
 		addon:Log("TrackedDefensives: ExternalDefensivesFrame not available", "discovery")

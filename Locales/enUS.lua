@@ -1,0 +1,299 @@
+local L = LibStub("AceLocale-3.0"):NewLocale("ActionHud", "enUS", true)
+if not L then
+	return
+end
+
+-- Core messages
+L["ActionHud: Navigate to Gameplay Enhancements."] = true
+L["Slash Commands:"] = true
+L["/ah: Open settings."] = true
+L["/ah debug: Toggle debug recording."] = true
+L["/ah clear: Clear debug buffer."] = true
+L["/ah dump: Dump tracked spell info to chat."] = true
+L["Debugging & Layout:"] = true
+L["Use the Layout tab to enable Show Layout Outlines. This helps position frames when they are empty or out of combat."] = true
+L["[DEV MODE] Running from git clone"] = true
+L["Debug recording auto-stopped (buffer cap of %d reached)."] = true
+L["ActionHud:"] = true
+L["Debug recording started."] = true
+L["Debug recording stopped (%d entries buffered)."] = true
+L["Debug buffer cleared."] = true
+L["Settings cannot be opened while in combat."] = true
+L["Cooldown Manager not available."] = true
+L["Profile reset to defaults. /reload to apply."] = true
+L["SavedVariables wiped. /reload required."] = true
+L["Reset Profile"] = true
+L["Reset all settings to defaults. Requires /reload."] = true
+L["This will reset ALL settings to defaults. Continue?"] = true
+L["Test Midnight APIs"] = true
+L["Diagnostic tool for 12.0 expansion readiness. Checks for whitelists and new black-box APIs."] = true
+L["Testing Midnight APIs..."] = true
+L["Detected Capabilities:"] = true
+L["Royal Readiness Score:"] = true
+L["Styling Status:"] = true
+L["BYPASSED (Standby Mode Active)"] = true
+L["Active"] = true
+L["Yes"] = true
+L["No"] = true
+L["OK"] = true
+L["Not found"] = true
+L["GCD Whitelist:"] = true
+L["FAILED (GCD is still secret)"] = true
+L["OK (GCD is readable)"] = true
+L["GetPlayerAuraBySpellID:"] = true
+L["Unprotected"] = true
+L["PROTECTED (Standard Aura logic will crash)"] = true
+L["API test complete."] = true
+L["[BETA NOTICE]"] = true
+L["Blizzard is currently transitioning to the new 'Royal' interpretive API model. Styling for Tracked Abilities is temporarily disabled on this client to ensure stability. We are monitoring Blizzard's API changes and will restore these features as soon as possible."] = true
+L["Blizzard is currently transitioning to the new 'Royal' interpretive API model. Unit Frame styling is temporarily disabled on this client to ensure stability."] = true
+
+-- Settings UI - General
+L["Lock Frame"] = true
+L["Lock the HUD in place. Uncheck to drag."] = true
+L["Show Minimap Icon"] = true
+L["Toggle the minimap icon."] = true
+L["Info & Prerequisites"] = true
+L["ActionHud 2.6.2"] = true
+L["A minimalist HUD mirroring Action Bars 1 & 2 in a 6x4 grid."] = true
+L["Required Setup:"] = true
+L["Click the button below to open WoW's Gameplay Enhancements settings."] = true
+L["Enable these options:"] = true
+L["Assisted Highlight"] = true
+L["(rotation glows)"] = true
+L["Enable Cooldown Manager"] = true
+L["(tracked cooldowns)"] = true
+L["Use Advanced Cooldown Settings to configure which spells are tracked."] = true
+L["Open Gameplay Enhancements"] = true
+L["Opens WoW Settings directly to Gameplay Enhancements."] = true
+L["Help & Slash Commands"] = true
+L["Slash Commands:"] = true
+L["/ah: Open settings."] = true
+L["/ah debug: Toggle debug recording."] = true
+L["/ah clear: Clear debug buffer."] = true
+L["/ah dump: Dump tracked spell info to chat."] = true
+L["Debugging & Layout:"] = true
+L["Use the Layout tab to enable Show Layout Outlines. This helps position frames when they are empty or out of combat."] = true
+
+-- Settings UI - Action Bars
+L["Action Bars"] = true
+L["Enable"] = true
+L["Enable the main Action Bar Grid."] = true
+L["Dimensions"] = true
+L["Icon Width"] = true
+L["Width of the action icons."] = true
+L["Icon Height"] = true
+L["Height of the action icons."] = true
+L["Visuals & Opacity"] = true
+L["Background Opacity"] = true
+L["Opacity of empty slots."] = true
+L["Proc Glow Opacity (Yellow)"] = true
+L["Assist Glow Opacity (Blue)"] = true
+L["Fonts"] = true
+L["Cooldown Font Size"] = true
+L["Stack Count Font Size"] = true
+L["Layout Mirroring"] = true
+L["Top Bar Priority"] = true
+L["Choose which bar appears at the top of the HUD stack."] = true
+L["Main Bar (Bar 1)"] = true
+L["Bottom Left Bar (Bar 2)"] = true
+L["Row Alignment"] = true
+L["Horizontal alignment of the bars within the HUD container."] = true
+L["Left"] = true
+L["Center"] = true
+L["Right"] = true
+
+-- Settings UI - Resource Bars
+L["Resource Bars"] = true
+L["Show Target Stats"] = true
+L["Split bars to show target health/power."] = true
+L["Note: The width of these bars is automatically matched to the Action Bar grid (Action Bars > Icon Width)."] = true
+L["Common Settings"] = true
+L["Player-Target Gap"] = true
+L["Space between player and target bars."] = true
+L["Bar Spacing"] = true
+L["Health Bar"] = true
+L["Height"] = true
+L["Power Bar"] = true
+L["Class Resource"] = true
+
+-- Settings UI - Cooldown Manager
+L["Cooldown Manager"] = true
+L["Blizzard Cooldown Manager is enabled."] = true
+L["ActionHud will hide the native UI and display custom-styled proxies."] = true
+L["Use Advanced Cooldown Settings in Gameplay Enhancements to configure tracked spells."] = true
+L["Blizzard Cooldown Manager is disabled."] = true
+L["You must enable it first in WoW's Gameplay Enhancements settings."] = true
+L["All ActionHud cooldown features are unavailable until enabled."] = true
+L["Enable management of the native Cooldown Manager frame."] = true
+L["Space between Essential and Utility bars."] = true
+L["Reverse Order"] = true
+L["Swap the Essential and Utility bars."] = true
+L["Icon Spacing"] = true
+L["Space between cooldown icons."] = true
+L["Essential Bar"] = true
+L["Width"] = true
+L["Utility Bar"] = true
+L["Cooldowns"] = true
+L["Typography"] = true
+L["Stack Font Size"] = true
+L["Timer Font Size"] = true
+L["Small"] = true
+L["Medium"] = true
+L["Large"] = true
+L["Huge"] = true
+
+-- Settings UI - Tracked Abilities
+L["Tracked Abilities"] = true
+L["Enable it in Gameplay Enhancements to use these features."] = true
+L["ActionHud applies custom styling to Blizzard's Tracked Abilities frames, removing rounded corners and adjusting fonts."] = true
+L["Positioning:"] = true
+L["Use Blizzard's EditMode to move and resize these frames."] = true
+L["Open EditMode"] = true
+L["Open Blizzard's EditMode to position and resize Tracked Abilities frames."] = true
+L["Tracked Buffs"] = true
+L["Enable Styling"] = true
+L["Apply ActionHud styling to the Tracked Buffs frame (removes rounded corners, custom fonts)."] = true
+L["Stack Count Font"] = true
+L["Font size for stack counts."] = true
+L["Timer Font"] = true
+L["Font size for cooldown timers."] = true
+L["Tracked Bars"] = true
+L["Apply ActionHud styling to the Tracked Bars frame (removes rounded corners, custom fonts)."] = true
+L["Compact Mode (Icons Only)"] = true
+L["Hide the cooldown bars, showing only icons. Useful for a more compact display."] = true
+L["Timer on Icon"] = true
+L["Display the countdown timer centered on the icon instead of on the bar."] = true
+L["External Defensives"] = true
+L["(Requires WoW 12.0 Midnight or later)"] = true
+L["Apply ActionHud styling to the External Defensives frame."] = true
+
+-- Settings UI - Unit Frames
+L["Unit Frames"] = true
+L["Experimental Feature:"] = true
+L["Due to Blizzard's API changes in Midnight (12.0), traditional unit frame customization is significantly restricted. ActionHud's styling approach balances these technical limitations with a modern, minimalist aesthetic. This feature will continue to evolve as new APIs become available."] = true
+L["Note:"] = true
+L["High-impact changes (like bar heights or width) require /reload to properly synchronize anchors and prevent combat taint."] = true
+L["Enable Unit Frame Styling"] = true
+L["Apply ActionHud styling to unit frames."] = true
+L["Appearance"] = true
+L["Hide Portraits"] = true
+L["Hide the circular portrait image plus portrait-area elements (rest indicator, corner embellishment, combat icon)."] = true
+L["Hide Borders"] = true
+L["Remove the frame border/decoration texture. Note: This also hides the gold ring around the portrait (they're one texture)."] = true
+L["Flat Bar Texture"] = true
+L["Use a solid flat texture instead of gradient bars."] = true
+L["Show Background"] = true
+L["Add a dark semi-transparent background behind the bars."] = true
+L["Pro Tip:"] = true
+L["To show health and resource numbers on your frames, use the built-in Blizzard setting: Options > Gameplay > Interface > Status Text and select Numeric Value."] = true
+L["Font"] = true
+L["Font for health and power bar text."] = true
+L["Font Size"] = true
+L["Size of the health and power bar text."] = true
+L["Bar Sizing"] = true
+L["Health Bar Height"] = true
+L["Height of the health bar in pixels."] = true
+L["Mana/Power Bar Height"] = true
+L["Height of the mana/power bar in pixels."] = true
+L["Bar Width Scale"] = true
+L["Scale the width of health/mana bars (1.0 = default)."] = true
+L["Class Resources"] = true
+L["Class Bar Height"] = true
+L["Height of the class resource bar (combo points, holy power, etc.)."] = true
+L["Frame Selection"] = true
+L["Choose which frames to style:"] = true
+L["Player Frame"] = true
+L["Apply styling to your Player Frame."] = true
+L["Target Frame"] = true
+L["Apply styling to the Target Frame."] = true
+L["Focus Frame"] = true
+L["Apply styling to the Focus Frame."] = true
+
+-- Settings UI - Trinkets
+L["Trinkets"] = true
+L["Enable the sidecar Trinket module."] = true
+L["Sizing & Positioning"] = true
+
+-- Settings UI - Layout
+L["Layout"] = true
+L["HUD Stack Order"] = true
+L["Show Layout Outlines"] = true
+L["Show semi-transparent boxes and labels for all HUD modules to help with positioning."] = true
+L["Arrange modules from top to bottom. Use arrows to reorder. Gap defines spacing after each module.\n "] = true
+L["Up"] = true
+L["Move %s up in the stack"] = true
+L["Down"] = true
+L["Move %s down in the stack"] = true
+L["Gap After"] = true
+L["Space between %s and the next module."] = true
+L["Reset to Default Order"] = true
+L["Restore the default module order and gap values."] = true
+L["Trinkets Positioning"] = true
+L["X Offset"] = true
+L["Horizontal position relative to HUD center."] = true
+L["Y Offset"] = true
+L["Vertical position relative to HUD center."] = true
+L["These frames are styled by ActionHud but positioned via Blizzard's EditMode:"] = true
+
+-- Settings UI - Debugging
+L["Debugging"] = true
+L["Tools"] = true
+L["Force Layout Update"] = true
+L["ActionHud: Layout Refreshed."] = true
+L["Scan for New Frames"] = true
+L["Scans all global frames for 'Viewer' or 'Tracked' names and logs them."] = true
+L["Dump Buff/Bar Info"] = true
+L["Prints all tracked buff/bar spell IDs and linkedSpellIDs to chat. Use /ah dump as shortcut."] = true
+L["Show Native Blizzard Frames (Cooldown Manager)"] = true
+L["Show both Blizzard's cooldown frames and ActionHud proxies side-by-side for comparison."] = true
+L["Troubleshooting & Discovery Filters"] = true
+L["Debug Discovery"] = true
+L["Logs when new Blizzard widgets are found and hijacked."] = true
+L["Debug Frames"] = true
+L["Logs detailed information about frame hierarchies and children."] = true
+L["Debug Events"] = true
+L["Logs key HUD events to the chat window."] = true
+L["Debug Proxies"] = true
+L["Logs detailed information about tracked buff/bar population and aura changes."] = true
+L["Debug Layout"] = true
+L["Logs layout positioning calculations including stack order, heights, gaps, and Y offsets."] = true
+L["Debug Containers"] = true
+L["Shows colored backgrounds behind the Hud containers to verify their positions."] = true
+L["Debug Recording"] = true
+L["Recording..."] = true
+L["Stopped"] = true
+L["Discovery"] = true
+L["Frames"] = true
+L["Events"] = true
+L["Proxies"] = true
+L["None"] = true
+L["Active filters:"] = true
+L["Record"] = true
+L["Start recording debug messages to the buffer."] = true
+L["Stop"] = true
+L["Stop recording debug messages."] = true
+L["Clear"] = true
+L["Clears the debug buffer without copying."] = true
+L["Debug Log"] = true
+L["Recorded debug messages. Select all and copy to export."] = true
+
+-- Settings UI - Profiles
+L["Profiles"] = true
+
+-- Cooldown Manager
+L["CooldownManager Enabled"] = true
+L["Blizzard Cooldown Manager enabled: %s"] = true
+L["CVar Changed: %s = %s"] = true
+L["Visual-hidden Blizzard frame: %s"] = true
+L["Restored Blizzard frame: %s"] = true
+L["Scanning for Blizzard CooldownViewer frames..."] = true
+L["Found: %s (Type: %s)"] = true
+L["Dumping Cooldown Manager Info..."] = true
+L["%s: %d items"] = true
+L["Dump complete."] = true
+L["Essential"] = true
+L["Utility"] = true
+L["TrackedBuff"] = true
+L["TrackedBar"] = true
+

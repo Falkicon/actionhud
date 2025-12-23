@@ -20,6 +20,9 @@ end
 function TrackedBuffs:OnEnable()
 	addon:Log("TrackedBuffs:OnEnable (style-only mode)", "discovery")
 
+	-- Register for combat end to apply deferred styling
+	self:RegisterEvent("PLAYER_REGEN_ENABLED", "OnCombatEnd")
+
 	-- Delay initial setup to ensure Blizzard frames are loaded
 	C_Timer.After(0.5, function()
 		self:SetupStyling()
@@ -28,8 +31,15 @@ end
 
 function TrackedBuffs:OnDisable()
 	-- Note: Can't fully undo styling due to hooksecurefunc limitations
-	-- but we stop applying new styling
 	isStylingActive = false
+	self:UnregisterEvent("PLAYER_REGEN_ENABLED")
+end
+
+-- When combat ends, apply styling to any frames that were acquired during combat
+function TrackedBuffs:OnCombatEnd()
+	if isStylingActive then
+		self:ForceStyleAllItems()
+	end
 end
 
 -- Get the Blizzard frame we're styling
@@ -59,7 +69,17 @@ function TrackedBuffs:InstallHooks()
 	-- Hook OnAcquireItemFrame to style individual items as they're created
 	hooksecurefunc(blizzFrame, "OnAcquireItemFrame", function(_, itemFrame)
 		if isStylingActive then
-			self:StyleItemFrame(itemFrame)
+			-- CRITICAL: We use C_Timer.After(0) to style the frame in a separate execution path.
+			-- This prevents taint from leaking back into Blizzard's protected aura logic,
+			-- which is what causes the "secret value" crashes in Midnight Beta.
+			C_Timer.After(0, function()
+				local success, err = pcall(function()
+					self:StyleItemFrame(itemFrame)
+				end)
+				if not success then
+					addon:Log("TrackedBuffs: Error styling item frame: " .. tostring(err), "frames")
+				end
+			end)
 		end
 	end)
 
@@ -76,6 +96,8 @@ function TrackedBuffs:ApplyStyling()
 	end
 
 	-- Main frame properties are safe to set in hooks
+	-- Re-apply styling to all active items (Blizzard may have reset them)
+	self:ForceStyleAllItems()
 end
 
 -- Force style all active items (unsafe in Blizzard hooks, call only from settings/enable)
@@ -85,23 +107,34 @@ function TrackedBuffs:ForceStyleAllItems()
 		return
 	end
 
-	for itemFrame in blizzFrame.itemFramePool:EnumerateActive() do
-		self:StyleItemFrame(itemFrame)
+	-- We try to enumerate. If it crashes, the pcall will catch it.
+	local count = 0
+	local success, err = pcall(function()
+		for itemFrame in blizzFrame.itemFramePool:EnumerateActive() do
+			self:StyleItemFrame(itemFrame)
+			count = count + 1
+		end
+	end)
+
+	if not success then
+		addon:Log("TrackedBuffs: ForceStyleAllItems failed: " .. tostring(err), "frames")
+	elseif count > 0 then
+		addon:Log(string.format("TrackedBuffs: Styled %d items", count), "frames")
 	end
 end
 
 -- Style an individual item frame
 function TrackedBuffs:StyleItemFrame(itemFrame)
-	if not itemFrame then
+	if not itemFrame or Utils.Cap.IsRoyal then
 		return
 	end
 
 	local p = self.db.profile
 
-	-- Always strip decorations (Blizzard may re-apply them)
+	-- Always strip decorations (Utils helper handles combat safety with SetAlpha)
 	self:StripBlizzardDecorations(itemFrame)
 
-	-- Apply custom timer font size if specified
+	-- Apply custom timer font size (SAFE in combat)
 	local timerSize = p.buffsTimerFontSize or "medium"
 	if timerSize and itemFrame.Cooldown then
 		local fontName = Utils.GetTimerFont(timerSize)
@@ -110,7 +143,7 @@ function TrackedBuffs:StyleItemFrame(itemFrame)
 		end
 	end
 
-	-- Apply custom count font size if specified (numeric)
+	-- Apply custom count font size (SAFE in combat)
 	local countSize = p.buffsCountFontSize or 10
 	if countSize and type(countSize) == "number" then
 		local applicationsFrame = itemFrame.Applications
@@ -127,9 +160,10 @@ function TrackedBuffs:StripBlizzardDecorations(itemFrame)
 		return
 	end
 
+	-- Use unified helper for stripping (handles combat safety)
 	Utils.StripBlizzardDecorations(itemFrame)
 
-	-- Apply standard icon crop
+	-- Apply standard icon crop (always safe)
 	if itemFrame.Icon then
 		Utils.ApplyIconCrop(itemFrame.Icon, 1, 1)
 	end
@@ -137,9 +171,20 @@ end
 
 -- Main setup function
 function TrackedBuffs:SetupStyling()
+	-- Capability Check: If we are on a "Royal" client (Beta 5+), enter standby
+	-- These features are currently broken due to API transition (Duration objects/SecondsFormatter)
+	if Utils.Cap.IsRoyal then
+		if not self.notifiedStandby then
+			addon:Log("TrackedBuffs: Entering STANDBY mode for 12.0 'Royal' transition.", "discovery")
+			self.notifiedStandby = true
+		end
+		isStylingActive = false
+		return
+	end
+
 	local blizzFrame = self:GetBlizzardFrame()
 	if not blizzFrame then
-		addon:Log("TrackedBuffs: BuffIconCooldownViewer not available yet", "discovery")
+		addon:Log("TrackedBuffs: BuffIconCooldownViewer not available, retrying...", "discovery")
 		C_Timer.After(1.0, function()
 			self:SetupStyling()
 		end)
@@ -149,20 +194,25 @@ function TrackedBuffs:SetupStyling()
 	local p = self.db.profile
 	local blizzEnabled = Manager:IsBlizzardCooldownViewerEnabled()
 
+	addon:Log(string.format("TrackedBuffs: styleTrackedBuffs=%s, blizzEnabled=%s", 
+		tostring(p.styleTrackedBuffs), tostring(blizzEnabled)), "discovery")
+
 	if not p.styleTrackedBuffs or not blizzEnabled then
 		isStylingActive = false
-		addon:Log("TrackedBuffs: Styling disabled", "discovery")
+		addon:Log("TrackedBuffs: Styling DISABLED by settings", "discovery")
 		return
 	end
 
 	-- Install hooks (only once)
 	if not self:InstallHooks() then
+		addon:Log("TrackedBuffs: InstallHooks() FAILED", "discovery")
 		return
 	end
 
 	isStylingActive = true
 
 	-- Apply initial styling to existing items
+	-- This is safe here because it's called from OnEnable/C_Timer, not a Blizzard hook
 	self:ForceStyleAllItems()
 
 	addon:Log("TrackedBuffs: Styling active", "discovery")
@@ -170,6 +220,7 @@ end
 
 -- Update styling (called when settings change)
 function TrackedBuffs:UpdateLayout()
+	addon:Log("TrackedBuffs: UpdateLayout() called", "frames")
 	self:SetupStyling()
 
 	-- Debug Container Visual
@@ -179,7 +230,7 @@ function TrackedBuffs:UpdateLayout()
 		addon:UpdateLayoutOutline(blizzFrame, "Tracked Buffs")
 	end
 
-	-- Force re-apply styling to all existing frames
+	-- Force re-apply styling to all existing frames if active
 	if isStylingActive then
 		self:ForceStyleAllItems()
 	end

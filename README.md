@@ -2,6 +2,9 @@
 
 A lightweight, high-performance action bar HUD for World of Warcraft Retail. Displays a compact grid of your primary action bars, synchronized with Blizzard's native Edit Mode settings.
 
+> [!IMPORTANT]
+> **Midnight Beta / PTR Status**: Blizzard is currently transitioning to the new "Royal" interpretive API model. During this transition, styling for **Tracked Bars**, **Tracked Buffs**, and **Unit Frames** is temporarily disabled on Beta clients to ensure stability. These features will be restored as the new APIs become available. Use `/ah testapi` in-game to check current compatibility status.
+
 ![WoW Version](https://img.shields.io/badge/WoW-11.0%2B-blue)
 ![Interface](https://img.shields.io/badge/Interface-120001-green)
 [![GitHub](https://img.shields.io/badge/GitHub-Falkicon%2FActionHud-181717?logo=github)](https://github.com/Falkicon/ActionHud)

@@ -14,7 +14,109 @@ local RAID_CLASS_COLORS = RAID_CLASS_COLORS
 local PowerBarColor = PowerBarColor
 
 -- Midnight (12.0) compatibility (per Secret Values guide 13)
-Utils.IS_MIDNIGHT = (select(4, GetBuildInfo()) >= 120000)
+-- Threshold 120001 is for 12.0.0+ (Pre-patch/Beta).
+Utils.IS_MIDNIGHT = ((select(4, GetBuildInfo())) or 0) >= 120001
+
+-- Capability Detection table
+Utils.Cap = {}
+
+-- Detect current client capabilities (per Midnight Transition Plan)
+function Utils.DetectCapabilities()
+	local Cap = Utils.Cap
+
+	-- 1. SecondsFormatter (Beta 5+) - Note: Some builds of 11.x have this too
+	Cap.HasSecondsFormatter = (type(SecondsFormatter) ~= "nil")
+
+	-- 2. Heal Calculator (Beta 5+)
+	Cap.HasHealCalculator = (type(CreateUnitHealPredictionCalculator) ~= "nil")
+
+	-- 3. Aura Legacy Check
+	-- On Retail, we consider it Legacy. On Midnight, we check if the old API still exists.
+	if not Utils.IS_MIDNIGHT then
+		Cap.IsAuraLegacy = true
+	else
+		Cap.IsAuraLegacy = (C_UnitAuras and type(C_UnitAuras.GetAuraDurationRemaining) ~= "nil")
+	end
+
+	-- 4. Boolean to Color (PTR 1 / Beta 5)
+	Cap.HasBooleanColor = (C_CurveUtil and type(C_CurveUtil.EvaluateColorFromBoolean) ~= "nil")
+
+	-- 5. IsRoyal (Master flag for Beta 5+ / PTR)
+	-- MUST be on a Midnight client AND using the new interpretive model
+	if not Utils.IS_MIDNIGHT then
+		Cap.IsRoyal = false
+	else
+		-- On Midnight, it's Royal if they have the new formatter OR the old APIs are gone
+		Cap.IsRoyal = Cap.HasSecondsFormatter or not Cap.IsAuraLegacy
+	end
+end
+
+-- Initialize capabilities immediately
+Utils.DetectCapabilities()
+
+-- Helper: Format time strings safely (handles secret values in Midnight Royal)
+function Utils.FormatTime(seconds)
+	if seconds == nil then
+		return ""
+	end
+
+	if Utils.Cap.HasSecondsFormatter then
+		-- Use the new Royal SecondsFormatter
+		if not Utils.formatter then
+			Utils.formatter = CreateSecondsFormatter()
+			if Utils.formatter then
+				Utils.formatter:SetMinimumComponents(1)
+			end
+		end
+		if Utils.formatter then
+			return Utils.formatter:Format(seconds)
+		end
+	end
+
+	-- Legacy / Retail fallback
+	if seconds > 3600 then
+		return string.format("%dh", math.ceil(seconds / 3600))
+	elseif seconds > 60 then
+		return string.format("%dm", math.ceil(seconds / 60))
+	end
+	return string.format("%.1f", seconds)
+end
+
+-- Helper: Safe frame hiding that avoids combat taint and handles secret visibility
+function Utils.HideSafe(frame)
+	if not frame then
+		return
+	end
+
+	if InCombatLockdown() or Utils.Cap.IsRoyal then
+		-- In combat or Royal clients, SetAlpha(0) is the only safe way to visually hide
+		-- secure Blizzard frames without triggering "Action Blocked" or cascading secret crashes.
+		frame:SetAlpha(0)
+	else
+		frame:Hide()
+		frame:SetAlpha(0) -- Double down for frames that might be auto-shown by Blizzard
+	end
+end
+
+-- Helper: Get aura duration safely across Legacy and Royal
+function Utils.GetDurationSafe(unit, spellID, filter)
+	if not unit or not spellID then
+		return nil
+	end
+
+	if Utils.Cap.IsAuraLegacy then
+		-- Use legacy API if available
+		return C_UnitAuras.GetAuraDurationRemaining(unit, spellID, filter)
+	end
+
+	-- In Royal, we typically get a Duration object from the aura info
+	local aura = C_UnitAuras.GetAuraDataBySpellID(unit, spellID, filter)
+	if aura and aura.duration then
+		return aura.duration -- This is the new Duration object
+	end
+
+	return nil
+end
 
 -- Helper: Check if value is a Midnight secret value
 -- Returns true if value is secret and cannot be compared/formatted
@@ -124,9 +226,15 @@ function Utils.StripBlizzardDecorations(frame)
 	end
 
 	local regions = { frame:GetRegions() }
+	local inCombat = InCombatLockdown()
+
 	for _, region in ipairs(regions) do
 		if region:IsObjectType("MaskTexture") then
-			region:Hide()
+			if inCombat then
+				region:SetAlpha(0)
+			else
+				region:Hide()
+			end
 		elseif region:IsObjectType("Texture") then
 			-- Hide based on object name/purpose if not the main icon/bar
 			local name = region:GetDebugName()
@@ -138,21 +246,31 @@ function Utils.StripBlizzardDecorations(frame)
 					or name:find("Shadow")
 					or name:find("Mask")
 				then
-					region:Hide()
+					if inCombat then
+						region:SetAlpha(0)
+					else
+						region:Hide()
+					end
 				end
 			end
 		end
 	end
 
 	-- Hide explicit pips or decorations if they exist as children
-	if frame.Pip then
-		frame.Pip:Hide()
-	end
-	if frame.HealthBarMask then
-		frame.HealthBarMask:Hide()
-	end
-	if frame.ManaBarMask then
-		frame.ManaBarMask:Hide()
+	-- We use SetAlpha(0) in addition to Hide() because Blizzard logic often 
+	-- calls :Show() on these specifically (like DebuffBorder), which would override a simple Hide().
+	local childrenToHide = { "Pip", "HealthBarMask", "ManaBarMask", "DebuffBorder" }
+	for _, key in ipairs(childrenToHide) do
+		local child = frame[key]
+		if child then
+			if inCombat then
+				-- In combat, we ONLY use SetAlpha(0) to avoid taint
+				child:SetAlpha(0)
+			else
+				child:Hide()
+				child:SetAlpha(0) -- Double down to be safe
+			end
+		end
 	end
 end
 

@@ -1,4 +1,5 @@
 local addonName, ns = ...
+local L = LibStub("AceLocale-3.0"):GetLocale("ActionHud")
 local ActionHud = LibStub("AceAddon-3.0"):NewAddon("ActionHud", "AceEvent-3.0", "AceConsole-3.0")
 _G.ActionHud = ActionHud -- Global for debugging
 local Utils = ns.Utils
@@ -180,7 +181,7 @@ function ActionHud:OnEnable()
 	self:RegisterChatCommand("ah", "SlashHandler")
 
 	if IS_DEV_MODE then
-		self:Print("|cff00ff00[DEV MODE]|r Running from git clone")
+		self:Print("|cff00ff00[DEV MODE]|r " .. L["[DEV MODE] Running from git clone"])
 	end
 end
 
@@ -250,18 +251,28 @@ function ActionHud:Log(msg, debugType)
 	-- Check buffer cap and auto-stop if reached
 	if #debugBuffer >= DEBUG_BUFFER_CAP then
 		debugRecording = false
-		print("|cff33ff99ActionHud:|r Debug recording auto-stopped (buffer cap of " .. DEBUG_BUFFER_CAP .. " reached).")
+		print(
+			"|cff33ff99"
+				.. L["ActionHud:"]
+				.. "|r "
+				.. string.format(L["Debug recording auto-stopped (buffer cap of %d reached)."], DEBUG_BUFFER_CAP)
+		)
 	end
 end
 
 function ActionHud:StartDebugRecording()
 	debugRecording = true
-	print("|cff33ff99ActionHud:|r Debug recording started.")
+	print("|cff33ff99" .. L["ActionHud:"] .. "|r " .. L["Debug recording started."])
 end
 
 function ActionHud:StopDebugRecording()
 	debugRecording = false
-	print("|cff33ff99ActionHud:|r Debug recording stopped (" .. #debugBuffer .. " entries buffered).")
+	print(
+		"|cff33ff99"
+			.. L["ActionHud:"]
+			.. "|r "
+			.. string.format(L["Debug recording stopped (%d entries buffered)."], #debugBuffer)
+	)
 end
 
 function ActionHud:IsDebugRecording()
@@ -278,7 +289,7 @@ end
 
 function ActionHud:ClearDebugBuffer()
 	wipe(debugBuffer)
-	print("|cff33ff99ActionHud:|r Debug buffer cleared.")
+	print("|cff33ff99" .. L["ActionHud:"] .. "|r " .. L["Debug buffer cleared."])
 end
 
 function ActionHud:UpdateFrameDebug(frame, color)
@@ -424,7 +435,7 @@ end
 -- Helper to open specific settings categories
 function ActionHud:OpenSettings(categoryName)
 	if InCombatLockdown() then
-		print("|cff33ff99ActionHud:|r Settings cannot be opened while in combat.")
+		print("|cff33ff99" .. L["ActionHud:"] .. "|r " .. L["Settings cannot be opened while in combat."])
 		return false
 	end
 
@@ -505,11 +516,98 @@ function ActionHud:SlashHandler(msg)
 		if Manager and Manager.DumpTrackedBuffInfo then
 			Manager:DumpTrackedBuffInfo()
 		else
-			print("|cff33ff99ActionHud:|r Cooldown Manager not available.")
+			print("|cff33ff99" .. L["ActionHud:"] .. "|r " .. L["Cooldown Manager not available."])
 		end
+		return
+	end
+
+	if msg == "reset" then
+		-- Reset profile to defaults
+		self.db:ResetProfile()
+		print("|cff33ff99" .. L["ActionHud:"] .. "|r Profile reset to defaults. /reload to apply.")
+		return
+	end
+
+	if msg == "wipe" then
+		-- Nuclear option: wipe entire database
+		ActionHudDB = nil
+		print("|cff33ff99" .. L["ActionHud:"] .. "|r " .. L["SavedVariables wiped. /reload required."])
+		return
+	end
+
+	if msg == "testapi" then
+		self:RunMidnightAPITest()
 		return
 	end
 
 	-- Default: open main settings
 	self:OpenSettings()
+end
+
+-- Diagnostic test for Midnight APIs and whitelists
+function ActionHud:RunMidnightAPITest()
+	local build, buildNum, buildDate, uiVersion = GetBuildInfo()
+	print(string.format("|cff33ff99ActionHud:|r %s (%s, Build %s, UI %s)", L["Testing Midnight APIs..."], build, buildNum, uiVersion))
+
+	-- 1. Capability Status
+	print("|cff33ff99" .. L["Detected Capabilities:"] .. "|r")
+	local caps = {
+		{ name = "IS_MIDNIGHT (Internal)", val = Utils.IS_MIDNIGHT },
+		{ name = "IsRoyal", val = Utils.Cap.IsRoyal },
+		{ name = "HasSecondsFormatter", val = Utils.Cap.HasSecondsFormatter },
+		{ name = "HasHealCalculator", val = Utils.Cap.HasHealCalculator },
+		{ name = "IsAuraLegacy", val = Utils.Cap.IsAuraLegacy },
+		{ name = "HasBooleanColor", val = Utils.Cap.HasBooleanColor },
+	}
+	for _, cap in ipairs(caps) do
+		local color = cap.val and "|cff00ff00" or "|cffffcc00"
+		print(string.format("%s- %s:|r %s", color, cap.name, cap.val and L["Yes"] or L["No"]))
+	end
+
+	-- 2. Readiness Score (Simple heuristic)
+	local readiness = 0
+	if Utils.Cap.IsRoyal then
+		if Utils.Cap.HasSecondsFormatter then
+			readiness = readiness + 25
+		end
+		if Utils.Cap.HasHealCalculator then
+			readiness = readiness + 25
+		end
+		if not Utils.Cap.IsAuraLegacy then
+			readiness = readiness + 25
+		end
+		if Utils.Cap.HasBooleanColor then
+			readiness = readiness + 25
+		end
+	else
+		readiness = 100 -- Fully ready on legacy clients
+	end
+
+	local readinessColor = "|cff00ff00"
+	if readiness < 50 then
+		readinessColor = "|cffff0000"
+	elseif readiness < 100 then
+		readinessColor = "|cffffcc00"
+	end
+
+	print(string.format("|cff33ff99" .. L["Royal Readiness Score:"] .. "|r %s%d%%|r", readinessColor, readiness))
+
+	if Utils.Cap.IsRoyal then
+		print("|cffff4444- " .. L["Styling Status:"] .. "|r " .. L["BYPASSED (Standby Mode Active)"])
+	else
+		print("|cff00ff00- " .. L["Styling Status:"] .. "|r " .. L["Active"])
+	end
+
+	-- 3. Security System check (legacy check)
+	if _G.issecretvalue then
+		-- Test GCD Whitelist (Spell 61304)
+		local cd = C_Spell.GetSpellCooldown(61304)
+		if cd and cd.duration and _G.issecretvalue(cd.duration) then
+			print("|cffff0000- " .. L["GCD Whitelist:"] .. "|r " .. L["FAILED (GCD is still secret)"])
+		else
+			print("|cff00ff00- " .. L["GCD Whitelist:"] .. "|r " .. L["OK (GCD is readable)"])
+		end
+	end
+
+	print("|cff33ff99ActionHud:|r " .. L["API test complete."])
 end

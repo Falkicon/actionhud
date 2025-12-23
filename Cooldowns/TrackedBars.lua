@@ -20,6 +20,9 @@ end
 function TrackedBars:OnEnable()
 	addon:Log("TrackedBars:OnEnable (style-only mode)", "discovery")
 
+	-- Register for combat end to apply deferred styling
+	self:RegisterEvent("PLAYER_REGEN_ENABLED", "OnCombatEnd")
+
 	-- Delay initial setup to ensure Blizzard frames are loaded
 	C_Timer.After(0.5, function()
 		self:SetupStyling()
@@ -29,6 +32,14 @@ end
 function TrackedBars:OnDisable()
 	-- Note: Can't fully undo styling due to hooksecurefunc limitations
 	isStylingActive = false
+	self:UnregisterEvent("PLAYER_REGEN_ENABLED")
+end
+
+-- When combat ends, apply styling to any frames that were acquired during combat
+function TrackedBars:OnCombatEnd()
+	if isStylingActive then
+		self:ForceStyleAllItems()
+	end
 end
 
 -- Get the Blizzard frame we're styling
@@ -58,7 +69,15 @@ function TrackedBars:InstallHooks()
 	-- Hook OnAcquireItemFrame to style individual items as they're created
 	hooksecurefunc(blizzFrame, "OnAcquireItemFrame", function(_, itemFrame)
 		if isStylingActive then
-			self:StyleItemFrame(itemFrame)
+			-- Use async injection to avoid taint cascade in combat
+			C_Timer.After(0, function()
+				local success, err = pcall(function()
+					self:StyleItemFrame(itemFrame)
+				end)
+				if not success then
+					addon:Log("TrackedBars: Error styling item frame: " .. tostring(err), "frames")
+				end
+			end)
 		end
 	end)
 
@@ -85,53 +104,67 @@ function TrackedBars:ForceStyleAllItems()
 		return
 	end
 
-	for itemFrame in blizzFrame.itemFramePool:EnumerateActive() do
-		self:StyleItemFrame(itemFrame)
+	local count = 0
+	local success, err = pcall(function()
+		for itemFrame in blizzFrame.itemFramePool:EnumerateActive() do
+			self:StyleItemFrame(itemFrame)
+			count = count + 1
+		end
+	end)
+
+	if not success then
+		addon:Log("TrackedBars: ForceStyleAllItems failed: " .. tostring(err), "frames")
 	end
 end
 
 -- Style an individual bar item frame
 function TrackedBars:StyleItemFrame(itemFrame)
-	if not itemFrame then
+	if not itemFrame or Utils.Cap.IsRoyal then
 		return
 	end
 
 	local p = self.db.profile
 
-	-- Always strip decorations (Blizzard may re-apply them)
+	-- Stripping decorations (Utils helper handles combat safety)
 	self:StripBlizzardDecorations(itemFrame)
 
 	-- Compact mode: Hide the bar, keep the icon
 	if p.barsCompactMode then
 		if itemFrame.Bar then
-			itemFrame.Bar:Hide()
+			if InCombatLockdown() then
+				itemFrame.Bar:SetAlpha(0)
+			else
+				itemFrame.Bar:Hide()
+			end
 		end
 
 		-- Timer on icon: Reparent Duration FontString to the Icon frame
 		if p.barsTimerOnIcon and itemFrame.Bar and itemFrame.Bar.Duration then
 			local duration = itemFrame.Bar.Duration
-			-- Reparent to Icon so it displays on top of the icon
-			duration:SetParent(itemFrame.Icon)
-			duration:ClearAllPoints()
-			duration:SetPoint("CENTER", itemFrame.Icon, "CENTER", 0, 0)
-			duration:SetJustifyH("CENTER")
-			duration:SetJustifyV("MIDDLE")
-			duration:Show()
-			-- Use a readable font with outline for visibility on icon
-			duration:SetFont("Fonts\\FRIZQT__.TTF", 12, "OUTLINE")
-			duration:SetDrawLayer("OVERLAY", 7)
+			-- ONLY reparent and move anchors outside combat to avoid taint
+			if not InCombatLockdown() then
+				duration:SetParent(itemFrame.Icon)
+				duration:ClearAllPoints()
+				duration:SetPoint("CENTER", itemFrame.Icon, "CENTER", 0, 0)
+				duration:SetJustifyH("CENTER")
+				duration:SetJustifyV("MIDDLE")
+				duration:Show()
+				-- Use a readable font with outline for visibility on icon
+				duration:SetFont("Fonts\\FRIZQT__.TTF", 12, "OUTLINE")
+				duration:SetDrawLayer("OVERLAY", 7)
 
-			-- Move stack count to bottom-right corner to avoid overlap with centered timer
-			if itemFrame.Icon and itemFrame.Icon.Applications then
-				local apps = itemFrame.Icon.Applications
-				apps:ClearAllPoints()
-				apps:SetPoint("BOTTOMRIGHT", itemFrame.Icon, "BOTTOMRIGHT", -1, 1)
-				apps:SetJustifyH("RIGHT")
+				-- Move stack count to bottom-right corner to avoid overlap with centered timer
+				if itemFrame.Icon and itemFrame.Icon.Applications then
+					local apps = itemFrame.Icon.Applications
+					apps:ClearAllPoints()
+					apps:SetPoint("BOTTOMRIGHT", itemFrame.Icon, "BOTTOMRIGHT", -1, 1)
+					apps:SetJustifyH("RIGHT")
+				end
 			end
 		end
 	else
 		-- Normal mode: Show the bar
-		if itemFrame.Bar then
+		if itemFrame.Bar and not InCombatLockdown() then
 			itemFrame.Bar:Show()
 		end
 
@@ -159,6 +192,11 @@ function TrackedBars:StyleItemFrame(itemFrame)
 			iconFrame.Applications:SetFont("Fonts\\FRIZQT__.TTF", countSize, "OUTLINE")
 		end
 	end
+
+	-- Apply standard icon crop (safe texture coordinate change)
+	if itemFrame.Icon and itemFrame.Icon.Icon then
+		Utils.ApplyIconCrop(itemFrame.Icon.Icon, 1, 1)
+	end
 end
 
 -- Remove Blizzard's decorative textures (mask, overlay, shadow, bar background)
@@ -171,9 +209,6 @@ function TrackedBars:StripBlizzardDecorations(itemFrame)
 	-- Strip decorations from the Icon frame
 	if itemFrame.Icon then
 		Utils.StripBlizzardDecorations(itemFrame.Icon)
-		if itemFrame.Icon.Icon then
-			Utils.ApplyIconCrop(itemFrame.Icon.Icon, 1, 1)
-		end
 	end
 
 	-- Strip decorations from the Bar frame
@@ -184,6 +219,17 @@ end
 
 -- Main setup function
 function TrackedBars:SetupStyling()
+	-- Capability Check: If we are on a "Royal" client (Beta 5+), enter standby
+	-- These features are currently broken due to API transition (Duration objects/SecondsFormatter)
+	if Utils.Cap.IsRoyal then
+		if not self.notifiedStandby then
+			addon:Log("TrackedBars: Entering STANDBY mode for 12.0 'Royal' transition.", "discovery")
+			self.notifiedStandby = true
+		end
+		isStylingActive = false
+		return
+	end
+
 	local blizzFrame = self:GetBlizzardFrame()
 	if not blizzFrame then
 		addon:Log("TrackedBars: BuffBarCooldownViewer not available yet", "discovery")
