@@ -2,7 +2,7 @@
 
 Technical reference for AI agents modifying this addon.
 
-For shared patterns, documentation requirements, and library management, see **[ADDON_DEV/AGENTS.md](../../ADDON_DEV/AGENTS.md)**.
+For shared patterns, library references, and development guides, see **[ADDON_DEV/AGENTS.md](../ADDON_DEV/AGENTS.md)**.
 
 ---
 
@@ -30,7 +30,7 @@ A compact action bar HUD overlay that displays ability icons, cooldowns, and pro
 
 1.  **Safe Wrappers**: Always use `Utils.GetActionCooldownSafe()`, `Utils.GetInventoryItemCooldownSafe()`, `Utils.GetActionDisplayCountSafe()`, etc., instead of global APIs. These handle `C_ActionBar`/`C_Item` table returns and secret values.
 2.  **Safe Comparisons**: Use `Utils.SafeCompare(a, b, op)` for any numeric comparison involving values from game APIs (health, power, cooldowns).
-3.  **Deprecation Scanning**: Use the tool in `ADDON_DEV/Tools/DeprecationScanner` to verify compatibility.
+3.  **Deprecation Scanning**: Use the tool in `../ADDON_DEV/Tools/DeprecationScanner` to verify compatibility.
 4.  **Scoped Ignores**: When a line is verified safe, use `-- @scan-ignore: midnight` to silence the scanner for the current game version.
 
 ---

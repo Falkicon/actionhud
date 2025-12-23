@@ -50,13 +50,13 @@ ActionHud synchronizes with your Blizzard Action Bars.
 ### Step 1: Configure Your Action Bars
 
 1. Open **Edit Mode** (`Esc` → `Edit Mode`).
-2. Select **Action Bar 1** and **Action Bar 6**.
+2. Select **Action Bar 1** and **Action Bar 2**.
 3. Configure them as you like (e.g., 6x2 grids).
 4. ActionHud will automatically mirror the number of buttons and row layout from these bars.
 
 ### Step 2: Place Your Abilities
 
-- Put the abilities you want on the HUD in **Action Bar 1** and **Action Bar 6**.
+- Put the abilities you want on the HUD in **Action Bar 1** and **Action Bar 2**.
 - ActionHud will automatically display whatever is on these bars.
 - Use the **Top Bar Priority** setting in ActionHud to choose which bar appears first in the stack.
 
@@ -68,7 +68,7 @@ ActionHud synchronizes with your Blizzard Action Bars.
 4. Drag the HUD to your preferred screen position.
 5. Re-check **Lock Frame** to lock it in place.
 
-> **Tip**: You can hide the default Action Bars 1 and 6 in Edit Mode once you've confirmed ActionHud is showing everything correctly.
+> **Tip**: You can hide the default Action Bars 1 and 2 in Edit Mode once you've confirmed ActionHud is showing everything correctly.
 
 ## Prerequisites
 

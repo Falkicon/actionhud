@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 
 
+
+## [2.7.4] - 2025-12-22
+
+### Changed
+- Fixed critical 'Error loading' bug in packaged versions by wrapping DevMarker.lua in debug blocks. Added preventative checks to TOCValidator.
+
 ## [2.7.3] - 2025-12-21
 
 ### Changed
@@ -73,9 +79,9 @@ All notable changes to this project will be documented in this file.
 ## [2.6.0] - 2025-12-20
 
 ### Added
-- **Action Bar Mirroring (Edit Mode Sync)**: New feature to synchronize the HUD's Action Bar layout with Blizzard's native Edit Mode settings (Bars 1 and 6).
+- **Action Bar Mirroring (Edit Mode Sync)**: New feature to synchronize the HUD's Action Bar layout with Blizzard's native Edit Mode settings (Bars 1 and 2).
     - Automatically mirrors row and column counts from WoW settings.
-    - Added **Top Bar Priority** setting to swap stacking order of Bar 1 and Bar 6.
+    - Added **Top Bar Priority** setting to swap stacking order of Bar 1 and Bar 2.
     - Added **Row Alignment** settings (Left, Center, Right) for custom horizontal positioning.
 - **Enhanced Resource Bar Control**: Complete refactor of the Resources module settings.
     - Added individual visibility toggles for Health, Power, and Class bars.

@@ -14,161 +14,173 @@ local isStylingActive = false
 local hooksInstalled = false
 
 function TrackedBuffs:OnInitialize()
-    self.db = addon.db
+	self.db = addon.db
 end
 
 function TrackedBuffs:OnEnable()
-    addon:Log("TrackedBuffs:OnEnable (style-only mode)", "discovery")
-    
-    -- Delay initial setup to ensure Blizzard frames are loaded
-    C_Timer.After(0.5, function() 
-        self:SetupStyling()
-    end)
+	addon:Log("TrackedBuffs:OnEnable (style-only mode)", "discovery")
+
+	-- Delay initial setup to ensure Blizzard frames are loaded
+	C_Timer.After(0.5, function()
+		self:SetupStyling()
+	end)
 end
 
 function TrackedBuffs:OnDisable()
-    -- Note: Can't fully undo styling due to hooksecurefunc limitations
-    -- but we stop applying new styling
-    isStylingActive = false
+	-- Note: Can't fully undo styling due to hooksecurefunc limitations
+	-- but we stop applying new styling
+	isStylingActive = false
 end
 
 -- Get the Blizzard frame we're styling
 function TrackedBuffs:GetBlizzardFrame()
-    return _G[BLIZZARD_FRAME_NAME]
+	return _G[BLIZZARD_FRAME_NAME]
 end
 
 -- Install hooks on the Blizzard frame (only once, can't be removed)
 function TrackedBuffs:InstallHooks()
-    if hooksInstalled then return true end
-    
-    local blizzFrame = self:GetBlizzardFrame()
-    if not blizzFrame then 
-        addon:Log("TrackedBuffs: BuffIconCooldownViewer not found for hooks", "discovery")
-        return false
-    end
-    
-    -- Hook RefreshLayout to re-apply our styling after Blizzard updates
-    hooksecurefunc(blizzFrame, "RefreshLayout", function()
-        if isStylingActive then
-            self:ApplyStyling()
-        end
-    end)
-    
-    -- Hook OnAcquireItemFrame to style individual items as they're created
-    hooksecurefunc(blizzFrame, "OnAcquireItemFrame", function(_, itemFrame)
-        if isStylingActive then
-            self:StyleItemFrame(itemFrame)
-        end
-    end)
-    
-    hooksInstalled = true
-    addon:Log("TrackedBuffs: Hooks installed on BuffIconCooldownViewer", "discovery")
-    return true
+	if hooksInstalled then
+		return true
+	end
+
+	local blizzFrame = self:GetBlizzardFrame()
+	if not blizzFrame then
+		addon:Log("TrackedBuffs: BuffIconCooldownViewer not found for hooks", "discovery")
+		return false
+	end
+
+	-- Hook RefreshLayout to re-apply our styling after Blizzard updates
+	hooksecurefunc(blizzFrame, "RefreshLayout", function()
+		if isStylingActive then
+			self:ApplyStyling()
+		end
+	end)
+
+	-- Hook OnAcquireItemFrame to style individual items as they're created
+	hooksecurefunc(blizzFrame, "OnAcquireItemFrame", function(_, itemFrame)
+		if isStylingActive then
+			self:StyleItemFrame(itemFrame)
+		end
+	end)
+
+	hooksInstalled = true
+	addon:Log("TrackedBuffs: Hooks installed on BuffIconCooldownViewer", "discovery")
+	return true
 end
 
 -- Apply styling to the frame and all existing items
 function TrackedBuffs:ApplyStyling()
-    local blizzFrame = self:GetBlizzardFrame()
-    if not blizzFrame then return end
-    
-    -- Main frame properties are safe to set in hooks
+	local blizzFrame = self:GetBlizzardFrame()
+	if not blizzFrame then
+		return
+	end
+
+	-- Main frame properties are safe to set in hooks
 end
 
 -- Force style all active items (unsafe in Blizzard hooks, call only from settings/enable)
 function TrackedBuffs:ForceStyleAllItems()
-    local blizzFrame = self:GetBlizzardFrame()
-    if not blizzFrame or not blizzFrame.itemFramePool then return end
-    
-    for itemFrame in blizzFrame.itemFramePool:EnumerateActive() do
-        self:StyleItemFrame(itemFrame)
-    end
+	local blizzFrame = self:GetBlizzardFrame()
+	if not blizzFrame or not blizzFrame.itemFramePool then
+		return
+	end
+
+	for itemFrame in blizzFrame.itemFramePool:EnumerateActive() do
+		self:StyleItemFrame(itemFrame)
+	end
 end
 
 -- Style an individual item frame
 function TrackedBuffs:StyleItemFrame(itemFrame)
-    if not itemFrame then return end
-    
-    local p = self.db.profile
-    
-    -- Always strip decorations (Blizzard may re-apply them)
-    self:StripBlizzardDecorations(itemFrame)
-    
-    -- Apply custom timer font size if specified
-    local timerSize = p.buffsTimerFontSize or "medium"
-    if timerSize and itemFrame.Cooldown then
-        local fontName = Utils.GetTimerFont(timerSize)
-        if fontName then
-            itemFrame.Cooldown:SetCountdownFont(fontName)
-        end
-    end
-    
-    -- Apply custom count font size if specified (numeric)
-    local countSize = p.buffsCountFontSize or 10
-    if countSize and type(countSize) == "number" then
-        local applicationsFrame = itemFrame.Applications
-        if applicationsFrame and applicationsFrame.Applications then
-            applicationsFrame.Applications:SetFont("Fonts\\FRIZQT__.TTF", countSize, "OUTLINE")
-        end
-    end
+	if not itemFrame then
+		return
+	end
+
+	local p = self.db.profile
+
+	-- Always strip decorations (Blizzard may re-apply them)
+	self:StripBlizzardDecorations(itemFrame)
+
+	-- Apply custom timer font size if specified
+	local timerSize = p.buffsTimerFontSize or "medium"
+	if timerSize and itemFrame.Cooldown then
+		local fontName = Utils.GetTimerFont(timerSize)
+		if fontName then
+			itemFrame.Cooldown:SetCountdownFont(fontName)
+		end
+	end
+
+	-- Apply custom count font size if specified (numeric)
+	local countSize = p.buffsCountFontSize or 10
+	if countSize and type(countSize) == "number" then
+		local applicationsFrame = itemFrame.Applications
+		if applicationsFrame and applicationsFrame.Applications then
+			applicationsFrame.Applications:SetFont("Fonts\\FRIZQT__.TTF", countSize, "OUTLINE")
+		end
+	end
 end
 
 -- Remove Blizzard's decorative textures (mask, overlay, shadow)
 -- Called every time to ensure decorations stay hidden
 function TrackedBuffs:StripBlizzardDecorations(itemFrame)
-    if not itemFrame then return end
-    
-    Utils.StripBlizzardDecorations(itemFrame)
-    
-    -- Apply standard icon crop
-    if itemFrame.Icon then
-        Utils.ApplyIconCrop(itemFrame.Icon, 1, 1)
-    end
+	if not itemFrame then
+		return
+	end
+
+	Utils.StripBlizzardDecorations(itemFrame)
+
+	-- Apply standard icon crop
+	if itemFrame.Icon then
+		Utils.ApplyIconCrop(itemFrame.Icon, 1, 1)
+	end
 end
 
 -- Main setup function
 function TrackedBuffs:SetupStyling()
-    local blizzFrame = self:GetBlizzardFrame()
-    if not blizzFrame then
-        addon:Log("TrackedBuffs: BuffIconCooldownViewer not available yet", "discovery")
-        C_Timer.After(1.0, function() self:SetupStyling() end)
-        return
-    end
-    
-    local p = self.db.profile
-    local blizzEnabled = Manager:IsBlizzardCooldownViewerEnabled()
-    
-    if not p.styleTrackedBuffs or not blizzEnabled then
-        isStylingActive = false
-        addon:Log("TrackedBuffs: Styling disabled", "discovery")
-        return
-    end
-    
-    -- Install hooks (only once)
-    if not self:InstallHooks() then
-        return
-    end
-    
-    isStylingActive = true
-    
-    -- Apply initial styling to existing items
-    self:ForceStyleAllItems()
-    
-    addon:Log("TrackedBuffs: Styling active", "discovery")
+	local blizzFrame = self:GetBlizzardFrame()
+	if not blizzFrame then
+		addon:Log("TrackedBuffs: BuffIconCooldownViewer not available yet", "discovery")
+		C_Timer.After(1.0, function()
+			self:SetupStyling()
+		end)
+		return
+	end
+
+	local p = self.db.profile
+	local blizzEnabled = Manager:IsBlizzardCooldownViewerEnabled()
+
+	if not p.styleTrackedBuffs or not blizzEnabled then
+		isStylingActive = false
+		addon:Log("TrackedBuffs: Styling disabled", "discovery")
+		return
+	end
+
+	-- Install hooks (only once)
+	if not self:InstallHooks() then
+		return
+	end
+
+	isStylingActive = true
+
+	-- Apply initial styling to existing items
+	self:ForceStyleAllItems()
+
+	addon:Log("TrackedBuffs: Styling active", "discovery")
 end
 
 -- Update styling (called when settings change)
 function TrackedBuffs:UpdateLayout()
-    self:SetupStyling()
-    
-    -- Debug Container Visual
-    local blizzFrame = self:GetBlizzardFrame()
-    if blizzFrame then
-        Manager:UpdateFrameDebug(blizzFrame, {r=1, g=0.5, b=0}) -- Orange for Buffs
-        addon:UpdateLayoutOutline(blizzFrame, "Tracked Buffs")
-    end
-    
-    -- Force re-apply styling to all existing frames
-    if isStylingActive then
-        self:ForceStyleAllItems()
-    end
+	self:SetupStyling()
+
+	-- Debug Container Visual
+	local blizzFrame = self:GetBlizzardFrame()
+	if blizzFrame then
+		Manager:UpdateFrameDebug(blizzFrame, { r = 1, g = 0.5, b = 0 }) -- Orange for Buffs
+		addon:UpdateLayoutOutline(blizzFrame, "Tracked Buffs")
+	end
+
+	-- Force re-apply styling to all existing frames
+	if isStylingActive then
+		self:ForceStyleAllItems()
+	end
 end
