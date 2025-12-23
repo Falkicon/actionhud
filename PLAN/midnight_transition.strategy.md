@@ -52,7 +52,9 @@ This command reports:
 
 1.  **Phase 1 (Discovery)**: Implement `Utils.Cap` and Standby guards. (COMPLETE)
 2.  **Phase 2 (Diagnostics)**: Enhance `/ah testapi` for daily build tracking. (COMPLETE)
-3.  **Phase 3 (Duration Wrapping)**: Update `Utils.GetDurationSafe` to fully support `Duration` object methods (`EvaluateRemainingDuration`). (PENDING)
-4.  **Phase 4 (Royal Styling)**: Restore styling to Tracked Abilities using `C_Timer.After(0)` and `SetAlpha(0)` exclusively. (PENDING)
-5.  **Phase 5 (Absorb Transition)**: Migrate UnitFrames to `UnitHealPredictionCalculator`. (PENDING)
+3.  **Phase 3 (Version Detection)**: Refine threshold (120000) for PTR/Beta detection. (COMPLETE)
+4.  **Phase 4 (Safety Guards)**: Implement `pcall` and `SafeLTE` for secret value comparison. (COMPLETE)
+5.  **Phase 5 (Duration Wrapping)**: Update `Utils.GetDurationSafe` to fully support `Duration` object methods (`EvaluateRemainingDuration`). (PENDING)
+6.  **Phase 6 (Royal Styling)**: Restore styling to Tracked Abilities using `C_Timer.After(0)` and `SetAlpha(0)` exclusively. (PENDING)
+7.  **Phase 7 (Absorb Transition)**: Migrate UnitFrames to `UnitHealPredictionCalculator`. (PENDING)
 
