@@ -114,6 +114,12 @@ local function CanShowClassPower()
 	local maxIsSecret = Utils.IsValueSecret(max)
 	local curIsSecret = Utils.IsValueSecret(cur)
 
+	-- If it's a known safe power type, ignore the secret flag (it might be a false positive or legacy check)
+	if Utils.IsPowerTypeSafe(pType) then
+		curIsSecret = false
+		maxIsSecret = false
+	end
+
 	if maxIsSecret or curIsSecret then
 		return true, pType, maxIsSecret and 5 or max
 	end
@@ -149,6 +155,11 @@ local function UpdateClassPower()
 		cur = UnitPower("player", pType, true) -- @scan-ignore: midnight-passthrough
 	end
 	local curIsSecret = Utils.IsValueSecret(cur)
+
+	-- If it's a known safe power type, ignore the secret flag
+	if Utils.IsPowerTypeSafe(pType) then
+		curIsSecret = false
+	end
 
 	playerClassBar:Show()
 

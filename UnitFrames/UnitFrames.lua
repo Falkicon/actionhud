@@ -46,6 +46,15 @@ local function ApplyFontToBar(bar, fontPath, fontSize)
 	end
 end
 
+-- Style heal/absorb bars to match flat look
+local function StylePredictionBar(bar)
+	if not bar then
+		return
+	end
+	bar:SetStatusBarTexture(FLAT_BAR_TEXTURE)
+	-- Prediction bars usually have their own color/alpha logic from Blizzard
+end
+
 -- Apply flat texture to a status bar and force color update
 ApplyFlatTexture = function(bar, unit, barType)
 	if not bar then
@@ -57,6 +66,15 @@ ApplyFlatTexture = function(bar, unit, barType)
 	-- Force color based on bar type
 	local r, g, b = Utils.GetUnitColor(unit, barType:upper(), COLOR_MULT)
 	bar:SetStatusBarColor(r, g, b)
+
+	-- Style children bars (absorbs/prediction)
+	local container = bar:GetParent()
+	if container and container.IsObjectType and container:IsObjectType("Frame") then
+		StylePredictionBar(container.MyHealPredictionBar)
+		StylePredictionBar(container.OtherHealPredictionBar)
+		StylePredictionBar(container.HealAbsorbBar)
+		StylePredictionBar(container.TotalAbsorbBar)
+	end
 
 	-- Hide power bar animations (FullPowerFrame = gate animation, Spark = moving glow)
 	if bar.FullPowerFrame then
@@ -363,7 +381,7 @@ end
 
 -- Style the Player Frame
 function UnitFrames:StylePlayerFrame()
-	if not PlayerFrame or InCombatLockdown() or Utils.Cap.IsRoyal then
+	if not PlayerFrame or InCombatLockdown() then
 		return
 	end
 
@@ -541,7 +559,7 @@ end
 
 -- Style the Target Frame
 function UnitFrames:StyleTargetFrame()
-	if not TargetFrame or InCombatLockdown() or Utils.Cap.IsRoyal then
+	if not TargetFrame or InCombatLockdown() then
 		return
 	end
 
@@ -660,7 +678,7 @@ end
 
 -- Style the Focus Frame (uses same structure as TargetFrameTemplate)
 function UnitFrames:StyleFocusFrame()
-	if not FocusFrame or InCombatLockdown() or Utils.Cap.IsRoyal then
+	if not FocusFrame or InCombatLockdown() then
 		return
 	end
 
@@ -849,17 +867,6 @@ end
 
 -- Main setup function
 function UnitFrames:SetupStyling()
-	-- Capability Check: If we are on a "Royal" client (Beta 5+), enter standby
-	-- These features are currently broken due to API transition (Duration objects/SecondsFormatter)
-	if Utils.Cap.IsRoyal then
-		if not self.notifiedStandby then
-			addon:Log("UnitFrames: Entering STANDBY mode for 12.0 'Royal' transition.", "discovery")
-			self.notifiedStandby = true
-		end
-		isStylingActive = false
-		return
-	end
-
 	local p = self.db.profile
 
 	if not p.ufEnabled then

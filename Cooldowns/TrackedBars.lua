@@ -119,7 +119,13 @@ end
 
 -- Style an individual bar item frame
 function TrackedBars:StyleItemFrame(itemFrame)
-	if not itemFrame or Utils.Cap.IsRoyal then
+	if not itemFrame then
+		return
+	end
+
+	-- On Royal clients, we only style if we have the new native timer APIs
+	-- to prevent secret value crashes.
+	if Utils.Cap.IsRoyal and not itemFrame.Bar.SetTimerDuration then
 		return
 	end
 
@@ -219,17 +225,6 @@ end
 
 -- Main setup function
 function TrackedBars:SetupStyling()
-	-- Capability Check: If we are on a "Royal" client (Beta 5+), enter standby
-	-- These features are currently broken due to API transition (Duration objects/SecondsFormatter)
-	if Utils.Cap.IsRoyal then
-		if not self.notifiedStandby then
-			addon:Log("TrackedBars: Entering STANDBY mode for 12.0 'Royal' transition.", "discovery")
-			self.notifiedStandby = true
-		end
-		isStylingActive = false
-		return
-	end
-
 	local blizzFrame = self:GetBlizzardFrame()
 	if not blizzFrame then
 		addon:Log("TrackedBars: BuffBarCooldownViewer not available yet", "discovery")

@@ -14,26 +14,25 @@ To support both Retail (11.x) and Midnight (12.x) with a single codebase, Action
 
 | Feature | Legacy API (Retail 11.x) | Royal API (Midnight 12.x) | ActionHud Wrapper |
 |---------|-------------------------|--------------------------|-------------------|
-| **Aura Duration** | `C_UnitAuras.GetAuraDurationRemaining` | `Duration` Object from Aura Data | `Utils.GetDurationSafe` |
+| **Aura Duration** | `C_UnitAuras.GetAuraDurationRemaining` | `Duration` Object + `EvaluateRemainingDuration` | `Utils.GetDurationSafe` |
 | **Time Formatting** | `string.format("%.1f", s)` | `SecondsFormatter:Format(s)` | `Utils.FormatTime` |
-| **Combat Hiding** | `frame:Hide()` | `frame:SetAlpha(0)` | `Utils.HideSafe` |
+| **StatusBar Timer** | `frame:SetValue(val)` | `frame:SetTimerDuration(dur, interp, dir)` | `Utils.SetTimerSafe` |
 | **Absorbs** | `UnitGetTotalAbsorbs` | `UnitHealPredictionCalculator` | `UnitFrames (Pending)` |
 | **Boolean Colors** | Local Color Tables | `C_CurveUtil.EvaluateColorFromBoolean` | `Utils.Cap.HasBooleanColor` |
+| **Secrecy Detection**| `issecretvalue(val)` | `C_Secrets.ShouldUnitComparisonBeSecret` | `Utils.IsSecretSafe` |
+| **Class Resources** | Secret Returns | **Non-Secret** (Safe to Read) | `Resources (Restore)` |
 
-## 3. Implementation Status (Standby Mode)
+## 3. Implementation Status (Phase 7 - Complete)
 
-Due to the fundamental shift in how time and aura data are handled in Beta 5+, the following modules are in **Standby** on Royal clients:
+The transition to the "Royal" interpretive API model is now complete. All modules have been removed from Standby and are now fully functional on Midnight Beta/PTR using the new native wrappers.
 
-- **Tracked Bars**
-- **Tracked Buffs**
-- **External Defensives**
-- **Unit Frame Styling**
-
-### Criteria for "Active" State
-A module moves from Standby to Active when:
-1. `Utils.Cap.IsRoyal` is true.
-2. The `Utils.FormatTime` and `Utils.GetDurationSafe` wrappers are verified to handle `Duration` objects correctly without tainting Blizzard's secure paths.
-3. Combat stability is verified using the `/ah testapi` diagnostic tool.
+| Module | Status | Transition Method |
+|---|---|---|
+| **Tracked Bars** | ✅ Active | Async Styling + `SetTimerDuration` support |
+| **Tracked Buffs** | ✅ Active | Async Styling + `SetAlpha(0)` Stripping |
+| **External Defensives**| ✅ Active | Async Styling |
+| **Unit Frames** | ✅ Active | `UnitHealPredictionCalculator` integrated |
+| **Action Bars** | ✅ Active | `GetActionDisplayCount` + `SetCooldownFromDurationObject` |
 
 ## 4. Diagnostic Workflow
 
@@ -48,13 +47,19 @@ This command reports:
 - **Capabilities**: Shows exactly which Royal APIs are detected.
 - **Readiness Score**: A heuristic value indicating how much of the Royal transition is implemented.
 
-## 5. Roadmap
+## 5. Roadmap (Complete)
 
-1.  **Phase 1 (Discovery)**: Implement `Utils.Cap` and Standby guards. (COMPLETE)
-2.  **Phase 2 (Diagnostics)**: Enhance `/ah testapi` for daily build tracking. (COMPLETE)
-3.  **Phase 3 (Version Detection)**: Refine threshold (120000) for PTR/Beta detection. (COMPLETE)
-4.  **Phase 4 (Safety Guards)**: Implement `pcall` and `SafeLTE` for secret value comparison. (COMPLETE)
-5.  **Phase 5 (Duration Wrapping)**: Update `Utils.GetDurationSafe` to fully support `Duration` object methods (`EvaluateRemainingDuration`). (PENDING)
-6.  **Phase 6 (Royal Styling)**: Restore styling to Tracked Abilities using `C_Timer.After(0)` and `SetAlpha(0)` exclusively. (PENDING)
-7.  **Phase 7 (Absorb Transition)**: Migrate UnitFrames to `UnitHealPredictionCalculator`. (PENDING)
+1.  **Phase 1 (Discovery)**: Implement `Utils.Cap` and Standby guards. ✅
+2.  **Phase 2 (Diagnostics)**: Enhance `/ah testapi` for daily build tracking. ✅
+3.  **Phase 3 (Version Detection)**: Refine threshold (120000) for PTR/Beta detection. ✅
+4.  **Phase 4 (Safety Guards)**: Implement `pcall` and `SafeLTE` for secret value comparison. ✅
+5.  **Phase 5 (Duration & Resource Migration)**: ✅
+    - Restore Class Resource bars (confirmed non-secret).
+    - Implement `Utils.GetActionDisplayCountSafe`.
+6.  **Phase 6 (Royal Styling)**: ✅
+    - Restore styling to Tracked Abilities using Async Styling (`C_Timer.After(0)`).
+    - Integrated `Utils.SetCooldownSafe` for native Duration object support.
+7.  **Phase 7 (Absorb Transition)**: ✅
+    - Migrate UnitFrames to `UnitHealPredictionCalculator`.
+    - Restore Unit Frame styling on Royal.
 

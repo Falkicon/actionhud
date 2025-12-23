@@ -585,15 +585,14 @@ function AB:UpdateCooldown(btn)
 	end
 
 	if isEnabled and duration and (Utils.IsValueSecret(duration) or Utils.SafeCompare(duration, 0, ">")) then
-		btn.cd:SetCooldown(start, duration)
+		btn.cd:SetDrawEdge(true)
+		Utils.SetCooldownSafe(btn.cd, start, duration)
 		btn.cd:Show()
 
 		-- Handle GCD edge case (don't show edge for short durations)
 		-- We only perform this check if the duration is NOT a secret.
 		if not Utils.IsValueSecret(duration) and Utils.SafeCompare(duration, 1.5, "<=") then
 			btn.cd:SetDrawEdge(false)
-		else
-			btn.cd:SetDrawEdge(true)
 		end
 		return
 	end
@@ -611,7 +610,7 @@ function AB:UpdateCooldown(btn)
 				and (Utils.IsValueSecret(cdDuration) or Utils.SafeCompare(cdDuration, 0, ">"))
 			then
 				btn.cd:SetDrawEdge(true)
-				btn.cd:SetCooldown(cdStart, cdDuration)
+				Utils.SetCooldownSafe(btn.cd, cdStart, cdDuration)
 				btn.cd:Show()
 				return
 			end
@@ -627,49 +626,10 @@ function AB:UpdateState(btn)
 	end
 	local actionID = btn.actionID
 
-	local count = GetActionCount(actionID)
-	local countIsSecret = Utils.IsValueSecret(count)
-
-	-- Get charge info once and reuse (avoid duplicate API call)
-	local chargeInfo = btn.spellID and Utils.GetSpellChargesSafe(btn.spellID)
-
-	-- Defensive check for Midnight: if count is a string (secret), don't compare it to numbers
-	local countNum = not countIsSecret and tonumber(count) or nil
-
-	-- @midnight-cleanup: Remove manual comparison guard once interpretive APIs are implemented
-	local function SafeLTE(val, threshold)
-		local ok, result = pcall(function()
-			return val <= threshold
-		end)
-		return ok and result or false
-	end
-
-	if not countIsSecret and (not countNum or SafeLTE(countNum, 1)) then
-		if chargeInfo then
-			count = chargeInfo.currentCharges
-			countIsSecret = Utils.IsValueSecret(count)
-			-- Update countNum for the new count
-			countNum = not countIsSecret and tonumber(count) or nil
-		end
-	end
-
-	if countIsSecret then
-		-- Passthrough: SetText handles secret values
-		btn.count:SetText(count)
-	else
-		local showCount = false
-		if countNum and countNum > 1 then
-			showCount = true
-		end
-		if chargeInfo and not countIsSecret then
-			local maxCharges = chargeInfo.maxCharges
-			local maxNum = not Utils.IsValueSecret(maxCharges) and tonumber(maxCharges) or nil
-			if maxNum and maxNum > 1 then
-				showCount = true
-			end
-		end
-		btn.count:SetText(showCount and count or "")
-	end
+	-- Use the new native display count API (Midnight standard)
+	-- This handles both charges and regular counts, and is non-secret.
+	local count = Utils.GetActionDisplayCountSafe(actionID)
+	btn.count:SetText(count or "")
 
 	local isUsable, noMana = IsUsableAction(actionID) -- @scan-ignore: midnight-normalized
 	if not isUsable and not noMana then

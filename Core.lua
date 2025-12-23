@@ -558,6 +558,8 @@ function ActionHud:RunMidnightAPITest()
 		{ name = L["HasHealCalculator"], val = Utils.Cap.HasHealCalculator },
 		{ name = L["IsAuraLegacy"], val = Utils.Cap.IsAuraLegacy },
 		{ name = L["HasBooleanColor"], val = Utils.Cap.HasBooleanColor },
+		{ name = L["HasDurationUtil"], val = _G.C_DurationUtil ~= nil },
+		{ name = L["HasSecrecyQueries"], val = (_G.C_Secrets ~= nil or _G.GetSpellAuraSecrecy ~= nil) },
 	}
 	for _, cap in ipairs(caps) do
 		local color = cap.val and "|cff00ff00" or "|cffffcc00"
@@ -593,20 +595,42 @@ function ActionHud:RunMidnightAPITest()
 	print(string.format("|cff33ff99" .. L["Royal Readiness Score:"] .. "|r %s%d%%|r", readinessColor, readiness))
 
 	if Utils.Cap.IsRoyal then
-		print("|cffff4444- " .. L["Styling Status:"] .. "|r " .. L["BYPASSED (Standby Mode Active)"])
+		print("|cff00ff00- " .. L["Styling Status:"] .. "|r " .. L["Active (Phase 7 Restoration)"])
 	else
 		print("|cff00ff00- " .. L["Styling Status:"] .. "|r " .. L["Active"])
 	end
 
-	-- 3. Security System check (legacy check)
+	-- 3. Detailed Secrecy Tests
+	print("|cff33ff99" .. L["Security System Tests:"] .. "|r")
+
+	-- Test GCD Whitelist (Spell 61304)
 	if _G.issecretvalue then
-		-- Test GCD Whitelist (Spell 61304)
 		local cd = C_Spell.GetSpellCooldown(61304)
 		if cd and cd.duration and _G.issecretvalue(cd.duration) then
 			print("|cffff0000- " .. L["GCD Whitelist:"] .. "|r " .. L["FAILED (GCD is still secret)"])
 		else
 			print("|cff00ff00- " .. L["GCD Whitelist:"] .. "|r " .. L["OK (GCD is readable)"])
 		end
+	end
+
+	-- Test Combo Points Secrecy
+	local cp = GetComboPoints("player", "target")
+	if _G.issecretvalue and _G.issecretvalue(cp) then
+		print("|cffff0000- " .. L["Combo Points:"] .. "|r " .. L["PROTECTED (Secret)"])
+	else
+		print("|cff00ff00- " .. L["Combo Points:"] .. "|r " .. L["OK (Readable)"])
+	end
+
+	-- Test New Duration Objects
+	if C_DurationUtil and C_DurationUtil.CreateDuration then
+		local dur = C_DurationUtil.CreateDuration()
+		if dur and (dur.GetRemainingDuration or dur.EvaluateRemainingDuration) then
+			print("|cff00ff00- " .. L["Duration Objects:"] .. "|r " .. L["OK"])
+		else
+			print("|cffffcc00- " .. L["Duration Objects:"] .. "|r " .. L["Missing Methods"])
+		end
+	else
+		print("|cffffcc00- " .. L["Duration Objects:"] .. "|r " .. L["Not found"])
 	end
 
 	print("|cff33ff99ActionHud:|r " .. L["API test complete."])

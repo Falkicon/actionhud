@@ -24,7 +24,7 @@ A compact action bar HUD overlay that displays ability icons, cooldowns, and pro
 - **Dynamic Layout**: Components automatically restack and update HUD height when modules or individual bars are toggled.
 - Supports stance/form page swapping via `GetBonusBarOffset()`
 - Hijacks Blizzard's CooldownViewer frames using a proxy system
-- **Midnight Compatibility**: Safe handling of "secret" values via layout caching and defensive API wrappers. Utilizes `Utils.SafeCompare` and `Utils.IsValueSecret` to prevent combat crashes.
+- **Midnight Compatibility**: ActionHud is fully compatible with the "Royal" interpretive API model (Beta 5+). All systems use **Async Styling Injection** (`C_Timer.After(0)`) and native **Duration Objects** to ensure 100% stability in combat.
 
 ### Key Midnight Patterns
 

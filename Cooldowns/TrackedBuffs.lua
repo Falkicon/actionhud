@@ -125,7 +125,7 @@ end
 
 -- Style an individual item frame
 function TrackedBuffs:StyleItemFrame(itemFrame)
-	if not itemFrame or Utils.Cap.IsRoyal then
+	if not itemFrame then
 		return
 	end
 
@@ -171,17 +171,6 @@ end
 
 -- Main setup function
 function TrackedBuffs:SetupStyling()
-	-- Capability Check: If we are on a "Royal" client (Beta 5+), enter standby
-	-- These features are currently broken due to API transition (Duration objects/SecondsFormatter)
-	if Utils.Cap.IsRoyal then
-		if not self.notifiedStandby then
-			addon:Log("TrackedBuffs: Entering STANDBY mode for 12.0 'Royal' transition.", "discovery")
-			self.notifiedStandby = true
-		end
-		isStylingActive = false
-		return
-	end
-
 	local blizzFrame = self:GetBlizzardFrame()
 	if not blizzFrame then
 		addon:Log("TrackedBuffs: BuffIconCooldownViewer not available, retrying...", "discovery")

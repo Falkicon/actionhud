@@ -41,13 +41,20 @@ function Utils.DetectCapabilities()
 	-- 4. Boolean to Color (PTR 1 / Beta 5)
 	Cap.HasBooleanColor = (C_CurveUtil and type(C_CurveUtil.EvaluateColorFromBoolean) ~= "nil")
 
+	-- 6. Duration Object Methods (Beta 4+)
+	Cap.HasDurationUtil = (C_DurationUtil and type(C_DurationUtil.CreateDuration) ~= "nil")
+
+	-- 7. Secrecy Queries (Beta 5+)
+	Cap.HasSecrecyQueries = (type(GetSpellAuraSecrecy) ~= "nil")
+
 	-- 5. IsRoyal (Master flag for Beta 5+ / PTR)
 	-- MUST be on a Midnight client AND using the new interpretive model
 	if not Utils.IS_MIDNIGHT then
 		Cap.IsRoyal = false
 	else
 		-- On Midnight, it's Royal if they have the new formatter OR the old APIs are gone
-		Cap.IsRoyal = Cap.HasSecondsFormatter or not Cap.IsAuraLegacy
+		-- OR they have the new DurationUtil / Secrecy queries.
+		Cap.IsRoyal = Cap.HasSecondsFormatter or not Cap.IsAuraLegacy or Cap.HasDurationUtil or Cap.HasSecrecyQueries
 	end
 end
 
@@ -80,6 +87,84 @@ function Utils.FormatTime(seconds)
 		return string.format("%dm", math.ceil(seconds / 60))
 	end
 	return string.format("%.1f", seconds)
+end
+
+-- Helper: Safe timer setup for StatusBars (Midnight Royal Beta 5+)
+function Utils.SetTimerSafe(bar, durationObj, interpolation, direction)
+	if not bar or not durationObj then
+		return false
+	end
+
+	if bar.SetTimerDuration then
+		-- Use the new native Royal API
+		-- direction (Beta 5): remaining vs elapsed (primarily for channeled spells)
+		local ok = pcall(bar.SetTimerDuration, bar, durationObj, interpolation, direction)
+		return ok
+	end
+
+	return false
+end
+
+-- Helper: Create a heal prediction calculator (Midnight Royal Beta 5+)
+function Utils.CreateHealCalculator()
+	if type(CreateUnitHealPredictionCalculator) == "function" then
+		return CreateUnitHealPredictionCalculator()
+	end
+	return nil
+end
+
+-- Helper: Get heal prediction data (compatible with both models)
+function Utils.GetUnitHealsSafe(unit, calculator)
+	if calculator and UnitGetDetailedHealPrediction then
+		-- Royal Model
+		local ok = pcall(UnitGetDetailedHealPrediction, unit, "player", calculator)
+		if ok then
+			local incomingHeals, incomingHealsFromHealer, incomingHealsFromOthers, incomingHealsClamped =
+				calculator:GetIncomingHeals()
+			return incomingHeals or 0,
+				incomingHealsFromHealer or 0,
+				incomingHealsFromOthers or 0,
+				incomingHealsClamped or 0
+		end
+	end
+
+	-- Legacy Model
+	if UnitGetIncomingHeals then
+		local incomingHeals = UnitGetIncomingHeals(unit) or 0
+		return incomingHeals, incomingHeals, 0, incomingHeals -- Simplified fallback
+	end
+
+	return 0, 0, 0, 0
+end
+
+-- Helper: Safe cooldown setup (Midnight Royal Beta 4+)
+function Utils.SetCooldownSafe(cdFrame, startOrDuration, duration)
+	if not cdFrame then
+		return
+	end
+
+	if Utils.Cap.IsRoyal and type(startOrDuration) == "table" then
+		-- Royal: startOrDuration is a Duration object
+		if cdFrame.SetCooldownFromDurationObject then
+			local ok = pcall(cdFrame.SetCooldownFromDurationObject, cdFrame, startOrDuration)
+			if ok then
+				return
+			end
+		end
+	end
+
+	-- Legacy / Fallback
+	local start = duration and startOrDuration or 0
+	local dur = duration or startOrDuration or 0
+
+	-- Ensure we don't pass nil or secret to SetCooldown
+	if Utils.IsValueSecret(start) or Utils.IsValueSecret(dur) then
+		-- If it's secret, we can't set a numeric cooldown.
+		-- Royal clients handle this internally if the frame is linked to a system.
+		return
+	end
+
+	cdFrame:SetCooldown(tonumber(start) or 0, tonumber(dur) or 0)
 end
 
 -- Helper: Safe frame hiding that avoids combat taint and handles secret visibility
@@ -141,6 +226,29 @@ function Utils.IsValueSecret(value)
 	end)
 
 	return not ok
+end
+
+-- Helper: Check if a specific power type is non-secret in combat (Beta 4+)
+function Utils.IsPowerTypeSafe(pType)
+	if not Utils.IS_MIDNIGHT then
+		return true
+	end
+	if not pType then
+		return false
+	end
+
+	-- Secondary resources are non-secret in Beta 4+
+	local safeTypes = {
+		[Enum.PowerType.ComboPoints] = true,
+		[Enum.PowerType.Runes] = true,
+		[Enum.PowerType.SoulShards] = true,
+		[Enum.PowerType.HolyPower] = true,
+		[Enum.PowerType.Chi] = true,
+		[Enum.PowerType.ArcaneCharges] = true,
+		[Enum.PowerType.Essence] = true,
+	}
+
+	return safeTypes[pType] == true
 end
 
 -- Helper: Safe comparison that handles secret values
@@ -337,14 +445,12 @@ function Utils.GetActionDisplayCountSafe(actionID)
 		return 0
 	end
 
-	if Utils.IS_MIDNIGHT and C_ActionBar and C_ActionBar.GetActionDisplayCount then
+	-- Try native display count API first (Midnight standard)
+	if C_ActionBar and C_ActionBar.GetActionDisplayCount then
 		local ok, count = pcall(C_ActionBar.GetActionDisplayCount, actionID)
-		if ok then
-			-- Handle potential table return if Blizzard changes it later
-			if type(count) == "table" then
-				return count.count or count.displayCount or 0
-			end
-			return count or 0
+		if ok and count then
+			-- Returns a non-secret string or number
+			return count
 		end
 	end
 

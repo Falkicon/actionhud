@@ -721,18 +721,6 @@ function ActionHud:SetupOptions()
 		handler = ActionHud,
 		type = "group",
 		args = {
-			betaNotice = {
-				type = "description",
-				order = 0,
-				name = "|cffff4444"
-					.. L["[MIDNIGHT BETA & PTR NOTICE]"]
-					.. "|r "
-					.. L["Blizzard is currently transitioning to the new 'Royal' interpretive API model. Styling for Tracked Abilities is temporarily disabled on this client to ensure stability. We are monitoring Blizzard's API changes and will restore these features as soon as possible."]
-					.. "\n",
-				hidden = function()
-					return not ns.Utils.Cap.IsRoyal
-				end,
-			},
 			reqNote = {
 				name = function()
 					if IsBlizzardCooldownViewerEnabled() then
@@ -771,12 +759,9 @@ function ActionHud:SetupOptions()
 				order = 11,
 				width = 1.0,
 				disabled = function()
-					return not IsBlizzardCooldownViewerEnabled() or ns.Utils.Cap.IsRoyal
+					return not IsBlizzardCooldownViewerEnabled()
 				end,
 				get = function(info)
-					if ns.Utils.Cap.IsRoyal then
-						return false
-					end
 					return self.db.profile.styleTrackedBuffs
 				end,
 				set = function(info, val)
@@ -833,12 +818,9 @@ function ActionHud:SetupOptions()
 				order = 21,
 				width = 1.0,
 				disabled = function()
-					return not IsBlizzardCooldownViewerEnabled() or ns.Utils.Cap.IsRoyal
+					return not IsBlizzardCooldownViewerEnabled()
 				end,
 				get = function(info)
-					if ns.Utils.Cap.IsRoyal then
-						return false
-					end
 					return self.db.profile.styleTrackedBars
 				end,
 				set = function(info, val)
@@ -894,12 +876,8 @@ function ActionHud:SetupOptions()
 				disabled = function()
 					return not IsBlizzardCooldownViewerEnabled()
 						or not self.db.profile.styleTrackedBars
-						or ns.Utils.Cap.IsRoyal
 				end,
 				get = function(info)
-					if ns.Utils.Cap.IsRoyal then
-						return false
-					end
 					return self.db.profile.barsCompactMode
 				end,
 				set = function(info, val)
@@ -916,12 +894,8 @@ function ActionHud:SetupOptions()
 				disabled = function()
 					return not IsBlizzardCooldownViewerEnabled()
 						or not self.db.profile.styleTrackedBars
-						or ns.Utils.Cap.IsRoyal
 				end,
 				get = function(info)
-					if ns.Utils.Cap.IsRoyal then
-						return false
-					end
 					return self.db.profile.barsTimerOnIcon
 				end,
 				set = function(info, val)
@@ -954,13 +928,7 @@ function ActionHud:SetupOptions()
 				hidden = function()
 					return not ExternalDefensivesFrame
 				end,
-				disabled = function()
-					return ns.Utils.Cap.IsRoyal
-				end,
 				get = function(info)
-					if ns.Utils.Cap.IsRoyal then
-						return false
-					end
 					return self.db.profile.styleExternalDefensives
 				end,
 				set = function(info, val)
@@ -1031,18 +999,6 @@ function ActionHud:SetupOptions()
 		handler = ActionHud,
 		type = "group",
 		args = {
-			betaNotice = {
-				type = "description",
-				order = 0,
-				name = "|cffff4444"
-					.. L["[MIDNIGHT BETA & PTR NOTICE]"]
-					.. "|r "
-					.. L["Blizzard is currently transitioning to the new 'Royal' interpretive API model. Unit Frame styling is temporarily disabled on this client to ensure stability."]
-					.. "\n",
-				hidden = function()
-					return not ns.Utils.Cap.IsRoyal
-				end,
-			},
 			experimentalNote = {
 				type = "description",
 				order = 0.1,
