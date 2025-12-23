@@ -96,6 +96,31 @@ local function GetReadyRuneCount()
 	return count
 end
 
+local function GetClassPowerFractional(unit, pType)
+	local cur = UnitPower(unit, pType)
+	local max = UnitPowerMax(unit, pType)
+
+	if pType == Enum.PowerType.SoulShards then
+		local _, class = UnitClass(unit)
+		if class == "WARLOCK" then
+			local spec = Utils.GetSpecializationSafe()
+			-- Destruction Warlocks (Spec 3) have partial shards
+			if spec == 3 then
+				local raw = UnitPower(unit, pType, true)
+				local mod = (UnitPowerDisplayMod and UnitPowerDisplayMod(pType)) or 100
+				if mod ~= 0 then
+					return raw / mod
+				end
+			end
+		end
+	elseif pType == Enum.PowerType.Essence then
+		local partial = UnitPartialPower and UnitPartialPower(unit, pType) or 0
+		return cur + (partial / 1000.0)
+	end
+
+	return cur
+end
+
 local function CanShowClassPower()
 	local pType = GetClassPowerType()
 	if not pType then
@@ -103,38 +128,51 @@ local function CanShowClassPower()
 	end
 
 	local max = UnitPowerMax("player", pType)
-	local cur
-	if pType == Enum.PowerType.Runes then
-		cur = GetReadyRuneCount()
-	else
-		cur = UnitPower("player", pType, true) -- @scan-ignore: midnight-passthrough
-	end
+	local cur = GetClassPowerFractional("player", pType)
 
 	-- Handle Midnight secret values
 	local maxIsSecret = Utils.IsValueSecret(max)
 	local curIsSecret = Utils.IsValueSecret(cur)
 
-	-- If it's a known safe power type, ignore the secret flag (it might be a false positive or legacy check)
-	if Utils.IsPowerTypeSafe(pType) then
+	-- If it's a known safe power type, ignore the secret flag for VISUAL purposes
+	local isSafeType = Utils.IsPowerTypeSafe(pType)
+	if isSafeType then
 		curIsSecret = false
 		maxIsSecret = false
-	end
-
-	if maxIsSecret or curIsSecret then
-		return true, pType, maxIsSecret and 5 or max
 	end
 
 	local maxNum = tonumber(max)
 	local curNum = tonumber(cur)
 
-	if not maxNum or maxNum <= 0 then
-		return false, pType, 0
+	-- Normalize internal units (some clients return 300 for 3 shards)
+	if maxNum and maxNum > 10 then
+		maxNum = math.floor(maxNum / 100)
 	end
-	if not curNum or curNum <= 0 then
+	if curNum and curNum > 10 then
+		curNum = curNum / 100
+	end
+
+	if maxIsSecret or curIsSecret or (not maxNum) then
+		-- Fallback for secret OR non-numeric values
+		return true, pType, 5
+	end
+
+	if maxNum <= 0 then
 		return false, pType, 0
 	end
 
-	return true, pType, max
+	-- For Warlocks, always show bar if in combat
+	local _, class = UnitClass("player")
+	if class == "WARLOCK" and UnitAffectingCombat("player") then
+		return true, pType, maxNum
+	end
+
+	-- Show if we have any power (including partials)
+	if not curNum or curNum <= 0.01 then
+		return false, pType, 0
+	end
+
+	return true, pType, maxNum
 end
 
 local function UpdateClassPower()
@@ -148,26 +186,42 @@ local function UpdateClassPower()
 		return
 	end
 
-	local cur
-	if pType == Enum.PowerType.Runes then
-		cur = GetReadyRuneCount()
-	else
-		cur = UnitPower("player", pType, true) -- @scan-ignore: midnight-passthrough
-	end
-	local curIsSecret = Utils.IsValueSecret(cur)
+	-- Get fractional power (3.4 shards, 5.2 essence, etc)
+	local curFractional = GetClassPowerFractional("player", pType)
+	local curIsSecret = Utils.IsValueSecret(curFractional)
 
 	-- If it's a known safe power type, ignore the secret flag
 	if Utils.IsPowerTypeSafe(pType) then
 		curIsSecret = false
 	end
 
+	-- Force max to be numeric for the loop
+	max = tonumber(max) or 5
+
 	playerClassBar:Show()
 
-	-- Ensure segments exist
+	-- Ensure segments exist as StatusBars
 	for i = 1, max do
 		if not classSegments[i] then
-			local f = playerClassBar:CreateTexture(nil, "ARTWORK")
-			f:SetTexture("Interface\\Buttons\\WHITE8x8")
+			local f = CreateFrame("StatusBar", nil, playerClassBar)
+			f:SetStatusBarTexture("Interface\\Buttons\\WHITE8x8")
+			f:SetMinMaxValues(0, 1)
+			
+			f.bg = f:CreateTexture(nil, "BACKGROUND")
+			f.bg:SetAllPoints()
+			f.bg:SetColorTexture(0, 0, 0, 0.3)
+			
+			classSegments[i] = f
+		elseif not classSegments[i].SetStatusBarColor then
+			-- Conversion safety: if it was a texture, we need to replace it
+			-- This shouldn't happen after the first reload but good for dev
+			classSegments[i]:Hide()
+			local f = CreateFrame("StatusBar", nil, playerClassBar)
+			f:SetStatusBarTexture("Interface\\Buttons\\WHITE8x8")
+			f:SetMinMaxValues(0, 1)
+			f.bg = f:CreateTexture(nil, "BACKGROUND")
+			f.bg:SetAllPoints()
+			f.bg:SetColorTexture(0, 0, 0, 0.3)
 			classSegments[i] = f
 		end
 	end
@@ -180,7 +234,6 @@ local function UpdateClassPower()
 	-- Layout
 	local width = playerClassBar:GetWidth()
 	if width <= 0 then
-		-- Fallback to container width if bar hasn't been sized yet
 		width = container:GetWidth()
 	end
 
@@ -208,30 +261,30 @@ local function UpdateClassPower()
 			seg:SetPoint("LEFT", classSegments[i - 1], "RIGHT", spacing, 0)
 		end
 
-		-- Color / Alpha - handle Midnight secret values
+		-- Calculate fill for this specific segment (0.0 to 1.0)
+		local fill = 0
+		if not curIsSecret then
+			fill = math.max(0, math.min(1, curFractional - (i - 1)))
+		end
+
+		seg:SetValue(fill)
+
+		-- Color / Alpha
 		if curIsSecret then
 			seg:SetAlpha(0.6)
 			local c = baseColor
 			if c then
-				seg:SetColorTexture(c.r * 0.8, c.g * 0.8, c.b * 0.8)
+				seg:SetStatusBarColor(c.r * 0.8, c.g * 0.8, c.b * 0.8)
 			else
-				seg:SetColorTexture(0.8, 0.8, 0)
-			end
-		elseif i <= cur then
-			seg:SetAlpha(1)
-			local c = baseColor
-			if c then
-				seg:SetColorTexture(c.r, c.g, c.b)
-			else
-				seg:SetColorTexture(1, 1, 0)
+				seg:SetStatusBarColor(0.8, 0.8, 0)
 			end
 		else
-			seg:SetAlpha(0.3)
+			seg:SetAlpha(fill > 0 and 1 or 0.3)
 			local c = baseColor
 			if c then
-				seg:SetColorTexture(c.r * 0.5, c.g * 0.5, c.b * 0.5)
+				seg:SetStatusBarColor(c.r, c.g, c.b)
 			else
-				seg:SetColorTexture(0.5, 0.5, 0.5)
+				seg:SetStatusBarColor(1, 1, 0)
 			end
 		end
 		seg:Show()

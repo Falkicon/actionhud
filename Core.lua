@@ -443,8 +443,13 @@ function ActionHud:OpenSettings(categoryName)
 		local targetName = categoryName or "ActionHud"
 		local categoryID
 
-		-- Try to find the numeric category ID explicitly
-		if SettingsPanel and SettingsPanel.GetAllCategories then
+		-- Prefer explicit category object if we have it
+		if self.optionsFrame then
+			categoryID = self.optionsFrame
+		end
+
+		-- Try to find the numeric category ID explicitly if we don't have the object
+		if not categoryID and SettingsPanel and SettingsPanel.GetAllCategories then
 			local categories = SettingsPanel:GetAllCategories()
 
 			-- First pass: exact match on name
@@ -487,9 +492,11 @@ function ActionHud:OpenSettings(categoryName)
 
 	-- Fallback for older clients or if numeric ID lookup failed
 	if InterfaceOptionsFrame_OpenToCategory then
-		pcall(InterfaceOptionsFrame_OpenToCategory, categoryName or "ActionHud")
+		pcall(InterfaceOptionsFrame_OpenToCategory, self.optionsFrame or categoryName or "ActionHud")
 	elseif Settings and Settings.OpenToCategory then
-		pcall(Settings.OpenToCategory, categoryName or "ActionHud")
+		-- In 11.0+, passing a string to OpenToCategory can cause a C-level crash/error
+		-- if it can't be converted to a numeric ID. Prefer the category object.
+		pcall(Settings.OpenToCategory, self.optionsFrame or categoryName or "ActionHud")
 	end
 end
 
@@ -567,19 +574,33 @@ function ActionHud:RunMidnightAPITest()
 	end
 
 	-- 2. Readiness Score (Simple heuristic)
+	-- 2. Readiness Score (Comprehensive 12.0 scoring)
 	local readiness = 0
-	if Utils.Cap.IsRoyal then
-		if Utils.Cap.HasSecondsFormatter then
-			readiness = readiness + 25
-		end
-		if Utils.Cap.HasHealCalculator then
-			readiness = readiness + 25
-		end
-		if not Utils.Cap.IsAuraLegacy then
-			readiness = readiness + 25
-		end
-		if Utils.Cap.HasBooleanColor then
-			readiness = readiness + 25
+	if Utils.IS_MIDNIGHT then
+		-- Capability Checks (60 pts)
+		if Utils.Cap.HasSecondsFormatter then readiness = readiness + 10 end
+		if Utils.Cap.HasHealCalculator then readiness = readiness + 10 end
+		if not Utils.Cap.IsAuraLegacy then readiness = readiness + 10 end
+		if Utils.Cap.HasBooleanColor then readiness = readiness + 10 end
+		if Utils.Cap.HasDurationUtil then readiness = readiness + 10 end
+		if Utils.Cap.HasSecrecyQueries then readiness = readiness + 10 end
+
+		-- Basic Secrecy Tests (20 pts)
+		local cp = GetComboPoints("player", "target")
+		if not Utils.IsValueSecret(cp) then readiness = readiness + 10 end
+		
+		local ss = UnitPower("player", Enum.PowerType.SoulShards)
+		if not Utils.IsValueSecret(ss) then readiness = readiness + 10 end
+
+		-- Whitelist & Duration Object Tests (20 pts)
+		local cd = C_Spell.GetSpellCooldown(61304)
+		if cd and cd.duration and not Utils.IsValueSecret(cd.duration) then readiness = readiness + 10 end
+
+		if C_DurationUtil and C_DurationUtil.CreateDuration then
+			local dur = C_DurationUtil.CreateDuration()
+			if dur and (dur.GetRemainingDuration or dur.EvaluateRemainingDuration) then
+				readiness = readiness + 10
+			end
 		end
 	else
 		readiness = 100 -- Fully ready on legacy clients
@@ -619,6 +640,19 @@ function ActionHud:RunMidnightAPITest()
 		print("|cffff0000- " .. L["Combo Points:"] .. "|r " .. L["PROTECTED (Secret)"])
 	else
 		print("|cff00ff00- " .. L["Combo Points:"] .. "|r " .. L["OK (Readable)"])
+	end
+
+	-- Test Soul Shards Secrecy
+	local ss = UnitPower("player", Enum.PowerType.SoulShards)
+	local ss_max = UnitPowerMax("player", Enum.PowerType.SoulShards)
+	if _G.issecretvalue and _G.issecretvalue(ss) then
+		print("|cffff0000- " .. L["Soul Shards:"] .. "|r " .. L["PROTECTED (Secret)"])
+	else
+		local raw = UnitPower("player", Enum.PowerType.SoulShards, true)
+		local mod = (UnitPowerDisplayMod and UnitPowerDisplayMod(Enum.PowerType.SoulShards)) or 100
+		local val = (mod ~= 0) and (raw / mod) or ss
+		local mval = tonumber(ss_max) or "???"
+		print(string.format("|cff00ff00- %s|r %s (%.2f/%s)", L["Soul Shards:"], L["OK (Readable)"], val, mval))
 	end
 
 	-- Test New Duration Objects
