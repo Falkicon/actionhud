@@ -345,11 +345,16 @@ local function UpdateBarValue(bar, unit)
 		max = UnitPowerMax(unit)
 	end
 
-	-- PASSTHROUGH: Update the main bar value FIRST. 
-	-- StatusBars in 12.0 handle secret values correctly. 
-	-- Doing this first ensures basic health/power display works even if prediction fails.
-	bar:SetMinMaxValues(0, max)
-	bar:SetValue(cur)
+		-- PASSTHROUGH: Update the main bar value FIRST. 
+		-- StatusBars in 12.0 handle secret values correctly. 
+		-- Doing this first ensures basic health/power display works even if prediction fails.
+		local bMax = max
+		if type(bMax) == "nil" then bMax = 1 end
+		local bVal = cur
+		if type(bVal) == "nil" then bVal = 0 end
+		
+		bar:SetMinMaxValues(0, bMax)
+		bar:SetValue(bVal)
 
 	-- Update Predict/Absorb for health bars
 	if bar.type == "HEALTH" and (RCFG.showPredict or RCFG.showAbsorbs) then
@@ -366,10 +371,12 @@ local function UpdateBarValue(bar, unit)
 		local unitAbsorb = GetRawUnitAbsorb(unit)
 		
 		-- Helper to check if a value is "active" (non-zero or secret)
+		-- Helper to check if a numeric value is active (non-zero or secret)
+		-- Strictly safe for Midnight secret values
 		local function IsActive(v)
-			if Utils.IsValueSecret(v) then return true end
-			local num = tonumber(v)
-			return num and num > 0
+			if type(v) == "nil" then return false end
+			local ok, result = pcall(function() return v > 0 end)
+			return not ok or result
 		end
 
 		-- 1. Heal Prediction (Incoming Heals)
@@ -391,8 +398,10 @@ local function UpdateBarValue(bar, unit)
 				-- Legacy: Stack but cap at max
 				bar.predict:ClearAllPoints()
 				bar.predict:SetAllPoints()
-				local curNum = tonumber(cur) or 0
-				local healNum = tonumber(incomingHeals) or 0
+				local curNum = tonumber(cur)
+				if type(curNum) ~= "number" then curNum = 0 end
+				local healNum = tonumber(incomingHeals)
+				if type(healNum) ~= "number" then healNum = 0 end
 				bar.predict:SetValue(math.min(max, curNum + healNum))
 				bar.predict:Show()
 			end

@@ -75,6 +75,11 @@ local function CreateUnitFrame(unit)
 	f.power:SetPoint("TOPRIGHT", f.health, "BOTTOMRIGHT", 0, -1)
 	f.power:SetHeight(10)
 
+	-- Power Value Text
+	f.powerValueText = f.power:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+	f.powerValueText:SetPoint("CENTER", f.power, "CENTER", 0, 0)
+	f.powerValueText:SetJustifyH("CENTER")
+
 	-- Name Text
 	f.nameText = f.health:CreateFontString(nil, "OVERLAY", "GameFontNormal")
 	f.nameText:SetPoint("TOPLEFT", f.health, "TOPLEFT", 5, -2)
@@ -141,10 +146,11 @@ local function UpdateFrameValues(f)
 	local unitAbsorb = (UnitGetTotalAbsorbs and UnitGetTotalAbsorbs(unit)) or 0
 	
 	-- Helper to check if a numeric value is active (non-zero or secret)
+	-- Strictly safe for Midnight secret values
 	local function IsActive(v)
-		if Utils.IsValueSecret(v) then return true end
-		local num = tonumber(v)
-		return num and num > 0
+		if type(v) == "nil" then return false end
+		local ok, result = pcall(function() return v > 0 end)
+		return not ok or result
 	end
 
 	-- Heal Predict
@@ -211,13 +217,42 @@ local function UpdateFrameValues(f)
 	-- Power
 	local curP = UnitPower(unit)
 	local maxP = UnitPowerMax(unit)
-	if type(curP) ~= "number" or type(maxP) ~= "number" then
-		f.power:Hide()
-	else
-		f.power:SetMinMaxValues(0, maxP)
-		f.power:SetValue(curP)
+	
+	-- Bar Update (Always Passthrough)
+	-- Use type checks instead of 'or' to avoid boolean tests on secrets
+	local barMax = maxP
+	if type(barMax) == "nil" then barMax = 1 end
+	local barVal = curP
+	if type(barVal) == "nil" then barVal = 0 end
+	
+	f.power:SetMinMaxValues(0, barMax)
+	f.power:SetValue(barVal)
+	
+	if IsActive(maxP) then
 		f.power:Show()
+	else
+		f.power:Hide()
 	end
+
+	-- Power Text
+	pcall(function()
+		local val = UnitPower(unit, nil, true)
+		local total = UnitPowerMax(unit, nil, true)
+
+		-- Use type checks for presence instead of boolean tests
+		if type(val) ~= "nil" and type(total) ~= "nil" then
+			local ok, pStr = pcall(function() return AbbreviateNumbers and AbbreviateNumbers(val) or val end)
+			local ok2, mStr = pcall(function() return AbbreviateNumbers and AbbreviateNumbers(total) or total end)
+			
+			if ok and ok2 then
+				f.powerValueText:SetFormattedText("%s/%s", pStr, mStr)
+			else
+				f.powerValueText:SetFormattedText("%s/%s", val, total)
+			end
+		else
+			f.powerValueText:SetText("")
+		end
+	end)
 
 	-- Colors
 	local r, g, b = Utils.GetUnitColor(unit, "HEALTH", 0.85)
@@ -242,10 +277,22 @@ local function UpdateFrameValues(f)
 	
 	-- Numeric Values
 	pcall(function()
-		if displayH and displayMax then
-			local hStr = AbbreviateNumbers and AbbreviateNumbers(displayH) or displayH
-			local mStr = AbbreviateNumbers and AbbreviateNumbers(displayMax) or displayMax
-			f.valueText:SetFormattedText("%s/%s", hStr, mStr)
+		local val = UnitHealth(unit, true)
+		local total = UnitHealthMax(unit, true)
+
+		if type(val) ~= "nil" and type(total) ~= "nil" then
+			-- Try to abbreviate. If these are secret, AbbreviateNumbers will throw,
+			-- and we'll catch it in the pcall to fallback to raw string formatting.
+			local ok, hStr = pcall(function() return AbbreviateNumbers and AbbreviateNumbers(val) or val end)
+			local ok2, mStr = pcall(function() return AbbreviateNumbers and AbbreviateNumbers(total) or total end)
+			
+			if ok and ok2 then
+				f.valueText:SetFormattedText("%s/%s", hStr, mStr)
+			else
+				-- If abbreviation failed, it's a secret. 
+				-- SetFormattedText with %s is the "Gold Standard" for secret values.
+				f.valueText:SetFormattedText("%s/%s", val, total)
+			end
 		else
 			f.valueText:SetText("???")
 		end
@@ -257,11 +304,9 @@ local function UpdateFrameValues(f)
 			local pct = UnitHealthPercent(unit, true, CurveConstants.ScaleTo100)
 			f.percentText:SetFormattedText("%.0f%%", pct)
 		else
-			-- Fallback
-			local numH = tonumber(displayH)
-			local numMax = tonumber(displayMax)
-			if numH and numMax and numMax > 0 then
-				f.percentText:SetFormattedText("%.0f%%", (numH / numMax) * 100)
+			local pct = UnitHealthPercent(unit) -- Try legacy/non-curve
+			if pct then
+				f.percentText:SetFormattedText("%.0f%%", pct)
 			else
 				f.percentText:SetText("")
 			end
