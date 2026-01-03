@@ -231,42 +231,84 @@ L["Apply styling to the Target Frame."] = true
 L["Focus Frame"] = true
 L["Apply styling to the Focus Frame."] = true
 
--- Settings UI - Custom Unit Frames (12.0+)
+-- Settings UI - Custom Unit Frames
 L["Custom Unit Frames"] = true
 L["Custom frames for Player and Target with advanced support for Midnight's 'Secret Values'."] = true
 L["Enable Custom Unit Frames"] = true
-L["Show custom Player and Target frames."] = true
-L["Health Height"] = true
-L["Power Height"] = true
+L["Enable ActionHud custom player and target unit frames. Compatible with Midnight 12.0 secret values."] = true
 L["Bar Width"] = true
-
--- Settings UI - Trinkets
-L["Trinkets"] = true
-L["Enable the sidecar Trinket module."] = true
-L["Sizing & Positioning"] = true
-
--- Settings UI - Layout
-L["Layout"] = true
-L["HUD Stack Order"] = true
-L["Show Layout Outlines"] = true
-L["Show semi-transparent boxes and labels for all HUD modules to help with positioning."] = true
-L["Arrange modules from top to bottom. Use arrows to reorder. Gap defines spacing after each module.\n "] = true
-L["Up"] = true
-L["Move %s up in the stack"] = true
-L["Down"] = true
-L["Move %s down in the stack"] = true
-L["Gap After"] = true
-L["Space between %s and the next module."] = true
-L["Reset to Default Order"] = true
-L["Restore the default module order and gap values."] = true
-L["Trinkets Positioning"] = true
+L["Height"] = true
 L["X Offset"] = true
-L["Horizontal position relative to HUD center."] = true
 L["Y Offset"] = true
-L["Vertical position relative to HUD center."] = true
-L["These frames are styled by ActionHud but positioned via Blizzard's EditMode:"] = true
+L["Background & Border"] = true
+L["Background Color"] = true
+L["Background Opacity"] = true
+L["Border Color"] = true
+L["Border Opacity"] = true
+L["Border Size"] = true
+L["Bars"] = true
+L["Enable Power Bar"] = true
+L["Power Bar Height"] = true
+L["Enable Class Bar"] = true
+L["Class Bar Height"] = true
+L["Typography & Text"] = true
+L["Horizontal Padding"] = true
+L["Vertical Padding"] = true
+L["Health Text"] = true
+L["Power Text"] = true
+L["Level"] = true
+L["Name"] = true
+L["Health Value"] = true
+L["Health Percent"] = true
+L["Power Value"] = true
+L["Power Percent"] = true
+L["Font"] = true
+L["Font Size"] = true
+L["Font Outline"] = true
+L["Color"] = true
+L["Color Mode"] = true
+L["Custom"] = true
+L["Class"] = true
+L["Reaction"] = true
+L["Position"] = true
+L["None"] = true
+L["Outline"] = true
+L["Thick Outline"] = true
+L["Monochrome"] = true
+L["Top Left"] = true
+L["Top Center"] = true
+L["Top Right"] = true
+L["Left"] = true
+L["Center"] = true
+L["Right"] = true
+L["Bottom Left"] = true
+L["Bottom Center"] = true
+L["Bottom Right"] = true
+L["Status Icons"] = true
+L["Icon Margin"] = true
+L["Combat"] = true
+L["Resting"] = true
+L["PVP"] = true
+L["Group Leader"] = true
+L["Dungeon Guide"] = true
+L["Role: Tank"] = true
+L["Role: Healer"] = true
+L["Role: DPS"] = true
+L["Main Tank"] = true
+L["Main Assist"] = true
+L["Vehicle"] = true
+L["Phased"] = true
+L["Summon"] = true
+L["Ready Check"] = true
+L["Group Management"] = true
+L["Status Indicators"] = true
+L["Size"] = true
+L["Copy Settings From"] = true
+L["-- Select --"] = true
 
--- Settings UI - Debugging
+-- Debugging
+L["Debug Mode"] = true
+L["Enable verbose debug logging"] = true
 L["Debugging"] = true
 L["Tools"] = true
 L["Force Layout Update"] = true
@@ -299,7 +341,8 @@ L["Discovery"] = true
 L["Frames"] = true
 L["Events"] = true
 L["Proxies"] = true
-L["None"] = true
+L["Resources"] = true
+L["Layout"] = true
 L["Active filters:"] = true
 L["Record"] = true
 L["Start recording debug messages to the buffer."] = true
@@ -309,6 +352,30 @@ L["Clear"] = true
 L["Clears the debug buffer without copying."] = true
 L["Debug Log"] = true
 L["Recorded debug messages. Select all and copy to export."] = true
+
+-- Settings UI - Trinkets
+L["Trinkets"] = true
+L["Enable the sidecar Trinket module."] = true
+L["Sizing & Positioning"] = true
+
+-- Settings UI - Layout
+L["Layout"] = true
+L["HUD Stack Order"] = true
+L["Show Layout Outlines"] = true
+L["Show semi-transparent boxes and labels for all HUD modules to help with positioning."] = true
+L["Arrange modules from top to bottom. Use arrows to reorder. Gap defines spacing after each module.\n "] = true
+L["Up"] = true
+L["Move %s up in the stack"] = true
+L["Down"] = true
+L["Move %s down in the stack"] = true
+L["Gap After"] = true
+L["Space between %s and the next module."] = true
+L["Reset to Default Order"] = true
+L["Restore the default module order and gap values."] = true
+L["Trinkets Positioning"] = true
+L["Horizontal position relative to HUD center."] = true
+L["Vertical position relative to HUD center."] = true
+L["These frames are styled by ActionHud but positioned via Blizzard's EditMode:"] = true
 
 -- Settings UI - Profiles
 L["Profiles"] = true
@@ -328,4 +395,3 @@ L["Essential"] = true
 L["Utility"] = true
 L["TrackedBuff"] = true
 L["TrackedBar"] = true
-

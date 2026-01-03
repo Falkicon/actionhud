@@ -271,11 +271,60 @@ Stored in `ActionHudDB.profile`:
 
 ---
 
+## Development Mode
+
+ActionHud detects development mode via MechanicLib:
+
+```lua
+local MechanicLib = LibStub("MechanicLib-1.0", true)
+local isDeveloper = MechanicLib and MechanicLib:IsEnabled()
+```
+
+When !Mechanic is installed:
+- Debug settings appear in ActionHud options
+- Debug logs forward to Mechanic console
+- Use `/mech` to access full debug tools
+
+The old DevMarker.lua pattern has been removed.
+
+---
+
 ## Deep-Dive Documentation
 
 For detailed implementation docs, see the `Docs/` folder:
 - [Proxy System](Docs/proxy-system.md) – Blizzard frame structure, CooldownViewer API reference
 - [Performance Learnings](Docs/performance.md) – Memory optimization, API quirks, GCD handling
+
+---
+
+## Libraries
+
+### FenCore Integration
+
+ActionHud uses FenCore for pure logic domains with graceful fallbacks:
+
+- **Math.Clamp**: Used by settings validators in `Core/init.lua`
+- All FenCore usage is wrapped via `Core/FenCoreCompat.lua` for optional dependency
+
+The FenCoreCompat module provides fallback implementations when FenCore is not available, ensuring ActionHud works standalone or with FenCore.
+
+**Verify FenCore integration:**
+```bash
+# Sync FenCore library (if needed)
+mech call libs.sync -i '{"addon": "ActionHud"}'
+
+# Run sandbox tests
+mech call sandbox.test -i '{"addon": "ActionHud"}'
+```
+
+### FenUI Integration
+
+ActionHud uses FenUI.Utils for Midnight-safe API wrappers:
+- `IsValueSecret` – Secret value detection
+- `SafeCompare` – Secret-safe comparisons
+- `GetSpellCooldownSafe`, `GetActionCooldownSafe`, etc. – Protected API wrappers
+
+All FenUI usage includes fallback to basic implementations when FenUI is unavailable.
 
 ---
 
@@ -290,9 +339,9 @@ For detailed implementation docs, see the `Docs/` folder:
 ## Tooling and Localization
 
 ### Standard Workflows
-- **Linting**: `@lint` or `mcp_AddonDevTools_lint_addon("ActionHud")`
-- **Formatting**: `mcp_AddonDevTools_format_addon("ActionHud")` (uses StyLua)
-- **Testing**: `mcp_AddonDevTools_run_tests("ActionHud")` (executes `Tests/test_utils.lua`)
+- **Linting**: `mech call addon.lint -i '{"addon": "ActionHud"}'`
+- **Formatting**: `mech call addon.format -i '{"addon": "ActionHud"}'` (uses StyLua)
+- **Testing**: `mech call sandbox.test -i '{"addon": "ActionHud"}'`
 
 ### Localization (AceLocale-3.0)
 ActionHud uses standard localization patterns. All UI strings must be wrapped in `L["KEY"]`.

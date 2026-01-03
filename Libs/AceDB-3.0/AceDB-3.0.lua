@@ -366,7 +366,7 @@ local function logoutHandler(frame, event)
 					-- also don't delete empty profiles on main dbs, only on namespaces
 					if section ~= "global" and (section ~= "profiles" or rawget(db, "parent")) then
 						for key in pairs(sv[section]) do
-							if not next(sv[section][key]) then
+							if type(sv[section][key]) == "table" and not next(sv[section][key]) then
 								sv[section][key] = nil
 							end
 						end

@@ -110,7 +110,6 @@ function Cooldowns:CalculateHeight()
 		totalHeight = totalHeight + (spacing * (rowCount - 1))
 	end
 
-	cachedHeight = totalHeight
 	return totalHeight
 end
 

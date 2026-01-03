@@ -5,12 +5,14 @@
 ## Version: 2.8.0
 ## X-License: GPL-3.0
 ## SavedVariables: ActionHudDB
+## OptionalDeps: !Mechanic, FenCore
 
-#@debug@
-DevMarker.lua
-#@end-debug@
 embeds.xml
 Locales\enUS.lua
+
+# Core Layer (Pure Lua - Sandbox Testable)
+Core\FenCoreCompat.lua
+Core\init.lua
 Utils.lua
 Core.lua
 LayoutManager.lua
@@ -25,3 +27,4 @@ CustomUnitFrames.lua
 UnitFrames\UnitFrames.lua
 Trinkets.lua
 SettingsUI.lua
+Mechanic.lua
