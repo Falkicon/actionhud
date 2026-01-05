@@ -25,6 +25,8 @@ Cooldowns\SkinningReset.lua
 Cooldowns\Cooldowns.lua
 Cooldowns\TrackedBuffs.lua
 Cooldowns\TrackedBuffsLayout.lua
+Cooldowns\EssentialCooldownsLayout.lua
+Cooldowns\UtilityCooldownsLayout.lua
 Cooldowns\TrackedDefensives.lua
 Cooldowns\DefensiveTracker.lua
 UnitFrames\UnitFrames.lua

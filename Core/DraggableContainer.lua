@@ -11,7 +11,9 @@ ns.DraggableContainer = DraggableContainer
 -- Module colors for drag overlays
 local MODULE_COLORS = {
 	resources = { r = 0, g = 1, b = 0 }, -- Green
-	cooldowns = { r = 0, g = 0.5, b = 1 }, -- Blue
+	cooldowns = { r = 0, g = 0.5, b = 1 }, -- Blue (legacy)
+	essentialCooldowns = { r = 0, g = 0.5, b = 1 }, -- Blue
+	utilityCooldowns = { r = 0.5, g = 0, b = 0.8 }, -- Deep Purple
 	trinkets = { r = 0.8, g = 0, b = 1 }, -- Purple
 	buffs = { r = 0, g = 1, b = 1 }, -- Cyan
 }
@@ -20,6 +22,8 @@ local MODULE_COLORS = {
 local MODULE_LABELS = {
 	resources = L["Resource Bars"],
 	cooldowns = L["Cooldowns"],
+	essentialCooldowns = L["Essential Cooldowns"],
+	utilityCooldowns = L["Utility Cooldowns"],
 	trinkets = L["Trinkets"],
 	buffs = L["Tracked Buffs"],
 }

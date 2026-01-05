@@ -442,3 +442,5 @@ L["When enabled, use a fixed width instead of matching the HUD width."] = true
 L["Fixed width for resource bars."] = true
 L["Grow Direction"] = true
 L["Direction to add additional trinkets when more than one is equipped."] = true
+L["Essential Cooldowns"] = true
+L["Utility Cooldowns"] = true

@@ -22,11 +22,17 @@ local MODULE_REGISTRY = {
 		profileKey = "actionBarsIncludeInStack",
 		moduleName = "ActionBars",
 	},
-	cooldowns = {
-		displayName = L["Cooldowns"],
+	essentialCooldowns = {
+		displayName = L["Essential Cooldowns"],
 		defaultInStack = true,
-		profileKey = "cooldownsIncludeInStack",
-		moduleName = "Cooldowns",
+		profileKey = "essentialCooldownsIncludeInStack",
+		moduleName = "EssentialCooldownsLayout",
+	},
+	utilityCooldowns = {
+		displayName = L["Utility Cooldowns"],
+		defaultInStack = true,
+		profileKey = "utilityCooldownsIncludeInStack",
+		moduleName = "UtilityCooldownsLayout",
 	},
 	trinkets = {
 		displayName = L["Trinkets"],
@@ -43,8 +49,8 @@ local MODULE_REGISTRY = {
 }
 
 -- Default stack order and gaps (only modules with defaultInStack=true)
-local DEFAULT_STACK = { "resources", "actionBars", "cooldowns" }
-local DEFAULT_GAPS = { 4, 4, 0 }
+local DEFAULT_STACK = { "resources", "actionBars", "essentialCooldowns", "utilityCooldowns" }
+local DEFAULT_GAPS = { 4, 4, 4, 0 }
 
 -- Cache of module heights (updated by modules when they render)
 local moduleHeights = {}

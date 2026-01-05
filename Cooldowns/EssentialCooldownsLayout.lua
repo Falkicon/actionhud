@@ -1,31 +1,33 @@
--- Cooldowns\TrackedBuffsLayout.lua
--- Handles the custom layout for TrackedBuffs by reparenting the Blizzard viewer icon.
+-- Cooldowns/EssentialCooldownsLayout.lua
+-- Positions Blizzard's EssentialCooldownViewer frame in the ActionHud stack.
 -- Uses early container creation to block Edit Mode interference.
 
 local addonName, ns = ...
 local addon = LibStub("AceAddon-3.0"):GetAddon("ActionHud")
-local TrackedBuffsLayout = addon:NewModule("TrackedBuffsLayout", "AceEvent-3.0")
-local Utils = ns.Utils
+local EssentialCooldownsLayout = addon:NewModule("EssentialCooldownsLayout", "AceEvent-3.0")
 local L = LibStub("AceLocale-3.0"):GetLocale("ActionHud")
+local Reset = ns.SkinningReset
 
-local BLIZZARD_FRAME_NAME = "BuffIconCooldownViewer"
+local BLIZZARD_FRAME_NAME = "EssentialCooldownViewer"
 
 -- ============================================================================
 -- EARLY CONTAINER CREATION
 -- Create container at FILE LOAD TIME, before Blizzard's EditModeManager initializes.
+-- This is critical for blocking Edit Mode from taking control of the viewer.
 -- ============================================================================
-local container = CreateFrame("Frame", "ActionHud_TrackedBuffsContainer", UIParent)
+local container = CreateFrame("Frame", "ActionHud_EssentialCooldownsContainer", UIParent)
 container:SetSize(200, 50)
 container:SetFrameStrata("LOW")
 container:SetFrameLevel(10)
 container:SetClampedToScreen(true)
 container:SetMovable(true)
 container:EnableMouse(false)
-container:SetPoint("CENTER", UIParent, "CENTER", 0, -180)  -- Default position
+container:SetPoint("CENTER", UIParent, "CENTER", 0, -100)  -- Default position
 
 -- Add OnUpdate polling to constantly reposition Blizzard viewer (blocks Edit Mode)
 -- Only runs when Edit Mode is active for performance
 container:SetScript("OnUpdate", function(self)
+    -- Only enforce positioning during Edit Mode
     if not (EditModeManagerFrame and EditModeManagerFrame:IsShown()) then
         return
     end
@@ -39,12 +41,11 @@ container:SetScript("OnUpdate", function(self)
     end
 end)
 
-function TrackedBuffsLayout:OnInitialize()
+function EssentialCooldownsLayout:OnInitialize()
     self.db = addon.db
 end
 
-function TrackedBuffsLayout:OnEnable()
-    -- Initialize the container and start the reparenting process
+function EssentialCooldownsLayout:OnEnable()
     self:SetupContainer()
 end
 
@@ -54,27 +55,14 @@ local function SetLayoutModified()
     end
 end
 
-function TrackedBuffsLayout:IsLocked()
+function EssentialCooldownsLayout:IsLocked()
     local p = self.db and self.db.profile
     return not (p and p.layoutUnlocked)
 end
 
-function TrackedBuffsLayout:ToggleLock()
-    local p = self.db and self.db.profile
-    if p then
-        p.layoutUnlocked = not p.layoutUnlocked
-    end
-    self:UpdateOverlay()
-    -- Also update all other draggable containers
-    local DraggableContainer = ns.DraggableContainer
-    if DraggableContainer then
-        DraggableContainer:UpdateAllOverlays()
-    end
-    SetLayoutModified()
-end
-
-function TrackedBuffsLayout:SetupContainer()
+function EssentialCooldownsLayout:SetupContainer()
     -- Container already created at file load time
+    -- Now configure it for ActionHud
     local main = _G["ActionHudFrame"]
     if not main then
         C_Timer.After(0.5, function() self:SetupContainer() end)
@@ -90,57 +78,91 @@ function TrackedBuffsLayout:SetupContainer()
         local cx, cy = s:GetCenter()
         local px, py = parent:GetCenter()
         
-        self.db.profile.buffsXOffset = cx - px
-        self.db.profile.buffsYOffset = cy - py
+        self.db.profile.essentialCooldownsXOffset = cx - px
+        self.db.profile.essentialCooldownsYOffset = cy - py
         
         SetLayoutModified()
-        addon:Log(string.format("TrackedBuffs saved pos: %d, %d", self.db.profile.buffsXOffset, self.db.profile.buffsYOffset), "layout")
     end)
 
     -- Create drag overlay
     container.overlay = container:CreateTexture(nil, "OVERLAY")
     container.overlay:SetAllPoints()
-    container.overlay:SetColorTexture(0, 1, 0, 0.4)
+    container.overlay:SetColorTexture(0, 0.5, 1, 0.4) -- Blue tint for Essential
     container.overlay:Hide()
 
     local label = container:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     label:SetPoint("CENTER")
-    label:SetText(L["Buffs"])
+    label:SetText(L["Essential Cooldowns"])
     container.label = label
     label:Hide()
 
-    -- Lay initial position from profile
     self:UpdateLayout()
 
-    -- 2. Reparent Blizzard viewer into container
+    -- Position Blizzard's viewer
     local blizzFrame = self:GetBlizzardFrame()
     if not blizzFrame then
-        addon:Log("TrackedBuffsLayout: Viewer not available yet, retrying...", "discovery")
+        addon:Log("EssentialCooldownsLayout: Viewer not available yet, retrying...", "discovery")
         C_Timer.After(1.0, function() self:SetupContainer() end)
         return
     end
 
-    -- Hook SetPoint/ClearAllPoints to block EditMode interference
-    self:OverrideBlizzardPositioning(blizzFrame)
+    self:PositionBlizzardFrame(blizzFrame)
     
     -- Hook Edit Mode to restore positioning when it closes
+    -- (Edit Mode allows users to move Blizzard frames, which desynchronizes them from our containers)
     if EditModeManagerFrame and not self._editModeHooked then
         EditModeManagerFrame:HookScript("OnHide", function()
-            addon:Log("TrackedBuffsLayout: Edit Mode closed, restoring position", "layout")
+            addon:Log("EssentialCooldownsLayout: Edit Mode closed, restoring position", "layout")
             local frame = self:GetBlizzardFrame()
             if frame then
-                frame._ActionHud_Controlled = false
-                self:OverrideBlizzardPositioning(frame)
+                frame._ActionHud_Controlled = false  -- Allow repositioning
+                self:PositionBlizzardFrame(frame)
             end
             self:UpdateLayout()
         end)
         self._editModeHooked = true
     end
-
-    addon:Log("TrackedBuffsLayout: Container setup and reparenting complete", "layout")
+    
+    -- Hook to apply styling reset to icons as they're created
+    self:InstallStylingHooks(blizzFrame)
+    
+    addon:Log("EssentialCooldownsLayout: Container setup complete", "layout")
 end
 
-function TrackedBuffsLayout:UpdateOverlay()
+-- Install hooks to apply SkinningReset to icon frames as they appear
+function EssentialCooldownsLayout:InstallStylingHooks(blizzFrame)
+    if not blizzFrame or self._stylingHooked then return end
+    if not Reset then return end  -- SkinningReset not available
+    
+    -- Hook OnAcquireItemFrame to style icons as they're created
+    if blizzFrame.OnAcquireItemFrame then
+        hooksecurefunc(blizzFrame, "OnAcquireItemFrame", function(viewer, itemFrame)
+            if Reset and Reset.StripIconFrame then
+                Reset.StripIconFrame(itemFrame)
+            end
+        end)
+        self._stylingHooked = true
+        addon:Log("EssentialCooldownsLayout: Styling hooks installed", "discovery")
+    end
+    
+    -- Also style any existing icons
+    self:ApplyStylingToExistingIcons(blizzFrame)
+end
+
+-- Apply styling to any icons already in the viewer
+function EssentialCooldownsLayout:ApplyStylingToExistingIcons(blizzFrame)
+    if not blizzFrame or not Reset then return end
+    
+    -- Iterate children to find icon frames
+    for i = 1, blizzFrame:GetNumChildren() do
+        local child = select(i, blizzFrame:GetChildren())
+        if child and child.Icon and Reset.StripIconFrame then
+            Reset.StripIconFrame(child)
+        end
+    end
+end
+
+function EssentialCooldownsLayout:UpdateOverlay()
     if not container then return end
     
     local isUnlocked = not self:IsLocked()
@@ -160,11 +182,11 @@ function TrackedBuffsLayout:UpdateOverlay()
     end
 end
 
-function TrackedBuffsLayout:GetBlizzardFrame()
+function EssentialCooldownsLayout:GetBlizzardFrame()
     return _G[BLIZZARD_FRAME_NAME]
 end
 
-function TrackedBuffsLayout:OverrideBlizzardPositioning(blizzFrame)
+function EssentialCooldownsLayout:PositionBlizzardFrame(blizzFrame)
     if not blizzFrame then return end
     
     -- Store original data (only once)
@@ -203,105 +225,90 @@ function TrackedBuffsLayout:OverrideBlizzardPositioning(blizzFrame)
     blizzFrame:Show()
 end
 
-function TrackedBuffsLayout:ApplyInternalPosition(blizzFrame)
-    if not blizzFrame then return end
-    
-    -- Use original functions to bypass our blocking hooks
-    blizzFrame._ActionHud_Controlled = false
-    if blizzFrame._ActionHud_OrigClearAllPoints then
-        blizzFrame._ActionHud_OrigClearAllPoints(blizzFrame)
-    else
-        blizzFrame:ClearAllPoints()
-    end
-    if blizzFrame._ActionHud_OrigSetPoint then
-        blizzFrame._ActionHud_OrigSetPoint(blizzFrame, "CENTER", container, "CENTER")
-    else
-        blizzFrame:SetPoint("CENTER", container, "CENTER")
-    end
-    blizzFrame._ActionHud_Controlled = true
-end
-
-function TrackedBuffsLayout:UpdateLayout()
+function EssentialCooldownsLayout:UpdateLayout()
     if not container then return end
 
     local p = self.db.profile
     local main = _G["ActionHudFrame"]
     if not main then return end
 
+    -- Check if module is enabled
+    if not p.essentialCooldownsEnabled then
+        container:Hide()
+        return
+    end
+
     -- Check if we're in stack mode
     local LM = addon:GetModule("LayoutManager", true)
-    local inStack = LM and LM:IsModuleInStack("trackedBuffs")
+    local inStack = LM and LM:IsModuleInStack("essentialCooldowns")
 
     container:ClearAllPoints()
 
-    -- Calculate container size based on content
     local contentHeight = self:CalculateHeight()
     local contentWidth = self:GetLayoutWidth()
 
     if inStack and LM then
-        -- Stack mode: use full HUD width from LayoutManager
         local containerWidth = LM:GetMaxWidth()
         if containerWidth <= 0 then
-            containerWidth = 120 -- Fallback
+            containerWidth = 120
         end
-        local yOffset = LM:GetModulePosition("trackedBuffs")
+        local yOffset = LM:GetModulePosition("essentialCooldowns")
         container:SetSize(containerWidth, contentHeight)
         container:SetPoint("TOP", main, "TOP", 0, yOffset)
         container:EnableMouse(false)
         container:RegisterForDrag()
         
-        -- Report height to LayoutManager
-        LM:SetModuleHeight("trackedBuffs", contentHeight)
+        LM:SetModuleHeight("essentialCooldowns", contentHeight)
     else
-        -- Independent mode: fit content and enable dragging
         container:SetSize(math.max(contentWidth, 40), math.max(contentHeight, 40))
-        local xOffset = p.buffsXOffset or 0
-        local yOffset = p.buffsYOffset or -180
+        local xOffset = p.essentialCooldownsXOffset or 0
+        local yOffset = p.essentialCooldownsYOffset or -100
         container:SetPoint("CENTER", main, "CENTER", xOffset, yOffset)
         container:EnableMouse(true)
         container:RegisterForDrag("LeftButton")
     end
     
-    -- Debug outline
-    addon:UpdateLayoutOutline(container, "Tracked Buffs", "buffs")
+    -- Re-position Blizzard frame each layout update
+    local blizzFrame = self:GetBlizzardFrame()
+    if blizzFrame then
+        blizzFrame:ClearAllPoints()
+        blizzFrame:SetPoint("CENTER", container, "CENTER")
+    end
+    
+    container:Show()
+    addon:UpdateLayoutOutline(container, "Essential Cooldowns", "essentialCooldowns")
 end
 
--- Stack layout functions
-function TrackedBuffsLayout:CalculateHeight()
+function EssentialCooldownsLayout:CalculateHeight()
     local p = self.db.profile
-    if not p.styleTrackedBuffs then
+    if not p.essentialCooldownsEnabled then
         return 0
     end
     
     -- Try to get actual height from Blizzard frame
-    local blizzFrame = _G[BLIZZARD_FRAME_NAME]
-    if blizzFrame then
-        -- Check if frame is visible and has reasonable height
+    local blizzFrame = self:GetBlizzardFrame()
+    if blizzFrame and blizzFrame:IsShown() then
         local height = blizzFrame:GetHeight()
-        -- Only use if height is reasonable (not 0, not excessively large)
-        -- Blizzard buff icons are typically 36-50px
-        if height and height > 0 and height <= 100 then
+        if height and height > 0 then
             return height
         end
     end
     
-    -- Fallback: Use single icon row height
-    return p.buffsIconSize or 36
+    -- Fallback to configured icon size
+    return p.essentialCooldownsIconSize or 36
 end
 
-function TrackedBuffsLayout:GetLayoutWidth()
+function EssentialCooldownsLayout:GetLayoutWidth()
     local p = self.db.profile
-    if not p.styleTrackedBuffs then
+    if not p.essentialCooldownsEnabled then
         return 0
     end
-    -- Width based on columns and icon size
-    local iconSize = p.buffsIconSize or 36
-    local spacing = p.buffsSpacingH or 2
-    local columns = p.buffsColumns or 8
+    local iconSize = p.essentialCooldownsIconSize or 36
+    local columns = p.essentialCooldownsColumns or 8
+    local spacing = 2
     return (iconSize * columns) + (spacing * (columns - 1))
 end
 
--- Called by LayoutManager if it wants to tell us to update
-function TrackedBuffsLayout:ApplyLayoutPosition()
+function EssentialCooldownsLayout:ApplyLayoutPosition()
     self:UpdateLayout()
 end

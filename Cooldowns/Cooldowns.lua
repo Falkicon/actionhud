@@ -37,6 +37,13 @@ function Cooldowns:OnInitialize()
 end
 
 function Cooldowns:OnEnable()
+	-- Skip this legacy module if new native viewer modules are enabled
+	local p = addon.db and addon.db.profile
+	if p and (p.essentialCooldownsEnabled or p.utilityCooldownsEnabled) then
+		addon:Log("Cooldowns: Legacy module disabled - using native viewer modules", "discovery")
+		return
+	end
+	
 	addon:Log("Cooldowns:OnEnable - custom replacement mode", "discovery")
 	Manager:CreateContainer("cd", "ActionHudCooldownContainer")
 	self:UpdateLayout()

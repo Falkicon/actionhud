@@ -59,6 +59,22 @@ local defaults = {
 		cdTimerFontSize = "medium",
 		cdHideBlizzardViewer = true, -- Hide Blizzard's CooldownViewer when our module is active
 
+		-- Essential Cooldowns (native Blizzard viewer positioning)
+		essentialCooldownsEnabled = true,
+		essentialCooldownsIncludeInStack = true,
+		essentialCooldownsXOffset = 0,
+		essentialCooldownsYOffset = -100,
+		essentialCooldownsIconSize = 36,
+		essentialCooldownsColumns = 8,
+
+		-- Utility Cooldowns (native Blizzard viewer positioning)
+		utilityCooldownsEnabled = true,
+		utilityCooldownsIncludeInStack = true,
+		utilityCooldownsXOffset = 0,
+		utilityCooldownsYOffset = -140,
+		utilityCooldownsIconSize = 36,
+		utilityCooldownsColumns = 8,
+
 		-- Tracked Buffs (container-based positioning)
 		styleTrackedBuffs = true,
 		buffsXOffset = 0,
