@@ -26,11 +26,20 @@ container:SetPoint("CENTER", UIParent, "CENTER", 0, -100)  -- Default position
 
 -- Add OnUpdate polling to constantly reposition Blizzard viewer (blocks Edit Mode)
 -- Only runs when Edit Mode is active for performance
+local editModeAccumulated = 0
+local lastEditModeReport = 0
+
 container:SetScript("OnUpdate", function(self)
     -- Only enforce positioning during Edit Mode
     if not (EditModeManagerFrame and EditModeManagerFrame:IsShown()) then
+        if editModeAccumulated > 0 and ActionHudMechanic then
+            ActionHudMechanic:RecordPerfMetric("EditModePolling", 0)
+        end
+        editModeAccumulated = 0
         return
     end
+    
+    local start = debugprofilestop()
     
     local blizzFrame = _G[BLIZZARD_FRAME_NAME]
     if blizzFrame and blizzFrame._ActionHud_Controlled then
@@ -38,6 +47,17 @@ container:SetScript("OnUpdate", function(self)
             blizzFrame._ActionHud_OrigClearAllPoints(blizzFrame)
             blizzFrame._ActionHud_OrigSetPoint(blizzFrame, "CENTER", self, "CENTER")
         end
+    end
+    
+    -- Accumulate timing and report once per second
+    editModeAccumulated = editModeAccumulated + (debugprofilestop() - start)
+    local now = GetTime()
+    if now - lastEditModeReport >= 1 then
+        if ActionHudMechanic and ActionHudMechanic.RecordPerfMetric then
+            ActionHudMechanic:RecordPerfMetric("EditModePolling", editModeAccumulated)
+        end
+        editModeAccumulated = 0
+        lastEditModeReport = now
     end
 end)
 
