@@ -210,6 +210,72 @@ function SkinningReset.RestoreFrame(itemFrame)
 end
 
 -- ============================================================================
+-- Custom Border/Background
+-- ============================================================================
+
+-- Apply a custom border to an item frame
+function SkinningReset.ApplyCustomBorder(itemFrame, settings)
+    if not itemFrame or not settings or not settings.enabled then
+        return
+    end
+
+    local size = settings.size or 1
+    local r, g, b, a = unpack(settings.color or {0, 0, 0, 1})
+
+    -- Create or reuse border frame
+    if not itemFrame._ahCustomBorder then
+        local border = CreateFrame("Frame", nil, itemFrame, "BackdropTemplate")
+        border:SetFrameLevel(itemFrame:GetFrameLevel() + 10)
+        itemFrame._ahCustomBorder = border
+    end
+
+    local border = itemFrame._ahCustomBorder
+    border:ClearAllPoints()
+    border:SetPoint("TOPLEFT", itemFrame, "TOPLEFT", -size, size)
+    border:SetPoint("BOTTOMRIGHT", itemFrame, "BOTTOMRIGHT", size, -size)
+    border:SetBackdrop({
+        edgeFile = "Interface\\Buttons\\WHITE8X8",
+        edgeSize = size,
+    })
+    border:SetBackdropBorderColor(r, g, b, a)
+    border:Show()
+end
+
+-- Apply a custom background to an item frame
+function SkinningReset.ApplyCustomBackground(itemFrame, settings)
+    if not itemFrame or not settings or not settings.enabled then
+        return
+    end
+
+    local r, g, b, a = unpack(settings.color or {0, 0, 0, 0.5})
+
+    -- Create or reuse background texture
+    if not itemFrame._ahCustomBg then
+        local bg = itemFrame:CreateTexture(nil, "BACKGROUND", nil, -8)
+        itemFrame._ahCustomBg = bg
+    end
+
+    local bg = itemFrame._ahCustomBg
+    bg:SetAllPoints(itemFrame)
+    bg:SetColorTexture(r, g, b, a)
+    bg:Show()
+end
+
+-- Remove custom border
+function SkinningReset.RemoveCustomBorder(itemFrame)
+    if itemFrame and itemFrame._ahCustomBorder then
+        itemFrame._ahCustomBorder:Hide()
+    end
+end
+
+-- Remove custom background
+function SkinningReset.RemoveCustomBackground(itemFrame)
+    if itemFrame and itemFrame._ahCustomBg then
+        itemFrame._ahCustomBg:Hide()
+    end
+end
+
+-- ============================================================================
 -- Internal Helpers
 -- ============================================================================
 

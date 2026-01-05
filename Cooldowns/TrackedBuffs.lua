@@ -141,3 +141,11 @@ end
 function TrackedBuffs:UpdateLayout()
     self:SetupStyling()
 end
+
+function TrackedBuffs:SetLayoutMode(enabled)
+    -- No layout mode handling needed for style-only approach
+end
+
+function TrackedBuffs:UpdateSettings()
+    self:SetupStyling()
+end

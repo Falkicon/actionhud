@@ -3,7 +3,9 @@ local addonName, ns = ...
 ns.Utils = {}
 local Utils = ns.Utils
 
--- Use shared FenUI utilities if available
+-- Delegation chain: FenCore.Secrets > FenUI.Utils > built-in fallback
+local Secrets = FenCore and FenCore.Secrets
+local Environment = FenCore and FenCore.Environment
 local F = FenUI and FenUI.Utils
 
 -- Local upvalues for performance
@@ -17,10 +19,14 @@ local RAID_CLASS_COLORS = RAID_CLASS_COLORS
 local PowerBarColor = PowerBarColor
 
 --------------------------------------------------------------------------------
--- Environment & Capability (Inherited)
+-- Environment & Capability
 --------------------------------------------------------------------------------
 
-Utils.IS_MIDNIGHT = F and F.IS_MIDNIGHT or (((select(4, GetBuildInfo())) or 0) >= 120000)
+-- Use FenCore.Environment if available, else FenUI, else detect locally
+Utils.IS_MIDNIGHT = (Environment and Environment.IsMidnight())
+    or (F and F.IS_MIDNIGHT)
+    or (((select(4, GetBuildInfo())) or 0) >= 120000)
+
 Utils.Cap = F and F.Cap or {}
 
 if not F then
@@ -60,19 +66,25 @@ function Utils.GetTimerFont(size)
 end
 
 --------------------------------------------------------------------------------
--- Safe API & Guards
+-- Safe API & Guards (FenCore.Secrets > FenUI > fallback)
 --------------------------------------------------------------------------------
 
 function Utils.IsValueSecret(value)
+    -- FenCore.Secrets is the canonical source
+    if Secrets then return Secrets.IsSecret(value) end
+    -- FenUI fallback
     if F and F.IsValueSecret then return F:IsValueSecret(value) end
-    -- Fallback: check if comparing value errors (secret values error on comparison)
+    -- Built-in fallback: check if comparing value errors
     local ok = pcall(function() return value == value end)
     return not ok
 end
 
 function Utils.SafeCompare(a, b, op)
+    -- FenCore.Secrets is the canonical source
+    if Secrets then return Secrets.SafeCompare(a, b, op) end
+    -- FenUI fallback
     if F and F.SafeCompare then return F:SafeCompare(a, b, op) end
-    -- Fallback with pcall protection for secret values
+    -- Built-in fallback with pcall protection
     local ok, result = pcall(function()
         if op == ">" then return a > b
         elseif op == "<" then return a < b
@@ -84,6 +96,36 @@ function Utils.SafeCompare(a, b, op)
     end)
     return ok and result or nil
 end
+
+-- Check if we're in a context where secret values may exist
+-- M+: entire run is secured (even between pulls!)
+-- Raids: during boss encounters
+-- PvP: entire match
+function Utils.MayHaveSecretValues()
+    if not Utils.IS_MIDNIGHT then return false end
+    -- M+: entire run secured
+    if C_ChallengeMode and C_ChallengeMode.IsChallengeModeActive
+       and C_ChallengeMode.IsChallengeModeActive() then
+        return true
+    end
+    -- Raids: during boss encounters
+    if IsEncounterInProgress and IsEncounterInProgress() then
+        return true
+    end
+    -- PvP: entire match
+    local _, instanceType = IsInInstance()
+    if instanceType == "pvp" or instanceType == "arena" then
+        return true
+    end
+    -- Fallback: combat in instances
+    if InCombatLockdown() then
+        if instanceType == "party" or instanceType == "raid" then
+            return true
+        end
+    end
+    return false
+end
+
 function Utils.HideSafe(frame) if F then F:HideSafe(frame) else frame:Hide() end end
 function Utils.SetCooldownSafe(f, s, d) if F then F:SetCooldownSafe(f, s, d) end end
 function Utils.GetDurationSafe(u, s, f) return F and F:GetDurationSafe(u, s, f) end
@@ -95,8 +137,40 @@ function Utils.GetSpellCooldownSafe(s) return F and F:GetSpellCooldownSafe(s) en
 function Utils.GetActionCooldownSafe(a) return F and F:GetActionCooldownSafe(a) end
 function Utils.GetSpellChargesSafe(s) return F and F:GetSpellChargesSafe(s) end
 function Utils.GetSpellTextureSafe(s) return F and F:GetSpellTextureSafe(s) end
-function Utils.GetItemSpellSafe(i) return F and F:GetItemSpellSafe(i) end
-function Utils.GetInventoryItemCooldownSafe(u, s) return F and F:GetInventoryItemCooldownSafe(u, s) end
+function Utils.GetItemSpellSafe(itemInfo)
+	-- Try FenUI first
+	if F and F.GetItemSpellSafe then
+		return F:GetItemSpellSafe(itemInfo)
+	end
+	-- Built-in fallback
+	if not itemInfo or not C_Item or not C_Item.GetItemSpell then
+		return nil
+	end
+	local ok, name, spellID = pcall(C_Item.GetItemSpell, itemInfo)
+	if ok then
+		return name, spellID
+	end
+	return nil
+end
+
+function Utils.GetInventoryItemCooldownSafe(unit, slot)
+	-- Try FenUI first
+	if F and F.GetInventoryItemCooldownSafe then
+		return F:GetInventoryItemCooldownSafe(unit, slot)
+	end
+	-- Built-in fallback
+	if not unit or not slot then
+		return 0, 0, false
+	end
+	if GetInventoryItemCooldown then
+		local ok, start, duration, enabled = pcall(GetInventoryItemCooldown, unit, slot)
+		if ok then
+			return start or 0, duration or 0, enabled
+		end
+	end
+	return 0, 0, false
+end
+
 function Utils.IsSpellOverlayedSafe(s) return F and F:IsSpellOverlayedSafe(s) end
 function Utils.GetActionDisplayCountSafe(a) return F and F:GetActionDisplayCountSafe(a) end
 function Utils.GetActionBarPageSafe() return F and F:GetActionBarPageSafe() or 1 end

@@ -21,13 +21,14 @@ local EMPTY_TABLE = {}
 
 -- Shared state
 local proxyPool = {}
-local hiddenFrames = {}
 local containers = {}
 
--- Target Blizzard Frames (only cd frames are hidden/shown by Manager)
--- TrackedBuffs/TrackedBars/TrackedDefensives use style-only approach via EditMode
-local blizzardFrames = {
-	cd = { "EssentialCooldownViewer", "UtilityCooldownViewer" },
+-- Pre-seeded cache for cooldown data (avoids calling data provider during combat)
+-- Pattern G from 13-midnight-secret-values.doc.md: Pre-Seeding Lookup Tables
+local cooldownCache = {
+	categoryIDs = {}, -- [category] = { cooldownID, cooldownID, ... }
+	cooldownInfo = {}, -- [cooldownID] = cooldownInfo
+	valid = false,
 }
 
 -- ============================================================================
@@ -36,23 +37,45 @@ local blizzardFrames = {
 
 function Manager:OnEnable()
 	self:RegisterEvent("CVAR_UPDATE", "OnEvent")
+	self:RegisterEvent("PLAYER_ENTERING_WORLD", "OnPlayerEnteringWorld")
+	self:RegisterEvent("PLAYER_REGEN_ENABLED", "OnPlayerRegenEnabled")
 
-	-- Watch for Blizzard Cooldown Manager setting changes
-	if CVarCallbackRegistry and CVarCallbackRegistry.RegisterCallback then
-		CVarCallbackRegistry:RegisterCallback("cooldownViewerEnabled", self.OnCVarChanged, self)
+	-- NOTE: We intentionally do NOT use CVarCallbackRegistry:RegisterCallback()
+	-- because it fires from Blizzard's protected context, causing taint cascade.
+	-- Instead, we rely on CVAR_UPDATE event which fires in a clean context.
+
+	-- Listen for CooldownViewer data changes (when user configures tracked spells)
+	-- IMPORTANT: Use C_Timer.After(0) to escape Blizzard's tainted callback context
+	-- The EventRegistry callback fires from within Blizzard's protected code,
+	-- so any work done directly in the callback becomes tainted.
+	if EventRegistry then
+		EventRegistry:RegisterCallback("CooldownViewerSettings.OnDataChanged", function()
+			-- Schedule on next frame to escape tainted context
+			C_Timer.After(0, function()
+				self:InvalidateCooldownCache()
+				-- Refresh immediately if safe
+				if not InCombatLockdown() then
+					self:RefreshCooldownCache()
+				end
+			end)
+		end, self)
 	end
 
 	addon:Log(L["CooldownManager Enabled"], "proxy")
 	local blizzEnabled = self:IsBlizzardCooldownViewerEnabled()
 	addon:Log(string.format(L["Blizzard Cooldown Manager enabled: %s"], tostring(blizzEnabled)), "proxy")
+
+	-- Initial cache population (delayed to ensure data provider is ready)
+	C_Timer.After(0.5, function()
+		if not InCombatLockdown() then
+			self:RefreshCooldownCache()
+		end
+	end)
 end
 
 function Manager:OnDisable()
 	self:UnregisterEvent("CVAR_UPDATE")
-
-	if CVarCallbackRegistry and CVarCallbackRegistry.UnregisterCallback then
-		CVarCallbackRegistry:UnregisterCallback("cooldownViewerEnabled", self)
-	end
+	-- NOTE: No CVarCallbackRegistry to unregister - we use CVAR_UPDATE event instead
 end
 
 function Manager:OnEvent(event, ...)
@@ -68,7 +91,7 @@ function Manager:OnCVarChanged(cvarName, value)
 	addon:Log(string.format(L["CVar Changed: %s = %s"], tostring(cvarName), tostring(value)), "proxy")
 
 	-- Notify all dependent modules to refresh their layout and visibility
-	local modules = { "Cooldowns", "TrackedBars", "TrackedBuffs", "TrackedDefensives" }
+	local modules = { "Cooldowns", "TrackedBuffs", "TrackedDefensives" }
 	for _, modName in ipairs(modules) do
 		local mod = addon:GetModule(modName, true)
 		if mod and mod.UpdateLayout then
@@ -81,6 +104,98 @@ function Manager:OnCVarChanged(cvarName, value)
 	if LM then
 		LM:TriggerLayoutUpdate()
 	end
+end
+
+function Manager:OnPlayerEnteringWorld()
+	-- Refresh cache when entering world (always safe here)
+	addon:Log("CooldownManager: OnPlayerEnteringWorld - refreshing cache", "proxy")
+	C_Timer.After(0.5, function()
+		if not InCombatLockdown() then
+			self:RefreshCooldownCache()
+		end
+	end)
+end
+
+function Manager:OnPlayerRegenEnabled()
+	-- Refresh cache when leaving combat (if invalidated during combat)
+	if not cooldownCache.valid then
+		addon:Log("CooldownManager: OnPlayerRegenEnabled - refreshing invalidated cache", "proxy")
+		self:RefreshCooldownCache()
+	end
+end
+
+-- ============================================================================
+-- Cooldown Cache (Pre-seeding for Midnight Secret Value Safety)
+-- ============================================================================
+
+-- Refresh the cooldown cache from the data provider
+-- IMPORTANT: Only call this outside combat when values are readable
+function Manager:RefreshCooldownCache()
+	if InCombatLockdown() then
+		addon:Log("CooldownManager: Skipping cache refresh (in combat)", "proxy")
+		return
+	end
+
+	wipe(cooldownCache.categoryIDs)
+	wipe(cooldownCache.cooldownInfo)
+
+	local categories = {
+		{ name = "Essential", cat = Enum.CooldownViewerCategory and Enum.CooldownViewerCategory.Essential },
+		{ name = "Utility", cat = Enum.CooldownViewerCategory and Enum.CooldownViewerCategory.Utility },
+		{ name = "TrackedBuff", cat = Enum.CooldownViewerCategory and Enum.CooldownViewerCategory.TrackedBuff },
+		{ name = "TrackedBar", cat = Enum.CooldownViewerCategory and Enum.CooldownViewerCategory.TrackedBar },
+	}
+
+	if not CooldownViewerSettings or not CooldownViewerSettings.GetDataProvider then
+		cooldownCache.valid = false
+		return
+	end
+
+	local provider = CooldownViewerSettings:GetDataProvider()
+	if not provider then
+		cooldownCache.valid = false
+		return
+	end
+
+	local totalCached = 0
+	for _, catInfo in ipairs(categories) do
+		if catInfo.cat and provider.GetOrderedCooldownIDsForCategory then
+			local ok, ids = pcall(provider.GetOrderedCooldownIDsForCategory, provider, catInfo.cat)
+			if ok and ids then
+				-- Deep copy the IDs to avoid holding references to provider internals
+				local cachedIDs = {}
+				for _, id in ipairs(ids) do
+					table_insert(cachedIDs, id)
+
+					-- Also cache the info for each ID
+					if provider.GetCooldownInfoForID then
+						local infoOk, info = pcall(provider.GetCooldownInfoForID, provider, id)
+						if infoOk and info then
+							-- Deep copy relevant fields to avoid secret value contamination
+							cooldownCache.cooldownInfo[id] = {
+								spellID = info.spellID,
+								overrideSpellID = info.overrideSpellID,
+								overrideTooltipSpellID = info.overrideTooltipSpellID,
+								linkedSpellIDs = info.linkedSpellIDs,
+								category = info.category,
+							}
+							totalCached = totalCached + 1
+						end
+					end
+				end
+				cooldownCache.categoryIDs[catInfo.cat] = cachedIDs
+			end
+		end
+	end
+
+	cooldownCache.valid = true
+	addon:Log(string.format("CooldownManager: Cached %d cooldowns", totalCached), "proxy")
+end
+
+-- Invalidate the cache (forces refresh on next safe opportunity)
+function Manager:InvalidateCooldownCache()
+	cooldownCache.valid = false
+	addon:Log("CooldownManager: Cache invalidated", "proxy")
 end
 
 -- ============================================================================
@@ -99,80 +214,56 @@ function Manager:IsBlizzardCooldownViewerEnabled()
 end
 
 function Manager:GetCooldownIDsForCategory(category, categoryName)
-	local ids = EMPTY_TABLE
-	if CooldownViewerSettings and CooldownViewerSettings.GetDataProvider then
-		local provider = CooldownViewerSettings:GetDataProvider()
-		if provider and provider.GetOrderedCooldownIDsForCategory then
-			local ok, result = pcall(provider.GetOrderedCooldownIDsForCategory, provider, category)
-			if ok and result then
-				ids = result
-			end
+	-- In combat or M+: Use cached data to avoid triggering Blizzard's secret value crashes
+	-- The data provider internally compares secret spellIDs which causes cascade errors
+	if InCombatLockdown() or Utils.MayHaveSecretValues() then
+		if cooldownCache.valid and cooldownCache.categoryIDs[category] then
+			return cooldownCache.categoryIDs[category]
 		end
+		-- Cache not valid during combat - return empty (graceful degradation)
+		return EMPTY_TABLE
 	end
-	return ids
+
+	-- Outside combat: Refresh cache if invalid, then return cached data
+	if not cooldownCache.valid then
+		self:RefreshCooldownCache()
+	end
+
+	if cooldownCache.categoryIDs[category] then
+		return cooldownCache.categoryIDs[category]
+	end
+
+	return EMPTY_TABLE
 end
 
 function Manager:GetCooldownInfoForID(cooldownID)
 	if not cooldownID then
 		return nil
 	end
-	if CooldownViewerSettings and CooldownViewerSettings.GetDataProvider then
-		local provider = CooldownViewerSettings:GetDataProvider()
-		if provider and provider.GetCooldownInfoForID then
-			local ok, info = pcall(provider.GetCooldownInfoForID, provider, cooldownID)
-			if ok and info then
-				return info
-			end
+
+	-- In combat or M+: Use cached data to avoid triggering Blizzard's secret value crashes
+	if InCombatLockdown() or Utils.MayHaveSecretValues() then
+		if cooldownCache.valid and cooldownCache.cooldownInfo[cooldownID] then
+			return cooldownCache.cooldownInfo[cooldownID]
 		end
+		-- Cache not valid during combat - return nil (graceful degradation)
+		return nil
 	end
-	return nil
+
+	-- Outside combat: Refresh cache if invalid, then return cached data
+	if not cooldownCache.valid then
+		self:RefreshCooldownCache()
+	end
+
+	return cooldownCache.cooldownInfo[cooldownID]
 end
 
 -- ============================================================================
--- Blizzard Frame Management
+-- Blizzard Frame Management (REMOVED)
 -- ============================================================================
-
-function Manager:HideBlizzardFrame(frameName)
-	local frame = _G[frameName]
-	if not frame then
-		return
-	end
-
-	if not hiddenFrames[frameName] then
-		hiddenFrames[frameName] = true
-		-- Use Alpha/Mouse instead of function override to avoid taint in 12.0
-		frame:SetAlpha(0)
-		frame:SetPropagateMouseClicks(true) -- Let clicks pass through to our proxies
-		addon:Log(string.format(L["Visual-hidden Blizzard frame: %s"], frameName), "frames")
-	end
-end
-
-function Manager:ShowBlizzardFrame(frameName)
-	local frame = _G[frameName]
-	if not frame then
-		return
-	end
-
-	if hiddenFrames[frameName] then
-		hiddenFrames[frameName] = nil
-		frame:SetAlpha(1)
-		frame:SetPropagateMouseClicks(false)
-		addon:Log(string.format(L["Restored Blizzard frame: %s"], frameName), "frames")
-	end
-end
-
-function Manager:RestoreAllBlizzardFrames()
-	for _, group in pairs(blizzardFrames) do
-		for _, frameName in ipairs(group) do
-			self:ShowBlizzardFrame(frameName)
-		end
-	end
-	wipe(hiddenFrames)
-end
-
-function Manager:GetBlizzardFrames()
-	return blizzardFrames
-end
+-- NOTE: We no longer hide/show Blizzard frames to avoid taint.
+-- Users should disable Blizzard's CooldownViewer via Edit Mode if desired.
+-- This is a pure custom replacement architecture.
 
 -- ============================================================================
 -- Proxy Management
@@ -272,11 +363,11 @@ function Manager:UpdateContainerDebug(containerType, color)
 	if not container then
 		return
 	end
-	addon:UpdateFrameDebug(container, color)
+	-- Obsolete: use ActionHud:UpdateLayoutOutline directly if needed
 end
 
 function Manager:UpdateFrameDebug(frame, color)
-	addon:UpdateFrameDebug(frame, color)
+	-- Obsolete
 end
 
 -- ============================================================================

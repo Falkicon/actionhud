@@ -25,10 +25,7 @@ A lightweight, high-performance action bar HUD for World of Warcraft Retail. Dis
 - **Unit Frame Reskin** – Minimalist styling for Player, Target, and Focus frames:
   - Hide portraits and borders for a cleaner look.
   - Flat, solid bar textures with adjustable heights.
-- **Tracked Abilities (Buffs & Bars)**:
-  - Applies modern styling to Blizzard's native Tracked Buffs and Tracked Bars.
-  - **Compact Mode** – Option to hide the bar portion of Tracked Bars and show icons only.
-  - **Timer on Icon** – Display cooldown text directly on the icon.
+- **Tracked Buffs** – Applies modern styling to Blizzard's native Tracked Buffs icons.
 - **Layout Manager** – Unified system to reorder HUD modules and set custom spacing.
 - **Visualization Tools** – Toggle layout outlines to see component bounds and position empty modules easily.
 - **Profiles** – Support for character-specific settings and profile sharing.
@@ -82,8 +79,8 @@ To get the most out of ActionHud, enable these native WoW features in **Gameplay
 | Command | Description |
 |---------|-------------|
 | `/ah` or `/actionhud` | Opens the configuration dialog |
-| `/ah debug` | Toggles debug recording on/off |
-| `/ah clear` | Clears the debug log buffer |
+| `/ah reset` | Resets profile to defaults |
+| `/ah dump` | Dumps tracked buff info (debug) |
 
 ## Configuration
 
@@ -96,25 +93,15 @@ Open the settings panel via slash command or `Esc` → `Options` → `AddOns` �
 - **Resource Bars** – Individual toggles for Health/Power/Class bars and sizing.
 - **Unit Frames** – Reskin options for Player, Target, and Focus frames.
 - **Cooldown Manager** – Essential/Utility bar settings and typography.
-- **Tracked Abilities** – Style Blizzard's Tracked Buffs and Tracked Bars (Compact Mode, Timer on Icon).
+- **Tracked Abilities** – Style Blizzard's Tracked Buffs and External Defensives
 - **Trinkets** – Configure the dedicated Trinket tracking module.
 - **Layout** – Reorder modules, set gaps, and toggle visualization outlines.
 - **Help & Slash Commands** – Built-in command reference and troubleshooting tools.
 - **Profiles** – Create, Copy, Delete, or Reset profiles for different characters.
 
-## Tracked Abilities (Buffs & Bars)
+## Tracked Abilities
 
-ActionHud applies visual styling to Blizzard's **Tracked Buffs** and **Tracked Bars** frames. Position and size these frames using Blizzard's **EditMode** (`Esc` → `Edit Mode`).
-
-### Known Blizzard UI Limitations
-
-The following limitations are in Blizzard's native UI and cannot be fixed by addons:
-
-| Limitation | Description |
-|------------|-------------|
-| **No centering option** | Tracked Buffs/Bars can only be aligned left or right in EditMode, not centered. |
-
-**Help improve the game!** If these limitations affect your gameplay, please submit a bug report to Blizzard requesting "center alignment for Tracked Buffs." Player feedback helps prioritize UI improvements!
+ActionHud applies visual styling to Blizzard's **Tracked Buffs** (BuffIconCooldownViewer) using a style-only approach. Position and size these frames using Blizzard's **EditMode** (`Esc` → `Edit Mode`).
 
 ## Requirements
 
@@ -126,13 +113,13 @@ The following limitations are in Blizzard's native UI and cannot be fixed by add
 | File | Purpose |
 |------|---------|
 | `ActionHud.toc` | Addon manifest |
-| `Core.lua` | Addon initialization, debug system, slash commands |
+| `ActionHud.lua` | Addon initialization, slash commands |
 | `Utils.lua` | Shared utility functions (safe API wrappers) |
 | `LayoutManager.lua` | Centralized module positioning and stack management |
 | `ActionBars.lua` | Action bar grid (6×4 button frames) |
 | `Resources.lua` | Health, Power, and Class Resource bars |
 | `Cooldowns/` | Modular Cooldown Manager system |
-| `SettingsUI.lua` | Blizzard Settings panel integration |
+| `Settings/` | AceConfig settings modules |
 
 ## Technical Notes
 

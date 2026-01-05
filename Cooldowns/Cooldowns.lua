@@ -37,6 +37,7 @@ function Cooldowns:OnInitialize()
 end
 
 function Cooldowns:OnEnable()
+	addon:Log("Cooldowns:OnEnable - custom replacement mode", "discovery")
 	Manager:CreateContainer("cd", "ActionHudCooldownContainer")
 	self:UpdateLayout()
 
@@ -45,15 +46,26 @@ function Cooldowns:OnEnable()
 	self:RegisterEvent("SPELL_UPDATE_USABLE", "OnSpellUpdateCooldown")
 	self:RegisterEvent("PLAYER_ENTERING_WORLD", "OnPlayerEnteringWorld")
 
+	-- IMPORTANT: Use C_Timer.After(0) to escape Blizzard's tainted callback context
 	if EventRegistry then
 		EventRegistry:RegisterCallback("CooldownViewerSettings.OnDataChanged", function()
-			self:UpdateLayout()
+			C_Timer.After(0, function()
+				self:UpdateLayout()
+			end)
 		end, self)
 	end
 
 	-- Single delayed retry in case data provider wasn't ready at OnEnable
 	C_Timer.After(0.5, function()
 		self:UpdateLayout()
+		-- Debug: Report status
+		local p = self.db and self.db.profile
+		local essentialCat = GetEssentialCategory()
+		local utilityCat = GetUtilityCategory()
+		local essentialCount = essentialCat and #(Manager:GetCooldownIDsForCategory(essentialCat, "Essential") or {}) or 0
+		local utilityCount = utilityCat and #(Manager:GetCooldownIDsForCategory(utilityCat, "Utility") or {}) or 0
+		addon:Log(string.format("Cooldowns status: enabled=%s, essential=%d, utility=%d",
+			tostring(p and p.cdEnabled), essentialCount, utilityCount), "discovery")
 	end)
 end
 
@@ -62,11 +74,8 @@ function Cooldowns:OnDisable()
 	if container then
 		container:Hide()
 	end
-
-	local blizzardFrames = Manager:GetBlizzardFrames()
-	for _, frameName in ipairs(blizzardFrames.cd) do
-		Manager:ShowBlizzardFrame(frameName)
-	end
+	-- Pure custom replacement: we never touch Blizzard frames
+	-- Users should disable Blizzard's CooldownViewer via Edit Mode if they want ours only
 end
 
 -- Calculate the height of this module for LayoutManager
@@ -76,11 +85,8 @@ function Cooldowns:CalculateHeight()
 		return 0
 	end
 
-	local blizzEnabled = Manager:IsBlizzardCooldownViewerEnabled()
-	if not blizzEnabled then
-		return 0
-	end
-
+	-- Custom replacement: we work independently of Blizzard's viewer CVar
+	-- The data provider still returns configured spells even when viewer is disabled
 	local essentialCat = GetEssentialCategory()
 	local utilityCat = GetUtilityCategory()
 
@@ -143,13 +149,74 @@ function Cooldowns:ApplyLayoutPosition()
 		return
 	end
 
-	local yOffset = LM:GetModulePosition("cooldowns")
-	container:ClearAllPoints()
-	-- Center horizontally within main frame
-	container:SetPoint("TOP", main, "TOP", 0, yOffset)
-	container:Show()
+	-- Check if we're in stack mode
+	local inStack = LM:IsModuleInStack("cooldowns")
 
-	addon:Log(string.format("Cooldowns positioned: yOffset=%d", yOffset), "layout")
+	container:ClearAllPoints()
+
+	if inStack then
+		-- Stack mode: position from LayoutManager
+		local yOffset = LM:GetModulePosition("cooldowns")
+		container:SetPoint("TOP", main, "TOP", 0, yOffset)
+		container:EnableMouse(false)
+	else
+		-- Independent mode: use DraggableContainer positioning
+		local DraggableContainer = ns.DraggableContainer
+		if DraggableContainer then
+			-- If container hasn't been set up as draggable, do it now
+			if not container._db then
+				container._db = self.db
+				container._xKey = "cooldownsXOffset"
+				container._yKey = "cooldownsYOffset"
+				container._defaultX = 0
+				container._defaultY = -100
+				container.moduleId = "cooldowns"
+				container:SetMovable(true)
+				container:SetClampedToScreen(true)
+				
+				-- Create overlay and label if missing
+				if not container.overlay then
+					container.overlay = container:CreateTexture(nil, "OVERLAY")
+					container.overlay:SetAllPoints()
+					container.overlay:SetColorTexture(0, 0.5, 1, 0.4) -- Blue
+					container.overlay:Hide()
+				end
+				if not container.label then
+					container.label = container:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+					container.label:SetPoint("CENTER")
+					container.label:SetText("Cooldowns")
+					container.label:Hide()
+				end
+				
+				-- Drag handlers
+				container:SetScript("OnDragStart", function(self)
+					if DraggableContainer:IsUnlocked(self._db) then
+						self:StartMoving()
+					end
+				end)
+				container:SetScript("OnDragStop", function(self)
+					self:StopMovingOrSizing()
+					local cx, cy = self:GetCenter()
+					local px, py = main:GetCenter()
+					self._db.profile[self._xKey] = cx - px
+					self._db.profile[self._yKey] = cy - py
+					if LibStub("AceConfigRegistry-3.0", true) then
+						LibStub("AceConfigRegistry-3.0"):NotifyChange("ActionHud")
+					end
+				end)
+			end
+			DraggableContainer:UpdatePosition(container)
+			DraggableContainer:UpdateOverlay(container)
+		else
+			-- Fallback positioning
+			local xOffset = p.cooldownsXOffset or 0
+			local yOffset = p.cooldownsYOffset or -100
+			container:SetPoint("CENTER", main, "CENTER", xOffset, yOffset)
+		end
+	end
+
+	container:Show()
+	addon:Log(string.format("Cooldowns positioned: inStack=%s", tostring(inStack)), "layout")
 end
 
 function Cooldowns:UpdateLayout()
@@ -163,8 +230,6 @@ function Cooldowns:UpdateLayout()
 		return
 	end
 
-	local blizzEnabled = Manager:IsBlizzardCooldownViewerEnabled()
-
 	-- Report height to LayoutManager
 	local LM = addon:GetModule("LayoutManager", true)
 	local height = self:CalculateHeight()
@@ -172,28 +237,92 @@ function Cooldowns:UpdateLayout()
 		LM:SetModuleHeight("cooldowns", height)
 	end
 
-	if p.cdEnabled and blizzEnabled then
-		local blizzardFrames = Manager:GetBlizzardFrames()
-		if not p.debugShowBlizzardFrames then
-			for _, frameName in ipairs(blizzardFrames.cd) do
-				Manager:HideBlizzardFrame(frameName)
-			end
+	-- Pure custom replacement architecture:
+	-- - Option to hide Blizzard's CooldownViewer when ours is active
+	-- - Data provider still returns configured spells (we cache outside combat)
+	if p.cdEnabled then
+		-- Hide Blizzard's CooldownViewer if setting is enabled
+		if p.cdHideBlizzardViewer then
+			self:HideBlizzardCooldownViewer()
 		else
-			for _, frameName in ipairs(blizzardFrames.cd) do
-				Manager:ShowBlizzardFrame(frameName)
-			end
+			self:ShowBlizzardCooldownViewer()
 		end
+
+		self:ApplyLayoutPosition()
+
+		-- Set container size BEFORE creating overlay (so overlay has dimensions)
+		local containerHeight = self:CalculateHeight()
+		local LM = addon:GetModule("LayoutManager", true)
+		local inStack = LM and LM:IsModuleInStack("cooldowns")
+		local containerWidth
+		if inStack and LM then
+			containerWidth = LM:GetMaxWidth()
+		else
+			containerWidth = self:GetLayoutWidth()
+		end
+		if containerHeight > 0 and containerWidth > 0 then
+			container:SetSize(containerWidth, containerHeight)
+		end
+
 		container:Show()
 		Manager:UpdateContainerDebug("cd", { r = 0, g = 0, b = 1 }) -- Blue for CDs
-		addon:UpdateLayoutOutline(container, "Cooldowns")
+		addon:UpdateLayoutOutline(container, "Cooldowns", "cooldowns")
 		self:RenderCooldownProxies(container, p)
+
+		-- DEBUG: Log container position and proxy count (throttled)
+		if not self._lastDebugTime or (GetTime() - self._lastDebugTime) > 5 then
+			self._lastDebugTime = GetTime()
+			local point, relativeTo, relativePoint, xOfs, yOfs = container:GetPoint()
+			local proxyCount = 0
+			for _ in pairs(activeProxies) do proxyCount = proxyCount + 1 end
+			addon:Log(string.format("Cooldowns: point=%s, yOfs=%.0f, proxies=%d, height=%d",
+				tostring(point), yOfs or 0, proxyCount, height), "layout")
+		end
 	else
 		container:Hide()
-		local blizzardFrames = Manager:GetBlizzardFrames()
-		for _, frameName in ipairs(blizzardFrames.cd) do
-			Manager:ShowBlizzardFrame(frameName)
-		end
 		self:ReleaseCooldownProxies()
+		-- Show Blizzard's viewer if our module is disabled
+		self:ShowBlizzardCooldownViewer()
+	end
+end
+
+-- Helper to hide Blizzard's CooldownViewer frame
+function Cooldowns:HideBlizzardCooldownViewer()
+	-- Try multiple possible Blizzard frame names
+	local frameNames = {
+		"EssentialCooldownViewer",
+		"UtilityCooldownViewer",
+		"CooldownViewerFrame",
+	}
+	
+	for _, frameName in ipairs(frameNames) do
+		local blizzViewer = _G[frameName]
+		if blizzViewer and blizzViewer:IsShown() then
+			blizzViewer:Hide()
+			addon:Log("Hidden Blizzard " .. frameName, "layout")
+		end
+	end
+end
+
+-- Helper to show Blizzard's CooldownViewer frame (restore default)
+function Cooldowns:ShowBlizzardCooldownViewer()
+	-- Only restore if user enables the debug option
+	local frameNames = {
+		"EssentialCooldownViewer",
+		"UtilityCooldownViewer",
+		"CooldownViewerFrame",
+	}
+	
+	-- Only show if Blizzard's CVar is enabled
+	local cvarEnabled = GetCVar("cooldownViewerEnabled") == "1"
+	if not cvarEnabled then return end
+	
+	for _, frameName in ipairs(frameNames) do
+		local blizzViewer = _G[frameName]
+		if blizzViewer then
+			blizzViewer:Show()
+			addon:Log("Restored Blizzard " .. frameName, "layout")
+		end
 	end
 end
 
@@ -313,6 +442,20 @@ function Cooldowns:PopulateProxy(proxy, cooldownID, cooldownInfo)
 
 	local cdInfo = Utils.GetSpellCooldownSafe(spellID)
 	local hasCD = false
+
+	-- DEBUG: Log cooldown info for first few calls (routes to Mechanic console)
+	if not self._debugCount then self._debugCount = 0 end
+	if self._debugCount < 10 then
+		self._debugCount = self._debugCount + 1
+		local spellName = C_Spell.GetSpellName(spellID) or "?"
+		if cdInfo then
+			addon:Log(string.format("CD: %s (id=%d): start=%.1f, dur=%.1f",
+				spellName, spellID, cdInfo.startTime or 0, cdInfo.duration or 0), "proxy")
+		else
+			addon:Log(string.format("CD: %s (id=%d): cdInfo is NIL", spellName, spellID), "proxy")
+		end
+	end
+
 	if cdInfo then
 		local duration = cdInfo.duration
 		local startTime = cdInfo.startTime

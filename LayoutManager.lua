@@ -7,15 +7,42 @@ local addon = LibStub("AceAddon-3.0"):GetAddon("ActionHud")
 local LayoutManager = addon:NewModule("LayoutManager")
 ns.LayoutManager = LayoutManager
 
--- Module display names for UI
-local MODULE_NAMES = {
-	resources = L["Resource Bars"],
-	actionBars = L["Action Bars"],
-	cooldowns = L["Cooldowns"],
+-- Module registry: modules that CAN be in the stack
+-- Each module has a display name, default includeInStack, and profile key for the toggle
+local MODULE_REGISTRY = {
+	resources = {
+		displayName = L["Resource Bars"],
+		defaultInStack = true,
+		profileKey = "resourcesIncludeInStack",
+		moduleName = "Resources",
+	},
+	actionBars = {
+		displayName = L["Action Bars"],
+		defaultInStack = true,
+		profileKey = "actionBarsIncludeInStack",
+		moduleName = "ActionBars",
+	},
+	cooldowns = {
+		displayName = L["Cooldowns"],
+		defaultInStack = true,
+		profileKey = "cooldownsIncludeInStack",
+		moduleName = "Cooldowns",
+	},
+	trinkets = {
+		displayName = L["Trinkets"],
+		defaultInStack = false,
+		profileKey = "trinketsIncludeInStack",
+		moduleName = "Trinkets",
+	},
+	trackedBuffs = {
+		displayName = L["Tracked Buffs"],
+		defaultInStack = false,
+		profileKey = "trackedBuffsIncludeInStack",
+		moduleName = "TrackedBuffsLayout",
+	},
 }
 
--- Default stack order and gaps
--- Note: trackedBuffs removed - now positioned via Blizzard's EditMode
+-- Default stack order and gaps (only modules with defaultInStack=true)
 local DEFAULT_STACK = { "resources", "actionBars", "cooldowns" }
 local DEFAULT_GAPS = { 4, 4, 0 }
 
@@ -52,16 +79,17 @@ function LayoutManager:EnsureLayoutData()
 		}
 	end
 
-	-- Validate stack has all modules
+	-- Validate stack has all registered modules (not just DEFAULT_STACK)
 	local hasModule = {}
 	for _, id in ipairs(p.layout.stack) do
 		hasModule[id] = true
 	end
 
-	-- Add any missing modules
-	for _, id in ipairs(DEFAULT_STACK) do
-		if not hasModule[id] then
-			table.insert(p.layout.stack, id)
+	-- Add any missing registered modules (including trinkets when enabled)
+	for moduleId, info in pairs(MODULE_REGISTRY) do
+		if not hasModule[moduleId] then
+			-- Add the module to the stack array so it can be positioned
+			table.insert(p.layout.stack, moduleId)
 			table.insert(p.layout.gaps, 0)
 		end
 	end
@@ -94,12 +122,89 @@ end
 
 -- Get display name for a module
 function LayoutManager:GetModuleName(moduleId)
-	return MODULE_NAMES[moduleId] or moduleId
+	local info = MODULE_REGISTRY[moduleId]
+	return info and info.displayName or moduleId
 end
 
--- Get all available module IDs
+-- Get actual module name (for addon:GetModule())
+function LayoutManager:GetAceModuleName(moduleId)
+	local info = MODULE_REGISTRY[moduleId]
+	return info and info.moduleName or moduleId
+end
+
+-- Get all registered module IDs
 function LayoutManager:GetAllModuleIds()
-	return { "resources", "actionBars", "cooldowns" }
+	local ids = {}
+	for id in pairs(MODULE_REGISTRY) do
+		table.insert(ids, id)
+	end
+	return ids
+end
+
+-- Check if a module is currently included in the stack
+function LayoutManager:IsModuleInStack(moduleId)
+	local info = MODULE_REGISTRY[moduleId]
+	if not info then return false end
+	
+	-- ActionBars is always in stack (anchor)
+	if not info.profileKey then return true end
+	
+	local p = GetProfile()
+	if p and p[info.profileKey] ~= nil then
+		return p[info.profileKey]
+	end
+	return info.defaultInStack
+end
+
+-- Set whether a module is included in the stack
+function LayoutManager:SetModuleInStack(moduleId, inStack)
+	local info = MODULE_REGISTRY[moduleId]
+	if not info or not info.profileKey then return end -- Can't change ActionBars
+	
+	local p = GetProfile()
+	if not p then return end
+	
+	p[info.profileKey] = inStack
+	
+	-- If adding to stack and not already in stack order, add it
+	if inStack then
+		local stack = self:GetStack()
+		local found = false
+		for _, id in ipairs(stack) do
+			if id == moduleId then
+				found = true
+				break
+			end
+		end
+		if not found then
+			table.insert(stack, moduleId)
+			local gaps = self:GetGaps()
+			table.insert(gaps, 0)
+		end
+	else
+		-- When removing from stack, clear the stored height so space is reclaimed
+		self:SetModuleHeight(moduleId, 0)
+	end
+	
+	self:TriggerLayoutUpdate()
+end
+
+-- Get active stack (only modules with includeInStack=true)
+function LayoutManager:GetActiveStack()
+	local stack = self:GetStack()
+	local active = {}
+	for _, moduleId in ipairs(stack) do
+		if self:IsModuleInStack(moduleId) then
+			table.insert(active, moduleId)
+		end
+	end
+	return active
+end
+
+-- Get the profile key for a module's includeInStack toggle
+function LayoutManager:GetModuleProfileKey(moduleId)
+	local info = MODULE_REGISTRY[moduleId]
+	return info and info.profileKey
 end
 
 -- Set height for a module (called by modules during their UpdateLayout)
@@ -228,32 +333,20 @@ end
 
 -- Trigger layout update for all modules
 function LayoutManager:TriggerLayoutUpdate()
-	local stack = self:GetStack()
+	local activeStack = self:GetActiveStack()
 	local gaps = self:GetGaps()
 
 	addon:Log("=== Layout Update Triggered ===", "layout")
-	addon:Log(string.format("Stack order: %s", table.concat(stack, " -> ")), "layout")
-	addon:Log(string.format("Gaps: %s", table.concat(gaps, ", ")), "layout")
+	addon:Log(string.format("Active stack: %s", table.concat(activeStack, " -> ")), "layout")
 
-	-- First pass: let modules calculate their heights
-	for i, moduleId in ipairs(stack) do
-		local moduleName = moduleId
-		-- Map our IDs to actual module names
-		if moduleId == "actionBars" then
-			moduleName = "ActionBars"
-		elseif moduleId == "resources" then
-			moduleName = "Resources"
-		elseif moduleId == "cooldowns" then
-			moduleName = "Cooldowns"
-		end
-
+	-- First pass: let stack modules calculate their heights
+	for i, moduleId in ipairs(activeStack) do
+		local moduleName = self:GetAceModuleName(moduleId)
 		local m = addon:GetModule(moduleName, true)
 		if m and m.CalculateHeight then
 			local height = m:CalculateHeight()
 			self:SetModuleHeight(moduleId, height)
-			addon:Log(string.format("[%d] %s: height=%d, gap_after=%d", i, moduleId, height, gaps[i] or 0), "layout")
-		else
-			addon:Log(string.format("[%d] %s: NO CalculateHeight function or module not found", i, moduleId), "layout")
+			addon:Log(string.format("[%d] %s: height=%d", i, moduleId, height), "layout")
 		end
 	end
 
@@ -265,20 +358,12 @@ function LayoutManager:TriggerLayoutUpdate()
 		addon:Log(string.format("Container size: %dx%d", main:GetWidth(), main:GetHeight()), "layout")
 	end
 
-	-- Second pass: position all modules
-	addon:Log("--- Positioning modules ---", "layout")
-	for i, moduleId in ipairs(stack) do
-		local moduleName = moduleId
-		if moduleId == "actionBars" then
-			moduleName = "ActionBars"
-		elseif moduleId == "resources" then
-			moduleName = "Resources"
-		elseif moduleId == "cooldowns" then
-			moduleName = "Cooldowns"
-		end
-
+	-- Second pass: position stack modules
+	addon:Log("--- Positioning stack modules ---", "layout")
+	for i, moduleId in ipairs(activeStack) do
+		local moduleName = self:GetAceModuleName(moduleId)
 		local yOffset = self:GetModulePosition(moduleId)
-		addon:Log(string.format("[%d] %s: calculated yOffset=%d", i, moduleId, yOffset), "layout")
+		addon:Log(string.format("[%d] %s: yOffset=%d", i, moduleId, yOffset), "layout")
 
 		local m = addon:GetModule(moduleName, true)
 		if m and m.ApplyLayoutPosition then
@@ -286,7 +371,15 @@ function LayoutManager:TriggerLayoutUpdate()
 		end
 	end
 
-	-- Note: TrackedBuffs and TrackedBars are now style-only (position via EditMode)
+	-- Notify independent modules (not in stack) to update their position
+	for moduleId, info in pairs(MODULE_REGISTRY) do
+		if not self:IsModuleInStack(moduleId) then
+			local m = addon:GetModule(info.moduleName, true)
+			if m and m.UpdateLayout then
+				m:UpdateLayout()
+			end
+		end
+	end
 
 	addon:Log("=== Layout Update Complete ===", "layout")
 end
@@ -298,40 +391,46 @@ function LayoutManager:UpdateContainerSize()
 		return
 	end
 
-	local stack = self:GetStack()
+	local activeStack = self:GetActiveStack()
 	local totalHeight = self:GetStackHeight()
 
-	-- Width is determined by the widest module (typically ActionBars)
-	local maxWidth = 0
-	for _, id in ipairs(stack) do
-		local h = self:GetModuleHeight(id)
-		if h > 0 then
-			local moduleName = id
-			if id == "actionBars" then
-				moduleName = "ActionBars"
-			elseif id == "resources" then
-				moduleName = "Resources"
-			elseif id == "cooldowns" then
-				moduleName = "Cooldowns"
-			end
+	-- Width is determined by the widest visible module in stack
+	local maxWidth = self:GetMaxWidth()
 
-			local m = addon:GetModule(moduleName, true)
-			if m and m.GetLayoutWidth then
-				local w = m:GetLayoutWidth()
-				if w > maxWidth then
-					maxWidth = w
-				end
+	-- If no modules have width, hide the container
+	if maxWidth <= 0 or totalHeight <= 0 then
+		main:SetSize(1, 1)
+		main:Hide()
+		return
+	end
+
+	main:SetSize(maxWidth, totalHeight)
+	main:Show()
+end
+
+-- Get the maximum width of visible modules in stack
+-- Note: This does NOT depend on heights to avoid circular dependency during layout
+function LayoutManager:GetMaxWidth()
+	local activeStack = self:GetActiveStack()
+	local maxWidth = 0
+
+	for _, id in ipairs(activeStack) do
+		local moduleName = self:GetAceModuleName(id)
+		local m = addon:GetModule(moduleName, true)
+		if m and m:IsEnabled() and m.GetLayoutWidth then
+			local w = m:GetLayoutWidth()
+			if w and w > maxWidth then
+				maxWidth = w
 			end
 		end
 	end
 
-	-- Fallback to ActionBars width if nothing reported
-	if maxWidth == 0 then
-		local p = addon.db.profile
-		maxWidth = 6 * (p.iconWidth or 20)
+	-- Fallback to default width if nothing reported
+	if maxWidth <= 0 then
+		maxWidth = 120 -- Default HUD width
 	end
 
-	main:SetSize(maxWidth, math.max(totalHeight, 1))
+	return maxWidth
 end
 
 -- Get the main container frame
@@ -340,25 +439,26 @@ function LayoutManager:GetContainer()
 end
 
 -- Migration: Convert old position settings to new layout structure
+-- Also cleans up old trackedBuffs entries (now independently positioned)
 function LayoutManager:MigrateOldSettings()
 	local p = GetProfile()
 	if not p then
 		return
 	end
 
-	-- Check if migration is needed (old settings exist, new don't)
+	-- If layout exists, clean up any old trackedBuffs entries but keep valid modules
 	if p.layout then
-		-- Also remove trackedBuffs if it exists in an old layout
-		local newStack = {}
-		local newGaps = {}
+		local cleanStack = {}
+		local cleanGaps = {}
 		for i, id in ipairs(p.layout.stack) do
-			if id ~= "trackedBuffs" then
-				table.insert(newStack, id)
-				table.insert(newGaps, p.layout.gaps[i] or 0)
+			-- Keep all registered modules (resources, actionBars, cooldowns, trinkets)
+			if MODULE_REGISTRY[id] then
+				table.insert(cleanStack, id)
+				table.insert(cleanGaps, p.layout.gaps[i] or 0)
 			end
 		end
-		p.layout.stack = newStack
-		p.layout.gaps = newGaps
+		p.layout.stack = cleanStack
+		p.layout.gaps = cleanGaps
 		return
 	end
 

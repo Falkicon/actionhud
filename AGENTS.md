@@ -39,19 +39,25 @@ A compact action bar HUD overlay that displays ability icons, cooldowns, and pro
 
 | File | Purpose |
 |------|---------|
-| `Core.lua` | Addon initialization, debug system, slash commands |
+| `ActionHud.lua` | Addon initialization, slash commands, frame logic |
 | `Utils.lua` | Shared utility functions (safe API wrappers, fonts, Midnight compatibility) |
 | `LayoutManager.lua` | Centralized module positioning and stack management |
 | `ActionBars.lua` | Action bar grid (6×4 button frames) |
 | `Resources.lua` | Health, Power, and Class Resource bars (individual visibility/height) |
 | `Cooldowns/Manager.lua` | Centralized proxy pool, aura cache, Blizzard frame management |
 | `Cooldowns/Cooldowns.lua` | Essential/Utility cooldown icons (custom proxies) |
-| `Cooldowns/TrackedBars.lua` | Tracked Bars reskin (hooks BuffBarCooldownViewer, sidecar positioning) |
-| `Cooldowns/TrackedBuffs.lua` | Tracked Buffs reskin (hooks BuffIconCooldownViewer) |
-| `Cooldowns/TrackedDefensives.lua` | External Defensives reskin (hooks ExternalDefensivesFrame) |
+| `Cooldowns/TrackedBuffs.lua` | Tracked Buffs reskin (hooks BuffIconCooldownViewer) - style-only approach |
+| `Cooldowns/TrackedDefensives.lua` | External Defensives reskin (hooks ExternalDefensivesFrame) - **DISABLED in 12.0** |
 | `UnitFrames/UnitFrames.lua` | Unit Frame reskin (PlayerFrame, TargetFrame, FocusFrame) |
 | `Trinkets.lua` | Dedicated module for tracking equipped trinket cooldowns |
-| `SettingsUI.lua` | Blizzard Settings API integration (no external libs) |
+| `Settings/init.lua` | Core settings setup, shared helpers, AceConfig registration |
+| `Settings/ActionBars.lua` | Action Bars tab options |
+| `Settings/Resources.lua` | Resource Bars tab options |
+| `Settings/Cooldowns.lua` | Cooldown Manager tab options |
+| `Settings/Tracked.lua` | Tracked Abilities (Buffs/Defensives) tab options |
+| `Settings/UnitFrames.lua` | Unit Frames tab options |
+| `Settings/Trinkets.lua` | Trinkets tab options |
+| `Settings/Layout.lua` | Layout/Stack order tab options |
 | `ActionHud.toc` | Addon metadata and load order |
 
 ---
@@ -63,10 +69,10 @@ A compact action bar HUD overlay that displays ability icons, cooldowns, and pro
 The HUD uses a centralized `LayoutManager` module that coordinates vertical stacking of all components.
 
 **Stack Model:**
-- All modules (TrackedBuffs, Resources, ActionBars, Cooldowns) are treated as "rows" in a vertical stack
+- All modules (Resources, ActionBars, Cooldowns) are treated as "rows" in a vertical stack
 - Resources module handles Health, Power, and Class Resource bars
 - Order is fully customizable via the Layout settings panel
-- TrackedBars is a "sidecar" module with independent X/Y offset positioning
+- TrackedBuffs uses style-only approach (working); TrackedDefensives disabled in 12.0
 
 **Module Integration:**
 Each stackable module implements:
@@ -115,22 +121,20 @@ Uses a **"hide-only" visibility model** with custom proxy frames:
 2. Query data directly from `C_Spell.GetSpellCooldown()`, `CooldownViewerSettings:GetDataProvider()`
 3. Watch `cooldownViewerEnabled` CVar via `CVAR_UPDATE` for real-time toggling
 
-#### TrackedBuffs/TrackedBars (Style-Only Approach)
+#### TrackedBuffs (Style-Only Approach)
 
-**Midnight (12.0) Compatibility:** These modules use a "style-only" approach. Blizzard's frames handle all aura data (protected APIs). ActionHud only applies visual styling.
+**Midnight (12.0) Compatibility:** TrackedBuffs uses a "style-only" approach. Blizzard's frames handle all aura data (protected APIs). ActionHud only applies visual styling.
 
 | Blizzard Frame | ActionHud Module |
 |----------------|------------------|
 | `BuffIconCooldownViewer` | TrackedBuffs |
-| `BuffBarCooldownViewer` | TrackedBars |
 
 **Design:**
 1. **No reparenting or positioning** – Use Blizzard's EditMode for position/size
 2. Hook into Blizzard's native frames via `hooksecurefunc`:
-   - `RefreshLayout` → Re-apply styling after Blizzard updates
-   - `OnAcquireItemFrame` → Style individual icons/bars as they're created
+   - `OnAcquireItemFrame` → Style individual icons as they're created
 3. Style operations only:
-   - Strip decorations (MaskTexture, overlay borders)
+   - Strip decorations (MaskTexture, overlay borders) via `SkinningReset`
    - Apply custom fonts for timers and stack counts
    - Crop icons with `SetTexCoord`
 
@@ -139,18 +143,16 @@ Uses a **"hide-only" visibility model** with custom proxy frames:
 | Setting | Description |
 |---------|-------------|
 | Style Tracked Buffs | Toggle styling on/off |
-| Style Tracked Bars | Toggle styling on/off |
 | Stack Count Font Size | Numeric font size for stack counts |
 | Timer Font Size | Font size for cooldown timers (small/medium/large/huge) |
-| Compact Mode (Bars) | Hide cooldown bars, show icons only |
-| Timer on Icon (Bars) | Display timer text centered on icon (stack count moves to bottom-right) |
 
 **Note:** Sizing and positioning are controlled via Blizzard's EditMode (ESC → Edit Mode). ActionHud does not manage placement for these frames.
 
-**Midnight Compatibility Notes:**
-- Compact Mode and Timer on Icon are style-only operations (LOW risk) - tested and working
+#### TrackedDefensives (DISABLED in 12.0)
 
-For detailed Blizzard frame structure and API reference, see `Docs/proxy-system.md`.
+> **Note:** TrackedDefensives is disabled due to WoW 12.0's secret value protection on aura APIs. See `docs/aura-api-testing.md` for details.
+
+**TrackedBuffs** remains fully functional using a style-only approach.
 
 #### UnitFrames Module (Style-Only Approach)
 
@@ -235,15 +237,11 @@ Stored in `ActionHudDB.profile`:
     gaps = { 4, 4, 0 },
   },
   
-  -- Tracked Abilities (style-only, position via EditMode)
+  -- Tracked Buffs (style-only, position via EditMode)
   styleTrackedBuffs = true,
-  styleTrackedBars = true,
-  trackedCountFontSize = 10,
-  trackedTimerFontSize = "medium",
-  
-  -- TrackedBars Compact Mode
-  barsCompactMode = false,    -- Hide bars, show icons only
-  barsTimerOnIcon = false,    -- Move timer text on top of icon
+  buffsCountFontSize = 10,
+  buffsTimerFontSize = "medium",
+  -- TrackedBars was removed from codebase due to API restrictions
   
   -- Unit Frames Reskin (Player/Target/Focus)
   ufEnabled = false,          -- Master toggle

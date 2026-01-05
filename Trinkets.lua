@@ -44,7 +44,25 @@ function Trinkets:CreateFrames()
 		return
 	end
 
-	container = CreateFrame("Frame", "ActionHudTrinkets", main)
+	-- Create container using DraggableContainer for independent positioning support
+	local DraggableContainer = ns.DraggableContainer
+	if DraggableContainer then
+		container = DraggableContainer:Create({
+			moduleId = "trinkets",
+			parent = main,
+			db = self.db,
+			xKey = "trinketsXOffset",
+			yKey = "trinketsYOffset",
+			defaultX = 150,
+			defaultY = 0,
+			size = { width = 68, height = 32 },
+		})
+	end
+
+	-- Fallback if DraggableContainer not available
+	if not container then
+		container = CreateFrame("Frame", "ActionHudTrinkets", main)
+	end
 
 	for i = 1, 2 do
 		local f = CreateFrame("Frame", nil, container)
@@ -124,7 +142,7 @@ function Trinkets:UpdateCooldowns()
 	for i = 1, 2 do
 		local f = trinketFrames[i]
 		if f:IsShown() then
-			local startTime, duration, enabled = GetInventoryItemCooldown("player", f.slot)
+			local startTime, duration, enabled = Utils.GetInventoryItemCooldownSafe("player", f.slot)
 
 			-- In Midnight, if enabled is a secret value, assume it's true to show the swipe.
 			local isEnabled = enabled
@@ -178,63 +196,123 @@ function Trinkets:UpdateLayout()
 	end
 
 	local spacing = 2
+
 	local width = p.trinketsIconWidth
 	local height = p.trinketsIconHeight
 
-	local xOffset = p.trinketsXOffset
-	local yOffset = p.trinketsYOffset
+	-- Check if we're in stack mode
+	local LM = addon:GetModule("LayoutManager", true)
+	local inStack = LM and LM:IsModuleInStack("trinkets")
+	local main = _G["ActionHudFrame"]
 
-	container:ClearAllPoints()
-	container:SetPoint("CENTER", _G["ActionHudFrame"], "CENTER", xOffset, yOffset)
-
-	local totalWidth = 0
+	-- First pass: count visible trinkets and prepare frames
 	local visibleFrames = {}
-
 	for i = 1, 2 do
 		local f = trinketFrames[i]
 		if f:IsShown() then
 			f:SetSize(width, height)
 			Utils.ApplyIconCrop(f.icon, width, height)
-
-			-- Apply font settings to Blizzard cooldown timer
 			local fontName = Utils.GetTimerFont(p.trinketsTimerFontSize)
 			f.cooldown:SetCountdownFont(fontName)
-
 			table.insert(visibleFrames, f)
-			totalWidth = totalWidth + width
+		end
+	end
+
+	-- Calculate container size based on visible count (min 1 for positioning)
+	local visibleCount = math.max(#visibleFrames, 1)
+	local actualWidth = (visibleCount * width) + ((visibleCount - 1) * spacing)
+
+	container:ClearAllPoints()
+
+	if inStack and LM then
+		-- Stack mode: use full HUD width from LayoutManager
+		local containerWidth = LM:GetMaxWidth()
+		if containerWidth <= 0 then
+			containerWidth = 120 -- Fallback
+		end
+		local yOffset = LM:GetModulePosition("trinkets")
+		container:SetSize(containerWidth, height)
+		container:SetPoint("TOP", main, "TOP", 0, yOffset)
+		container:EnableMouse(false)
+
+		-- Center icons within full-width container
+		if #visibleFrames > 0 then
+			local startX = -actualWidth / 2
+			for i, f in ipairs(visibleFrames) do
+				f:ClearAllPoints()
+				local xPos = startX + ((i - 1) * (width + spacing))
+				f:SetPoint("LEFT", container, "CENTER", xPos, 0)
+			end
+		end
+	else
+		-- Independent mode: fit to visible content
+		container:SetSize(actualWidth, height)
+
+		-- DraggableContainer handles positioning
+		local DraggableContainer = ns.DraggableContainer
+		if DraggableContainer then
+			DraggableContainer:UpdatePosition(container)
+			DraggableContainer:UpdateOverlay(container)
+		else
+			-- Fallback positioning
+			local xOffset = p.trinketsXOffset
+			local yOffset = p.trinketsYOffset
+			container:SetPoint("CENTER", main, "CENTER", xOffset, yOffset)
+		end
+
+		-- Position icons based on grow direction
+		if #visibleFrames > 0 then
+			local growDir = p.trinketsGrowDirection or "RIGHT"
+			for i, f in ipairs(visibleFrames) do
+				f:ClearAllPoints()
+				if growDir == "LEFT" then
+					-- Grow left: first icon on right, others to the left
+					if i == 1 then
+						f:SetPoint("RIGHT", container, "RIGHT", 0, 0)
+					else
+						f:SetPoint("RIGHT", visibleFrames[i - 1], "LEFT", -spacing, 0)
+					end
+				else
+					-- Grow right (default): first icon on left, others to the right
+					if i == 1 then
+						f:SetPoint("LEFT", container, "LEFT", 0, 0)
+					else
+						f:SetPoint("LEFT", visibleFrames[i - 1], "RIGHT", spacing, 0)
+					end
+				end
+			end
 		end
 	end
 
 	if #visibleFrames > 0 then
-		totalWidth = totalWidth + (#visibleFrames - 1) * spacing
-		container:SetSize(totalWidth, height)
-
-		for i, f in ipairs(visibleFrames) do
-			f:ClearAllPoints()
-			if i == 1 then
-				f:SetPoint("LEFT", container, "LEFT", 0, 0)
-			else
-				f:SetPoint("LEFT", visibleFrames[i - 1], "RIGHT", spacing, 0)
-			end
-		end
-
 		container:Show()
 	else
 		container:Hide()
 	end
 
 	-- Debug outline
-	addon:UpdateLayoutOutline(container, "Trinkets")
+	addon:UpdateLayoutOutline(container, "Trinkets", "trinkets")
 end
 
--- Modules can implement these if they want to participate in the HUD stack,
--- but Trinkets is a sidecar so it returns 0.
+-- Stack layout functions - return real values when module is enabled
 function Trinkets:CalculateHeight()
-	return 0
+	local p = self.db.profile
+	if not p.trinketsEnabled then
+		return 0
+	end
+	return p.trinketsIconHeight or 32
 end
+
 function Trinkets:GetLayoutWidth()
-	return 0
+	local p = self.db.profile
+	if not p.trinketsEnabled then
+		return 0
+	end
+	-- Width of both trinkets + spacing
+	local spacing = 2
+	return (p.trinketsIconWidth or 32) * 2 + spacing
 end
+
 function Trinkets:ApplyLayoutPosition()
 	self:UpdateLayout()
 end

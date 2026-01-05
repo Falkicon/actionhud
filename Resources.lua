@@ -472,7 +472,26 @@ function Resources:OnEnable()
 	end
 
 	if not container then
-		container = CreateFrame("Frame", "ActionHudResources", main)
+		-- Create container using DraggableContainer for independent positioning support
+		local DraggableContainer = ns.DraggableContainer
+		if DraggableContainer then
+			container = DraggableContainer:Create({
+				moduleId = "resources",
+				parent = main,
+				db = self.db,
+				xKey = "resourcesXOffset",
+				yKey = "resourcesYOffset",
+				defaultX = 0,
+				defaultY = 100,
+				size = { width = 120, height = 20 },
+			})
+		end
+
+		-- Fallback if DraggableContainer not available
+		if not container then
+			container = CreateFrame("Frame", "ActionHudResources", main)
+		end
+
 		playerGroup = CreateFrame("Frame", nil, container)
 		targetGroup = CreateFrame("Frame", nil, container)
 
@@ -630,15 +649,40 @@ function Resources:ApplyLayoutPosition()
 		return
 	end
 
-	local yOffset = LM:GetModulePosition("resources")
-	container:ClearAllPoints()
-	-- Center horizontally within main frame
-	container:SetPoint("TOP", main, "TOP", 0, yOffset)
-	container:Show()
+	-- Check if we're in stack mode
+	local inStack = LM:IsModuleInStack("resources")
 
+	container:ClearAllPoints()
+
+	if inStack then
+		-- Stack mode: use full HUD width and position from LayoutManager
+		local containerWidth = LM:GetMaxWidth()
+		local containerHeight = self:CalculateHeight()
+		if containerWidth > 0 and containerHeight > 0 then
+			container:SetSize(containerWidth, containerHeight)
+		end
+		local yOffset = LM:GetModulePosition("resources")
+		container:SetPoint("TOP", main, "TOP", 0, yOffset)
+		container:EnableMouse(false)
+	else
+		-- Independent mode: DraggableContainer handles positioning
+		local DraggableContainer = ns.DraggableContainer
+		if DraggableContainer then
+			DraggableContainer:UpdatePosition(container)
+			DraggableContainer:UpdateOverlay(container)
+		else
+			-- Fallback positioning
+			local p = addon.db.profile
+			local xOffset = p.resourcesXOffset or 0
+			local yOffset = p.resourcesYOffset or 100
+			container:SetPoint("CENTER", main, "CENTER", xOffset, yOffset)
+		end
+	end
+
+	container:Show()
 	UpdateClassPower()
 
-	addon:Log(string.format("Resources positioned: yOffset=%d", yOffset), "layout")
+	addon:Log(string.format("Resources positioned: inStack=%s", tostring(inStack)), "layout")
 end
 
 function Resources:UpdateLayout()
@@ -649,8 +693,7 @@ function Resources:UpdateLayout()
 	local db = addon.db.profile
 
 	-- Debug Container Visual
-	addon:UpdateFrameDebug(container, { r = 1, g = 0, b = 0 }) -- Red for Resources
-	addon:UpdateLayoutOutline(container, "Resource Bars")
+	addon:UpdateLayoutOutline(container, "Resource Bars", "resources")
 
 	RCFG.enabled = db.resEnabled == true
 	RCFG.healthEnabled = db.resHealthEnabled ~= false
@@ -698,17 +741,29 @@ function Resources:UpdateLayout()
 		return
 	end
 
-	-- Get width from ActionBars
-	local AB = addon:GetModule("ActionBars", true)
-	local hudWidth = 120
-	if AB and AB.GetLayoutWidth then
-		hudWidth = AB:GetLayoutWidth()
+	-- Get width: use fixed width if set, otherwise HUD width when in stack
+	local LM = addon:GetModule("LayoutManager", true)
+	local inStack = LM and LM:IsModuleInStack("resources")
+	local db = addon.db.profile
+	local hudWidth
+
+	-- Priority: fixed width > HUD width > ActionBars width > default
+	if db.resBarWidth and db.resBarWidth > 0 then
+		hudWidth = db.resBarWidth
+	elseif inStack and LM then
+		hudWidth = LM:GetMaxWidth()
+	else
+		-- Fallback to ActionBars width for independent mode
+		local AB = addon:GetModule("ActionBars", true)
+		hudWidth = 120
+		if AB and AB.GetLayoutWidth then
+			hudWidth = AB:GetLayoutWidth()
+		end
 	end
 
 	container:SetSize(hudWidth, totalHeight)
 
 	-- Report height to LayoutManager
-	local LM = addon:GetModule("LayoutManager", true)
 	if LM then
 		LM:SetModuleHeight("resources", totalHeight)
 	end

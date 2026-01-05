@@ -218,13 +218,79 @@ function AB:ApplyLayoutPosition()
 		return
 	end
 
-	local yOffset = LM:GetModulePosition("actionBars")
-	container:ClearAllPoints()
-	-- Center horizontally within main frame
-	container:SetPoint("TOP", ActionHud.frame, "TOP", 0, yOffset)
-	container:Show()
+	-- Check if we're in stack mode
+	local inStack = LM:IsModuleInStack("actionBars")
+	local main = ActionHud.frame
 
-	ActionHud:Log(string.format("ActionBars positioned: yOffset=%d", yOffset), "layout")
+	container:ClearAllPoints()
+
+	if inStack then
+		-- Stack mode: use full HUD width and position from LayoutManager
+		local containerWidth = LM:GetMaxWidth()
+		local containerHeight = self:CalculateHeight()
+		if containerWidth > 0 and containerHeight > 0 then
+			container:SetSize(containerWidth, containerHeight)
+		end
+		local yOffset = LM:GetModulePosition("actionBars")
+		container:SetPoint("TOP", main, "TOP", 0, yOffset)
+		container:EnableMouse(false)
+	else
+		-- Independent mode: DraggableContainer handles positioning
+		local DraggableContainer = ns.DraggableContainer
+		if DraggableContainer then
+			-- Setup draggable if not already
+			if not container._db then
+				container._db = ActionHud.db
+				container._xKey = "actionBarsXOffset"
+				container._yKey = "actionBarsYOffset"
+				container._defaultX = 0
+				container._defaultY = 0
+				container.moduleId = "actionbars"
+				container:SetMovable(true)
+				container:SetClampedToScreen(true)
+				
+				if not container.overlay then
+					container.overlay = container:CreateTexture(nil, "OVERLAY")
+					container.overlay:SetAllPoints()
+					container.overlay:SetColorTexture(1, 0.5, 0, 0.4)
+					container.overlay:Hide()
+				end
+				if not container.label then
+					container.label = container:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+					container.label:SetPoint("CENTER")
+					container.label:SetText("Action Bars")
+					container.label:Hide()
+				end
+				
+				container:SetScript("OnDragStart", function(self)
+					if DraggableContainer:IsUnlocked(self._db) then
+						self:StartMoving()
+					end
+				end)
+				container:SetScript("OnDragStop", function(self)
+					self:StopMovingOrSizing()
+					local cx, cy = self:GetCenter()
+					local px, py = main:GetCenter()
+					self._db.profile[self._xKey] = cx - px
+					self._db.profile[self._yKey] = cy - py
+					if LibStub("AceConfigRegistry-3.0", true) then
+						LibStub("AceConfigRegistry-3.0"):NotifyChange("ActionHud")
+					end
+				end)
+			end
+			DraggableContainer:UpdatePosition(container)
+			DraggableContainer:UpdateOverlay(container)
+		else
+			-- Fallback positioning
+			local p = ActionHud.db.profile
+			local xOffset = p.actionBarsXOffset or 0
+			local yOffset = p.actionBarsYOffset or 0
+			container:SetPoint("CENTER", main, "CENTER", xOffset, yOffset)
+		end
+	end
+
+	container:Show()
+	ActionHud:Log(string.format("ActionBars positioned: inStack=%s", tostring(inStack)), "layout")
 end
 
 function AB:CreateButtons(parent)
@@ -311,8 +377,7 @@ function AB:UpdateLayout()
 	end
 
 	-- Debug Container Visual
-	ActionHud:UpdateFrameDebug(container, { r = 1, g = 1, b = 0 }) -- Yellow for ActionBars
-	ActionHud:UpdateLayoutOutline(container, "Action Bars")
+	ActionHud:UpdateLayoutOutline(container, "Action Bars", "actionbars")
 
 	-- Hide all buttons initially
 	for _, btn in ipairs(buttons) do
@@ -338,14 +403,21 @@ function AB:UpdateLayout()
 	end
 
 	local totalHeight = self:CalculateHeight()
-	local totalWidth = self:GetLayoutWidth()
-	container:SetSize(totalWidth, totalHeight)
+	local contentWidth = self:GetLayoutWidth()
 
 	-- Report height to LayoutManager
 	local LM = ActionHud:GetModule("LayoutManager", true)
 	if LM then
 		LM:SetModuleHeight("actionBars", totalHeight)
 	end
+
+	-- Get actual container width (HUD width when in stack, content width otherwise)
+	local inStack = LM and LM:IsModuleInStack("actionBars")
+	local containerWidth = contentWidth
+	if inStack and LM then
+		containerWidth = LM:GetMaxWidth()
+	end
+	container:SetSize(containerWidth, totalHeight)
 
 	local currentY = 0
 	local buttonIdx = 1
@@ -359,12 +431,12 @@ function AB:UpdateLayout()
 		local blockWidth = iconsPerRow * p.iconWidth
 		local blockHeight = numRows * p.iconHeight
 
-		-- Alignment X Offset
+		-- Alignment X Offset (use container width for centering within HUD-width container)
 		local xOffset = 0
 		if p.barAlignment == "CENTER" then
-			xOffset = (totalWidth - blockWidth) / 2
+			xOffset = (containerWidth - blockWidth) / 2
 		elseif p.barAlignment == "RIGHT" then
-			xOffset = totalWidth - blockWidth
+			xOffset = containerWidth - blockWidth
 		end
 
 		for i = 1, numIcons do
@@ -562,35 +634,81 @@ function AB:UpdateAction(btn)
 	end
 end
 
+-- Default cooldown info structures (same pattern as LibActionButton)
+local defaultCooldownInfo = { startTime = 0, duration = 0, isEnabled = false, modRate = 1 }
+local defaultChargeInfo = { currentCharges = 0, maxCharges = 0, cooldownStartTime = 0, cooldownDuration = 0, chargeModRate = 1 }
+local defaultLossOfControlInfo = { startTime = 0, duration = 0, modRate = 1 }
+
 function AB:UpdateCooldown(btn)
 	if not btn.hasAction then
 		return
 	end
 
-	-- Simplified passthrough similar to trinkets
-	local start, duration, enabled = GetActionCooldown(btn.actionID) -- @scan-ignore: midnight-normalized
+	-- Get cooldown info using C_ActionBar.GetActionCooldown (returns ActionBarCooldownInfo table)
+	local cooldownInfo = defaultCooldownInfo
+	local chargeInfo = defaultChargeInfo
+	local lossOfControlInfo = defaultLossOfControlInfo
 
-	-- In Midnight, if enabled is a secret value, assume it's true to show the swipe.
-	local isEnabled = enabled
-	if Utils.IsValueSecret(enabled) then
+	-- Primary cooldown info from C_ActionBar
+	if C_ActionBar and C_ActionBar.GetActionCooldown then
+		local ok, info = pcall(C_ActionBar.GetActionCooldown, btn.actionID)
+		if ok and info then
+			cooldownInfo = info
+		end
+	end
+
+	-- Charge info
+	if C_ActionBar and C_ActionBar.GetActionCharges then
+		local ok, info = pcall(C_ActionBar.GetActionCharges, btn.actionID)
+		if ok and info then
+			chargeInfo = info
+		end
+	end
+
+	-- Loss of control info
+	if C_ActionBar and C_ActionBar.GetActionLossOfControlCooldown then
+		local ok, start, dur = pcall(C_ActionBar.GetActionLossOfControlCooldown, btn.actionID)
+		if ok then
+			lossOfControlInfo = { startTime = start or 0, duration = dur or 0, modRate = cooldownInfo.modRate or 1 }
+		end
+	end
+
+	-- Use Blizzard's ActionButton_ApplyCooldown if available (12.0+ helper)
+	-- Requires valid cooldown frames - create chargeCooldown on demand if needed
+	if ActionButton_ApplyCooldown then
+		-- Create chargeCooldown frame on demand (same pattern as LibActionButton)
+		if not btn.chargeCooldown then
+			btn.chargeCooldown = CreateFrame("Cooldown", nil, btn, "CooldownFrameTemplate")
+			btn.chargeCooldown:SetHideCountdownNumbers(true)
+			btn.chargeCooldown:SetDrawSwipe(false)
+			btn.chargeCooldown:SetAllPoints(btn.cd)
+			btn.chargeCooldown:SetFrameLevel(btn:GetFrameLevel())
+		end
+		ActionButton_ApplyCooldown(btn.cd, cooldownInfo, btn.chargeCooldown, chargeInfo, nil, lossOfControlInfo)
+		return
+	end
+
+	-- Fallback for pre-12.0: Direct passthrough
+	local start = cooldownInfo.startTime
+	local duration = cooldownInfo.duration
+	local isEnabled = cooldownInfo.isEnabled
+
+	-- Check if we have a valid cooldown to display
+	local hasValidDuration = duration and (Utils.IsValueSecret(duration) or Utils.SafeCompare(duration, 0, ">"))
+
+	-- For enabled, treat secret as true (show the cooldown)
+	if Utils.IsValueSecret(isEnabled) then
+		isEnabled = true
+	elseif isEnabled == nil then
 		isEnabled = true
 	end
 
-	-- @midnight-cleanup: Remove boolean test guard once interpretive APIs are implemented
-	local ok, isEnabledBool = pcall(function()
-		return isEnabled and true or false
-	end)
-	if not ok then
-		isEnabled = false
-	end
-
-	if isEnabled and duration and (Utils.IsValueSecret(duration) or Utils.SafeCompare(duration, 0, ">")) then
+	if isEnabled and hasValidDuration then
 		btn.cd:SetDrawEdge(true)
-		Utils.SetCooldownSafe(btn.cd, start, duration)
+		btn.cd:SetCooldown(start, duration)
 		btn.cd:Show()
 
-		-- Handle GCD edge case (don't show edge for short durations)
-		-- We only perform this check if the duration is NOT a secret.
+		-- Hide edge for GCD (only if duration is readable, not secret)
 		if not Utils.IsValueSecret(duration) and Utils.SafeCompare(duration, 1.5, "<=") then
 			btn.cd:SetDrawEdge(false)
 		end
@@ -598,22 +716,19 @@ function AB:UpdateCooldown(btn)
 	end
 
 	-- Fallback to charges if no main cooldown
-	if btn.spellID then
-		local chargeInfo = Utils.GetSpellChargesSafe(btn.spellID)
-		if chargeInfo then
-			local cdStart = chargeInfo.cooldownStartTime
-			local cdDuration = chargeInfo.cooldownDuration
+	if chargeInfo and chargeInfo.cooldownStartTime and chargeInfo.cooldownDuration then
+		local cdStart = chargeInfo.cooldownStartTime
+		local cdDuration = chargeInfo.cooldownDuration
 
-			if
-				cdStart
-				and cdDuration
-				and (Utils.IsValueSecret(cdDuration) or Utils.SafeCompare(cdDuration, 0, ">"))
-			then
-				btn.cd:SetDrawEdge(true)
-				Utils.SetCooldownSafe(btn.cd, cdStart, cdDuration)
-				btn.cd:Show()
-				return
-			end
+		local hasChargeCooldown = cdStart
+			and cdDuration
+			and (Utils.IsValueSecret(cdDuration) or Utils.SafeCompare(cdDuration, 0, ">"))
+
+		if hasChargeCooldown then
+			btn.cd:SetDrawEdge(true)
+			btn.cd:SetCooldown(cdStart, cdDuration)
+			btn.cd:Show()
+			return
 		end
 	end
 

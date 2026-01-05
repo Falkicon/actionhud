@@ -27,12 +27,12 @@ function SplitLayoutMixin:InitSplit(config)
 	-- Navigation Background
 	-- We use a dedicated texture on the navigation cell to provide visual depth.
 	-- FenUI:GetColor resolves the "surfaceInset" semantic token to its primitive RGBA values.
-	-- We then override the alpha (0.4) to create a semi-transparent "sunken" sidebar look
+	-- Alpha at 0.6 provides a clear visual distinction for the sidebar
 	-- that matches modern Blizzard UI (e.g., Settings Panel) without needing an explicit border.
 	self.navBackground = navCell:CreateTexture(nil, "BACKGROUND")
 	self.navBackground:SetAllPoints()
 	local r, g, b, a = FenUI:GetColor("surfaceInset")
-	self.navBackground:SetColorTexture(r, g, b, 0.1)
+	self.navBackground:SetColorTexture(r, g, b, 0.6)
 
 	-- Navigation Border (Right edge separator)
 	self.navSeparator = navCell:CreateTexture(nil, "BORDER")
@@ -159,17 +159,19 @@ function SplitLayoutMixin:GetOrCreateButton(index)
 	local btn = CreateFrame("Button", nil, self.navContent)
 	btn:SetHeight(24)
 
-	-- Background highlight (selected)
+	-- Background highlight (selected state)
 	local highlight = btn:CreateTexture(nil, "BACKGROUND")
 	highlight:SetAllPoints()
-	highlight:SetColorTexture(1, 1, 1, 0.1)
+	local selR, selG, selB = FenUI:GetColorRGB("surfaceElevated")
+	highlight:SetColorTexture(selR, selG, selB, 0.8)
 	highlight:Hide()
 	btn.highlight = highlight
 
-	-- Hover highlight
+	-- Hover highlight (stronger visibility)
 	local hover = btn:CreateTexture(nil, "HIGHLIGHT")
 	hover:SetAllPoints()
-	hover:SetColorTexture(1, 1, 1, 0.05)
+	local hoverR, hoverG, hoverB = FenUI:GetColorRGB("surfaceElevated")
+	hover:SetColorTexture(hoverR, hoverG, hoverB, 0.4)
 
 	-- Text
 	local text = btn:CreateFontString(nil, "OVERLAY", "GameFontNormal")
@@ -213,10 +215,12 @@ function SplitLayoutMixin:UpdateButtonStates()
 		if btn:IsShown() then
 			if btn.key == self.selectedKey then
 				btn.highlight:Show()
-				btn.text:SetTextColor(1, 1, 1)
+				local r, g, b = FenUI:GetColorRGB("textDefault")
+				btn.text:SetTextColor(r, g, b)
 			else
 				btn.highlight:Hide()
-				btn.text:SetTextColor(1, 0.82, 0)
+				local r, g, b = FenUI:GetColorRGB("interactiveDefault")
+				btn.text:SetTextColor(r, g, b)
 			end
 		end
 	end
