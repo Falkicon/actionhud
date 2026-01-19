@@ -2,7 +2,7 @@
 
 Technical reference for AI agents modifying this addon.
 
-For shared patterns, library references, and development guides, see **[ADDON_DEV/AGENTS.md](../ADDON_DEV/AGENTS.md)**.
+For shared patterns, library references, and development guides, see **[Mechanic/AGENTS.md](../Mechanic/AGENTS.md)**.
 
 ---
 
@@ -290,8 +290,8 @@ The old DevMarker.lua pattern has been removed.
 ## Deep-Dive Documentation
 
 For detailed implementation docs, see the `Docs/` folder:
-- [Proxy System](Docs/proxy-system.md) – Blizzard frame structure, CooldownViewer API reference
-- [Performance Learnings](Docs/performance.md) – Memory optimization, API quirks, GCD handling
+- [Aura API Testing](Docs/aura-api-testing.md) – Midnight aura research, secret value behavior
+- [Skinning Patterns](Docs/skinning-patterns.md) – Style-only approach for Blizzard frames
 
 ---
 
