@@ -70,9 +70,8 @@ ActionHud synchronizes with your Blizzard Action Bars.
 
 ## Prerequisites
 
-To get the most out of ActionHud, enable these native WoW features in **Gameplay** → **Gameplay Enhancements**:
+To get the most out of ActionHud, enable this native WoW feature in **Gameplay** → **Gameplay Enhancements**:
 
-- **Enable Cooldown Manager** – Required for the Cooldown Manager module to function.
 - **Assisted Highlight** – Required to see the blue glow recommendations on the HUD.
 
 ## Slash Commands
@@ -81,7 +80,6 @@ To get the most out of ActionHud, enable these native WoW features in **Gameplay
 |---------|-------------|
 | `/ah` or `/actionhud` | Opens the configuration dialog |
 | `/ah reset` | Resets profile to defaults |
-| `/ah dump` | Dumps tracked buff info (debug) |
 
 ## Configuration
 
@@ -93,16 +91,12 @@ Open the settings panel via slash command or `Esc` → `Options` → `AddOns` �
 - **Action Bars** – Icon dimensions, opacity, mirroring priority, and alignment.
 - **Resource Bars** – Individual toggles for Health/Power/Class bars and sizing.
 - **Unit Frames** – Reskin options for Player, Target, and Focus frames.
-- **Cooldown Manager** – Essential/Utility bar settings and typography.
-- **Tracked Abilities** – Style Blizzard's Tracked Buffs and External Defensives
 - **Trinkets** – Configure the dedicated Trinket tracking module.
 - **Layout** – Reorder modules, set gaps, and toggle visualization outlines.
 - **Help & Slash Commands** – Built-in command reference and troubleshooting tools.
 - **Profiles** – Create, Copy, Delete, or Reset profiles for different characters.
 
-## Tracked Abilities
 
-ActionHud applies visual styling to Blizzard's **Tracked Buffs** (BuffIconCooldownViewer) using a style-only approach. Position and size these frames using Blizzard's **EditMode** (`Esc` → `Edit Mode`).
 
 ## Requirements
 
@@ -119,7 +113,7 @@ ActionHud applies visual styling to Blizzard's **Tracked Buffs** (BuffIconCooldo
 | `LayoutManager.lua` | Centralized module positioning and stack management |
 | `ActionBars.lua` | Action bar grid (6×4 button frames) |
 | `Resources.lua` | Health, Power, and Class Resource bars |
-| `Cooldowns/` | Modular Cooldown Manager system |
+| `UnitFrames/` | Unit frame styling for Player, Target, Focus |
 | `Settings/` | AceConfig settings modules |
 
 ## Technical Notes
