@@ -654,6 +654,11 @@ function ActionHud:UpdateLockState()
 	local locked = p.locked
 	local layoutUnlocked = p.layoutUnlocked
 
+	-- Can't modify secure frame properties during combat
+	if InCombatLockdown() then
+		return
+	end
+
 	-- Enable mouse when HUD is unlocked OR layout is being edited
 	self.frame:EnableMouse(not locked or layoutUnlocked)
 
