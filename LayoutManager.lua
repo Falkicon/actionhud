@@ -22,35 +22,36 @@ local MODULE_REGISTRY = {
 		profileKey = "actionBarsIncludeInStack",
 		moduleName = "ActionBars",
 	},
-	essentialCooldowns = {
-		displayName = L["Essential Cooldowns"],
-		defaultInStack = true,
-		profileKey = "essentialCooldownsIncludeInStack",
-		moduleName = "EssentialCooldownsLayout",
-	},
-	utilityCooldowns = {
-		displayName = L["Utility Cooldowns"],
-		defaultInStack = true,
-		profileKey = "utilityCooldownsIncludeInStack",
-		moduleName = "UtilityCooldownsLayout",
-	},
+	-- DISABLED 2026-01-18: TweaksUI handles these better. Blizzard frame reskinning too fragile.
+	-- essentialCooldowns = {
+	-- 	displayName = L["Essential Cooldowns"],
+	-- 	defaultInStack = true,
+	-- 	profileKey = "essentialCooldownsIncludeInStack",
+	-- 	moduleName = "EssentialCooldownsLayout",
+	-- },
+	-- utilityCooldowns = {
+	-- 	displayName = L["Utility Cooldowns"],
+	-- 	defaultInStack = true,
+	-- 	profileKey = "utilityCooldownsIncludeInStack",
+	-- 	moduleName = "UtilityCooldownsLayout",
+	-- },
 	trinkets = {
 		displayName = L["Trinkets"],
 		defaultInStack = false,
 		profileKey = "trinketsIncludeInStack",
 		moduleName = "Trinkets",
 	},
-	trackedBuffs = {
-		displayName = L["Tracked Buffs"],
-		defaultInStack = false,
-		profileKey = "trackedBuffsIncludeInStack",
-		moduleName = "TrackedBuffsLayout",
-	},
+	-- trackedBuffs = {
+	-- 	displayName = L["Tracked Buffs"],
+	-- 	defaultInStack = false,
+	-- 	profileKey = "trackedBuffsIncludeInStack",
+	-- 	moduleName = "TrackedBuffsLayout",
+	-- },
 }
 
 -- Default stack order and gaps (only modules with defaultInStack=true)
-local DEFAULT_STACK = { "resources", "actionBars", "essentialCooldowns", "utilityCooldowns" }
-local DEFAULT_GAPS = { 4, 4, 4, 0 }
+local DEFAULT_STACK = { "resources", "actionBars" }
+local DEFAULT_GAPS = { 4, 0 }
 
 -- Cache of module heights (updated by modules when they render)
 local moduleHeights = {}
@@ -150,11 +151,15 @@ end
 -- Check if a module is currently included in the stack
 function LayoutManager:IsModuleInStack(moduleId)
 	local info = MODULE_REGISTRY[moduleId]
-	if not info then return false end
-	
+	if not info then
+		return false
+	end
+
 	-- ActionBars is always in stack (anchor)
-	if not info.profileKey then return true end
-	
+	if not info.profileKey then
+		return true
+	end
+
 	local p = GetProfile()
 	if p and p[info.profileKey] ~= nil then
 		return p[info.profileKey]
@@ -165,13 +170,17 @@ end
 -- Set whether a module is included in the stack
 function LayoutManager:SetModuleInStack(moduleId, inStack)
 	local info = MODULE_REGISTRY[moduleId]
-	if not info or not info.profileKey then return end -- Can't change ActionBars
-	
+	if not info or not info.profileKey then
+		return
+	end -- Can't change ActionBars
+
 	local p = GetProfile()
-	if not p then return end
-	
+	if not p then
+		return
+	end
+
 	p[info.profileKey] = inStack
-	
+
 	-- If adding to stack and not already in stack order, add it
 	if inStack then
 		local stack = self:GetStack()
@@ -191,7 +200,7 @@ function LayoutManager:SetModuleInStack(moduleId, inStack)
 		-- When removing from stack, clear the stored height so space is reclaimed
 		self:SetModuleHeight(moduleId, 0)
 	end
-	
+
 	self:TriggerLayoutUpdate()
 end
 
@@ -403,10 +412,14 @@ function LayoutManager:UpdateContainerSize()
 	-- Width is determined by the widest visible module in stack
 	local maxWidth = self:GetMaxWidth()
 
-	-- If no modules have width, hide the container
+	-- Minimum size: 30x30 so the container can still be moved as an anchor
+	-- even when no modules are in the stack
+	local MIN_SIZE = 30
+
 	if maxWidth <= 0 or totalHeight <= 0 then
-		main:SetSize(1, 1)
-		main:Hide()
+		-- Empty stack: use minimum size so container remains movable
+		main:SetSize(MIN_SIZE, MIN_SIZE)
+		main:Show()
 		return
 	end
 

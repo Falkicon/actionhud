@@ -143,8 +143,8 @@ function ActionHud:SetupOptions()
 	local generalOptions = ns.Settings.BuildGeneralOptions(self)
 	local abOptions = ns.Settings.BuildActionBarsOptions(self)
 	local resOptions = ns.Settings.BuildResourcesOptions(self)
-	local cdOptions = ns.Settings.BuildCooldownsOptions(self)
-	local trackedOptions = ns.Settings.BuildTrackedOptions(self)
+	-- DISABLED 2026-01-18: Modules disabled, use TweaksUI instead
+	-- local trackedOptions = ns.Settings.BuildTrackedOptions(self)
 	local customUfOptions = ns.Settings.BuildUnitFramesOptions(self)
 	local trinketOptions = ns.Settings.BuildTrinketsOptions(self)
 	local GetLayoutOptions = ns.Settings.BuildLayoutOptions(self)
@@ -164,19 +164,27 @@ function ActionHud:SetupOptions()
 	LibStub("AceConfig-3.0"):RegisterOptionsTable("ActionHud_Res", resOptions)
 	LibStub("AceConfigDialog-3.0"):AddToBlizOptions("ActionHud_Res", L["Resource Bars"], "ActionHud")
 
-	-- 5. Cooldown Manager
-	LibStub("AceConfig-3.0"):RegisterOptionsTable("ActionHud_CD", cdOptions)
-	LibStub("AceConfigDialog-3.0"):AddToBlizOptions("ActionHud_CD", L["Cooldown Manager"], "ActionHud")
+	-- DISABLED 2026-01-18: Modules disabled, use TweaksUI instead
+	-- -- 5. Essential Cooldowns
+	-- local essentialCdOptions = ns.Settings.BuildEssentialCooldownsOptions(self)
+	-- LibStub("AceConfig-3.0"):RegisterOptionsTable("ActionHud_EssentialCD", essentialCdOptions)
+	-- LibStub("AceConfigDialog-3.0"):AddToBlizOptions("ActionHud_EssentialCD", L["Essential Cooldowns"], "ActionHud")
 
-	LibStub("AceConfig-3.0"):RegisterOptionsTable("ActionHud_Tracked", trackedOptions)
-	LibStub("AceConfigDialog-3.0"):AddToBlizOptions("ActionHud_Tracked", L["Tracked Abilities"], "ActionHud")
+	-- -- 6. Utility Cooldowns
+	-- local utilityCdOptions = ns.Settings.BuildUtilityCooldownsOptions(self)
+	-- LibStub("AceConfig-3.0"):RegisterOptionsTable("ActionHud_UtilityCD", utilityCdOptions)
+	-- LibStub("AceConfigDialog-3.0"):AddToBlizOptions("ActionHud_UtilityCD", L["Utility Cooldowns"], "ActionHud")
+
+	-- -- 7. Tracked Buffs
+	-- LibStub("AceConfig-3.0"):RegisterOptionsTable("ActionHud_Tracked", trackedOptions)
+	-- LibStub("AceConfigDialog-3.0"):AddToBlizOptions("ActionHud_Tracked", L["Tracked Buffs"], "ActionHud")
 
 	-- 7. Unit Frames (Player/Target/Focus)
 	LibStub("AceConfig-3.0"):RegisterOptionsTable("ActionHud_UnitFrames", customUfOptions)
 	LibStub("AceConfigDialog-3.0"):AddToBlizOptions("ActionHud_UnitFrames", L["Unit Frames"], "ActionHud")
 
 	LibStub("AceConfig-3.0"):RegisterOptionsTable("ActionHud_Trinkets", trinketOptions)
-	LibStub("AceConfigDialog-3.0"):AddToBlizOptions("ActionHud_Trinkets", L["Trinkets"], "ActionHud")
+	LibStub("AceConfigDialog-3.0"):AddToBlizOptions("ActionHud_Trinkets", L["Trinket Bar"], "ActionHud")
 
 	-- 9-10. Meta settings
 	local profiles = LibStub("AceDBOptions-3.0"):GetOptionsTable(self.db)

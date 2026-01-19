@@ -35,6 +35,20 @@ A compact action bar HUD overlay that displays ability icons, cooldowns, and pro
 
 ---
 
+## ⚠️ Temporarily Disabled Modules (Midnight API Stabilization)
+
+The following modules are **disabled** while Blizzard's interface APIs stabilize in WoW 12.0:
+
+| Module | Status | Reason |
+|--------|--------|--------|
+| **Cooldown Manager** (Essential/Utility) | Disabled | `CooldownViewerSettings` and related APIs are unstable |
+| **TrackedBuffs** | Disabled | Aura icon styling hooks unreliable |
+| **TrackedDefensives** | Disabled | Secret value protection on aura APIs |
+
+These features will be revisited in a future update once the APIs are more reliable.
+
+---
+
 ## File Structure
 
 | File | Purpose |

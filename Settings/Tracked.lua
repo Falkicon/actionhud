@@ -9,7 +9,7 @@ function ns.Settings.BuildTrackedOptions(self)
 	local IsBlizzardCooldownViewerEnabled = ns.Settings.IsBlizzardCooldownViewerEnabled
 
 	return {
-		name = L["Tracked Abilities"],
+		name = L["Tracked Buffs"],
 		handler = ActionHud,
 		type = "group",
 		args = {
@@ -18,7 +18,10 @@ function ns.Settings.BuildTrackedOptions(self)
 					if IsBlizzardCooldownViewerEnabled() then
 						return "|cff00ff00" .. L["Blizzard Cooldown Manager is enabled."] .. "|r"
 					else
-						return "|cffff4444" .. L["Blizzard Cooldown Manager is disabled."] .. "|r\n\n" .. L["Enable it in Gameplay Enhancements to use these features."]
+						return "|cffff4444"
+							.. L["Blizzard Cooldown Manager is disabled."]
+							.. "|r\n\n"
+							.. L["Enable it in Gameplay Enhancements to use these features."]
 					end
 				end,
 				type = "description",
@@ -30,8 +33,7 @@ function ns.Settings.BuildTrackedOptions(self)
 				name = L["Custom frames for tracked abilities with independent positioning."] .. "\n",
 			},
 
-			-- Tracked Buffs Section
-			buffsHeader = { name = L["Tracked Buffs"], type = "header", order = 10 },
+			-- Buff Styling Options (tab is already named "Tracked Buffs")
 			styleTrackedBuffs = {
 				name = L["Enable Styling"],
 				desc = L["Apply ActionHud styling to the Tracked Buffs frame (removes rounded corners, custom fonts)."],
@@ -171,7 +173,7 @@ function ns.Settings.BuildTrackedOptions(self)
 				end,
 			},
 			buffsBorderEnabled = {
-				name = L["Border"],
+				name = L["Show Border"],
 				desc = L["Show a border around each icon."],
 				type = "toggle",
 				order = 16,
@@ -197,7 +199,9 @@ function ns.Settings.BuildTrackedOptions(self)
 				max = 4,
 				step = 1,
 				disabled = function()
-					return not IsBlizzardCooldownViewerEnabled() or not self.db.profile.styleTrackedBuffs or not self.db.profile.buffsBorderEnabled
+					return not IsBlizzardCooldownViewerEnabled()
+						or not self.db.profile.styleTrackedBuffs
+						or not self.db.profile.buffsBorderEnabled
 				end,
 				get = function(info)
 					return self.db.profile.buffsBorderSize or 1
@@ -246,316 +250,83 @@ function ns.Settings.BuildTrackedOptions(self)
 					ActionHud:GetModule("TrackedBuffs"):UpdateSettings()
 				end,
 			},
-			buffsPositionHeader = { name = L["Position"], type = "header", order = 20 },
-			buffsUnlock = {
-				name = function()
-					local layout = ActionHud:GetModule("TrackedBuffsLayout", true)
-					return (layout and layout:IsLocked()) and L["Unlock Frame"] or L["Lock Frame"]
-				end,
-				desc = L["Unlock the frame to drag it to a new position."],
-				type = "execute",
-				order = 21,
-				width = "full",
-				func = function()
-					local layout = ActionHud:GetModule("TrackedBuffsLayout", true)
-					if layout then
-						layout:ToggleLock()
-					end
-				end,
-			},
-			buffsXOffset = {
-				name = L["X Offset"],
-				desc = L["Horizontal offset from center."],
-				type = "range",
-				order = 22,
-				width = 1.0,
-				min = -500,
-				max = 500,
-				step = 1,
-				get = function(info)
-					return self.db.profile.buffsXOffset or 0
-				end,
-				set = function(info, val)
-					self.db.profile.buffsXOffset = val
-					local layout = ActionHud:GetModule("TrackedBuffsLayout", true)
-					if layout then
-						layout:UpdateLayout()
-					end
-				end,
-			},
-			buffsYOffset = {
-				name = L["Y Offset"],
-				desc = L["Vertical offset from center."],
-				type = "range",
-				order = 23,
-				width = 1.0,
-				min = -500,
-				max = 500,
-				step = 1,
-				get = function(info)
-					return self.db.profile.buffsYOffset or -180
-				end,
-				set = function(info, val)
-					self.db.profile.buffsYOffset = val
-					local layout = ActionHud:GetModule("TrackedBuffsLayout", true)
-					if layout then
-						layout:UpdateLayout()
-					end
-				end,
-			},
-			buffsResetPosition = {
-				name = L["Reset Position"],
-				type = "execute",
-				order = 24,
-				width = "full",
-				func = function()
-					self.db.profile.buffsXOffset = 0
-					self.db.profile.buffsYOffset = -180
-					local layout = ActionHud:GetModule("TrackedBuffsLayout", true)
-					if layout then
-						layout:UpdateLayout()
-					end
-				end,
-			},
-
-			-- External Defensives Section (12.0+ only)
-			defensivesHeader = { name = L["External Defensives"], type = "header", order = 30 },
-			defensivesNote = {
-				type = "description",
-				order = 31,
-				name = function()
-					if not ExternalDefensivesFrame then
-						return "|cffaaaaaa" .. L["(Requires WoW 12.0 Midnight or later)"] .. "|r"
-					end
-					return ""
-				end,
-				hidden = function()
-					return ExternalDefensivesFrame ~= nil
-				end,
-			},
-			styleExternalDefensives = {
-				name = L["Enable Styling"],
-				desc = L["Apply ActionHud styling to the External Defensives frame."],
-				type = "toggle",
-				order = 32,
-				width = 1.0,
-				hidden = function()
-					return not ExternalDefensivesFrame
-				end,
-				get = function(info)
-					return self.db.profile.styleExternalDefensives
-				end,
-				set = function(info, val)
-					self.db.profile.styleExternalDefensives = val
-					local mod = ActionHud:GetModule("TrackedDefensives", true)
-					if mod then
-						mod:UpdateSettings()
-					end
-				end,
-			},
-			defensivesIconSize = {
-				name = L["Icon Size"],
-				desc = L["Size of defensive icons."],
-				type = "range",
-				order = 33,
-				width = 1.0,
-				min = 16,
-				max = 64,
-				step = 1,
-				hidden = function()
-					return not ExternalDefensivesFrame
-				end,
-				disabled = function()
-					return not self.db.profile.styleExternalDefensives
-				end,
-				get = function(info)
-					return self.db.profile.defensivesIconSize or 36
-				end,
-				set = function(info, val)
-					self.db.profile.defensivesIconSize = val
-					local mod = ActionHud:GetModule("TrackedDefensives", true)
-					if mod then
-						mod:UpdateSettings()
-					end
-				end,
-			},
-			defensivesColumns = {
-				name = L["Columns"],
-				desc = L["Maximum number of icons per row."],
-				type = "range",
-				order = 34,
-				width = 1.0,
-				min = 1,
-				max = 16,
-				step = 1,
-				hidden = function()
-					return not ExternalDefensivesFrame
-				end,
-				disabled = function()
-					return not self.db.profile.styleExternalDefensives
-				end,
-				get = function(info)
-					return self.db.profile.defensivesColumns or 8
-				end,
-				set = function(info, val)
-					self.db.profile.defensivesColumns = val
-					local mod = ActionHud:GetModule("TrackedDefensives", true)
-					if mod then
-						mod:UpdateSettings()
-					end
-				end,
-			},
-			defensivesSpacingH = {
-				name = L["Horizontal Spacing"],
-				desc = L["Space between icons horizontally."],
-				type = "range",
-				order = 35,
-				width = 1.0,
-				min = 0,
-				max = 20,
-				step = 1,
-				hidden = function()
-					return not ExternalDefensivesFrame
-				end,
-				disabled = function()
-					return not self.db.profile.styleExternalDefensives
-				end,
-				get = function(info)
-					return self.db.profile.defensivesSpacingH or 2
-				end,
-				set = function(info, val)
-					self.db.profile.defensivesSpacingH = val
-					local mod = ActionHud:GetModule("TrackedDefensives", true)
-					if mod then
-						mod:UpdateSettings()
-					end
-				end,
-			},
-			defensivesSpacingV = {
-				name = L["Vertical Spacing"],
-				desc = L["Space between icons vertically."],
-				type = "range",
-				order = 36,
-				width = 1.0,
-				min = 0,
-				max = 20,
-				step = 1,
-				hidden = function()
-					return not ExternalDefensivesFrame
-				end,
-				disabled = function()
-					return not self.db.profile.styleExternalDefensives
-				end,
-				get = function(info)
-					return self.db.profile.defensivesSpacingV or 2
-				end,
-				set = function(info, val)
-					self.db.profile.defensivesSpacingV = val
-					local mod = ActionHud:GetModule("TrackedDefensives", true)
-					if mod then
-						mod:UpdateSettings()
-					end
-				end,
-			},
-			defensivesBorderEnabled = {
-				name = L["Border"],
-				desc = L["Show a border around each icon."],
-				type = "toggle",
-				order = 37,
-				width = 1.0,
-				hidden = function()
-					return not ExternalDefensivesFrame
-				end,
-				disabled = function()
-					return not self.db.profile.styleExternalDefensives
-				end,
-				get = function(info)
-					return self.db.profile.defensivesBorderEnabled
-				end,
-				set = function(info, val)
-					self.db.profile.defensivesBorderEnabled = val
-					local mod = ActionHud:GetModule("TrackedDefensives", true)
-					if mod then
-						mod:UpdateSettings()
-					end
-				end,
-			},
-			defensivesBorderSize = {
-				name = L["Border Size"],
-				desc = L["Thickness of the border."],
-				type = "range",
-				order = 38,
-				width = 1.0,
-				min = 1,
-				max = 4,
-				step = 1,
-				hidden = function()
-					return not ExternalDefensivesFrame
-				end,
-				disabled = function()
-					return not self.db.profile.styleExternalDefensives or not self.db.profile.defensivesBorderEnabled
-				end,
-				get = function(info)
-					return self.db.profile.defensivesBorderSize or 1
-				end,
-				set = function(info, val)
-					self.db.profile.defensivesBorderSize = val
-					local mod = ActionHud:GetModule("TrackedDefensives", true)
-					if mod then
-						mod:UpdateSettings()
-					end
-				end,
-			},
-			defensivesCountFontSize = {
-				name = L["Stack Count Font"],
-				desc = L["Font size for stack counts."],
-				type = "range",
-				min = 6,
-				max = 18,
-				step = 1,
-				order = 39,
-				width = 1.0,
-				hidden = function()
-					return not ExternalDefensivesFrame
-				end,
-				disabled = function()
-					return not self.db.profile.styleExternalDefensives
-				end,
-				get = function(info)
-					return self.db.profile.defensivesCountFontSize or 10
-				end,
-				set = function(info, val)
-					self.db.profile.defensivesCountFontSize = val
-					local mod = ActionHud:GetModule("TrackedDefensives", true)
-					if mod then
-						mod:UpdateSettings()
-					end
-				end,
-			},
-			defensivesTimerFontSize = {
-				name = L["Timer Font"],
-				desc = L["Font size for cooldown timers."],
-				type = "select",
-				order = 40,
-				width = 1.0,
-				values = { small = L["Small"], medium = L["Medium"], large = L["Large"], huge = L["Huge"] },
-				sorting = { "small", "medium", "large", "huge" },
-				hidden = function()
-					return not ExternalDefensivesFrame
-				end,
-				disabled = function()
-					return not self.db.profile.styleExternalDefensives
-				end,
-				get = function(info)
-					return self.db.profile.defensivesTimerFontSize or "medium"
-				end,
-				set = function(info, val)
-					self.db.profile.defensivesTimerFontSize = val
-					local mod = ActionHud:GetModule("TrackedDefensives", true)
-					if mod then
-						mod:UpdateSettings()
-					end
-				end,
+			positionGroup = {
+				name = L["Position"],
+				type = "group",
+				inline = true,
+				order = 20,
+				args = {
+					unlock = {
+						name = function()
+							local layout = ActionHud:GetModule("TrackedBuffsLayout", true)
+							return (layout and layout:IsLocked()) and L["Unlock Frame"] or L["Lock Frame"]
+						end,
+						desc = L["Unlock the frame to drag it to a new position."],
+						type = "execute",
+						order = 1,
+						width = "full",
+						func = function()
+							local layout = ActionHud:GetModule("TrackedBuffsLayout", true)
+							if layout then
+								layout:ToggleLock()
+							end
+						end,
+					},
+					xOffset = {
+						name = L["X Offset"],
+						desc = L["Horizontal offset from center."],
+						type = "range",
+						order = 2,
+						width = 1.0,
+						min = -500,
+						max = 500,
+						step = 1,
+						get = function(info)
+							return self.db.profile.buffsXOffset or 0
+						end,
+						set = function(info, val)
+							self.db.profile.buffsXOffset = val
+							local layout = ActionHud:GetModule("TrackedBuffsLayout", true)
+							if layout then
+								layout:UpdateLayout()
+							end
+						end,
+					},
+					yOffset = {
+						name = L["Y Offset"],
+						desc = L["Vertical offset from center."],
+						type = "range",
+						order = 3,
+						width = 1.0,
+						min = -500,
+						max = 500,
+						step = 1,
+						get = function(info)
+							return self.db.profile.buffsYOffset or -180
+						end,
+						set = function(info, val)
+							self.db.profile.buffsYOffset = val
+							local layout = ActionHud:GetModule("TrackedBuffsLayout", true)
+							if layout then
+								layout:UpdateLayout()
+							end
+						end,
+					},
+					resetPosition = {
+						name = L["Reset Position"],
+						type = "execute",
+						order = 4,
+						width = "full",
+						func = function()
+							self.db.profile.buffsXOffset = 0
+							self.db.profile.buffsYOffset = -180
+							local layout = ActionHud:GetModule("TrackedBuffsLayout", true)
+							if layout then
+								layout:UpdateLayout()
+							end
+						end,
+					},
+				},
 			},
 		},
 	}

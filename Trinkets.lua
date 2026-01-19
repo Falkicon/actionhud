@@ -244,6 +244,9 @@ function Trinkets:UpdateLayout()
 				f:SetPoint("LEFT", container, "CENTER", xPos, 0)
 			end
 		end
+
+		-- Report height to LayoutManager
+		LM:SetModuleHeight("trinkets", height)
 	else
 		-- Independent mode: fit to visible content
 		container:SetSize(actualWidth, height)
@@ -281,6 +284,12 @@ function Trinkets:UpdateLayout()
 					end
 				end
 			end
+		end
+
+		-- Release height reservation when not in stack
+		local LM = addon:GetModule("LayoutManager", true)
+		if LM then
+			LM:SetModuleHeight("trinkets", 0)
 		end
 	end
 

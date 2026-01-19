@@ -2,7 +2,7 @@
 ## Title: ActionHud
 ## Notes: Minimalist HUD mirroring Action Bars 1 & 2
 ## Author: Jason Falk
-## Version: 2.8.0
+## Version: 2.9.0
 ## X-License: GPL-3.0
 ## SavedVariables: ActionHudDB
 ## OptionalDeps: !Mechanic, FenCore
@@ -23,10 +23,11 @@ Resources.lua
 Cooldowns\Manager.lua
 Cooldowns\SkinningReset.lua
 Cooldowns\Cooldowns.lua
-Cooldowns\TrackedBuffs.lua
-Cooldowns\TrackedBuffsLayout.lua
-Cooldowns\EssentialCooldownsLayout.lua
-Cooldowns\UtilityCooldownsLayout.lua
+# DISABLED 2026-01-18: TweaksUI handles these better. Blizzard frame reskinning too fragile.
+# Cooldowns\TrackedBuffs.lua
+# Cooldowns\TrackedBuffsLayout.lua
+# Cooldowns\EssentialCooldownsLayout.lua
+# Cooldowns\UtilityCooldownsLayout.lua
 Cooldowns\TrackedDefensives.lua
 Cooldowns\DefensiveTracker.lua
 UnitFrames\UnitFrames.lua
@@ -34,8 +35,10 @@ Trinkets.lua
 Settings\init.lua
 Settings\ActionBars.lua
 Settings\Resources.lua
-Settings\Cooldowns.lua
-Settings\Tracked.lua
+# DISABLED 2026-01-18: Settings hidden since modules are disabled
+# Settings\EssentialCooldowns.lua
+# Settings\UtilityCooldowns.lua
+# Settings\Tracked.lua
 Settings\UnitFrames.lua
 Settings\Trinkets.lua
 Settings\Layout.lua

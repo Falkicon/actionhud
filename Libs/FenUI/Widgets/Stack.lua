@@ -1,8 +1,8 @@
 --------------------------------------------------------------------------------
 -- FenUI v2 - Stack/Flex Layout Widget
 --
--- A Flexbox-inspired layout system that provides declarative horizontal 
--- and vertical stacking with alignment, justification, gap control, 
+-- A Flexbox-inspired layout system that provides declarative horizontal
+-- and vertical stacking with alignment, justification, gap control,
 -- and optional wrapping.
 --------------------------------------------------------------------------------
 
@@ -94,8 +94,12 @@ function StackMixin:AddChild(frame, config)
 	}
 
 	-- Sanity check for base sizes (discard garbage values > 10,000)
-	if childData.baseWidth > 10000 then childData.baseWidth = 0 end
-	if childData.baseHeight > 10000 then childData.baseHeight = 0 end
+	if childData.baseWidth > 10000 then
+		childData.baseWidth = 0
+	end
+	if childData.baseHeight > 10000 then
+		childData.baseHeight = 0
+	end
 
 	table.insert(self.children, childData)
 
@@ -106,17 +110,23 @@ function StackMixin:AddChild(frame, config)
 	if not frame.stackHooked and frame.HookScript then
 		pcall(function()
 			frame:HookScript("OnSizeChanged", function()
-				if self.Layout then self:Layout() end
+				if self.Layout then
+					self:Layout()
+				end
 			end)
 		end)
 		pcall(function()
 			frame:HookScript("OnShow", function()
-				if self.Layout then self:Layout() end
+				if self.Layout then
+					self:Layout()
+				end
 			end)
 		end)
 		pcall(function()
 			frame:HookScript("OnHide", function()
-				if self.Layout then self:Layout() end
+				if self.Layout then
+					self:Layout()
+				end
 			end)
 		end)
 		frame.stackHooked = true
@@ -159,12 +169,20 @@ function StackMixin:Layout()
 	local isAutoWidth = self.config.width == "auto"
 	local isAutoHeight = self.config.height == "auto"
 
-	local initialWidth = tonumber(self.config.width) or (self.dynamicSize and tonumber(self.dynamicSize.width)) or self:GetWidth()
-	local initialHeight = tonumber(self.config.height) or (self.dynamicSize and tonumber(self.dynamicSize.height)) or self:GetHeight()
+	local initialWidth = tonumber(self.config.width)
+		or (self.dynamicSize and tonumber(self.dynamicSize.width))
+		or self:GetWidth()
+	local initialHeight = tonumber(self.config.height)
+		or (self.dynamicSize and tonumber(self.dynamicSize.height))
+		or self:GetHeight()
 
 	-- Sanity check for container dimensions
-	if initialWidth > 10000 then initialWidth = 0 end
-	if initialHeight > 10000 then initialHeight = 0 end
+	if initialWidth > 10000 then
+		initialWidth = 0
+	end
+	if initialHeight > 10000 then
+		initialHeight = 0
+	end
 
 	-- Measure Phase: Collect visible children and their sizes
 	local childrenToLayout = {}
@@ -178,7 +196,9 @@ function StackMixin:Layout()
 		if frame:IsShown() then
 			-- Robust dimension resolution
 			local w = tonumber(childData.config.width) or (frame.dynamicSize and tonumber(frame.dynamicSize.width)) or 0
-			local h = tonumber(childData.config.height) or (frame.dynamicSize and tonumber(frame.dynamicSize.height)) or 0
+			local h = tonumber(childData.config.height)
+				or (frame.dynamicSize and tonumber(frame.dynamicSize.height))
+				or 0
 
 			if w <= 0 and childData.baseWidth and childData.baseWidth > 0 and childData.baseWidth <= 10000 then
 				w = childData.baseWidth
@@ -197,15 +217,23 @@ function StackMixin:Layout()
 			end
 
 			-- Fallbacks for objects that might report 0 size before rendering
-			if w <= 0 and frame:IsObjectType("Button") then w = 100 end
-			if h <= 0 and frame:IsObjectType("Button") then h = 24 end
+			if w <= 0 and frame:IsObjectType("Button") then
+				w = 100
+			end
+			if h <= 0 and frame:IsObjectType("Button") then
+				h = 24
+			end
 			if h <= 0 and frame:IsObjectType("FontString") then
 				h = frame:GetStringHeight()
-				if h <= 0 then h = 14 end -- Default font height fallback
+				if h <= 0 then
+					h = 14
+				end -- Default font height fallback
 			end
 			if w <= 0 and frame:IsObjectType("FontString") then
 				w = frame:GetStringWidth()
-				if w <= 0 then w = 100 end
+				if w <= 0 then
+					w = 100
+				end
 			end
 
 			local grow = childData.config.grow or 0
@@ -290,7 +318,16 @@ function StackMixin:Layout()
 	if self.wrap then
 		self:LayoutWrapped(childrenToLayout, totalWidth, totalHeight, padding, gap, rowGap, isVertical)
 	else
-		self:LayoutStandard(childrenToLayout, totalWidth, totalHeight, padding, gap, isVertical, totalGrow, totalIntrinsicSize)
+		self:LayoutStandard(
+			childrenToLayout,
+			totalWidth,
+			totalHeight,
+			padding,
+			gap,
+			isVertical,
+			totalGrow,
+			totalIntrinsicSize
+		)
 	end
 
 	self.isLayouting = nil
@@ -391,7 +428,13 @@ function StackMixin:LayoutStandard(
 			frame:SetHeight(math.max(1, childHeight), true)
 
 			-- Debug info
-			self["debug_child" .. i .. "_pos"] = string.format("%.1f, %.1f (%.1f x %.1f)", padding.left, -(padding.top + currentOffset), childWidth, childHeight)
+			self["debug_child" .. i .. "_pos"] = string.format(
+				"%.1f, %.1f (%.1f x %.1f)",
+				padding.left,
+				-(padding.top + currentOffset),
+				childWidth,
+				childHeight
+			)
 
 			currentOffset = currentOffset + childHeight + justifiedGap
 		else
@@ -410,7 +453,13 @@ function StackMixin:LayoutStandard(
 			frame:SetHeight(math.max(1, childHeight), true)
 
 			-- Debug info
-			self["debug_child" .. i .. "_pos"] = string.format("%.1f, %.1f (%.1f x %.1f)", padding.left + currentOffset, -padding.top, childWidth, childHeight)
+			self["debug_child" .. i .. "_pos"] = string.format(
+				"%.1f, %.1f (%.1f x %.1f)",
+				padding.left + currentOffset,
+				-padding.top,
+				childWidth,
+				childHeight
+			)
 
 			currentOffset = currentOffset + childWidth + justifiedGap
 		end

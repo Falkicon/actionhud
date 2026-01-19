@@ -62,7 +62,7 @@ local function BuildLayoutArgs()
 	for i, moduleId in ipairs(stack) do
 		local moduleName = LM:GetAceModuleName(moduleId)
 		local m = ActionHud:GetModule(moduleName, true)
-		
+
 		local isEnabled = false
 		if moduleId == "resources" then
 			isEnabled = ActionHud.db.profile.resEnabled

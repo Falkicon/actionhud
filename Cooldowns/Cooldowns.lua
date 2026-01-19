@@ -43,7 +43,7 @@ function Cooldowns:OnEnable()
 		addon:Log("Cooldowns: Legacy module disabled - using native viewer modules", "discovery")
 		return
 	end
-	
+
 	addon:Log("Cooldowns:OnEnable - custom replacement mode", "discovery")
 	Manager:CreateContainer("cd", "ActionHudCooldownContainer")
 	self:UpdateLayout()
@@ -69,10 +69,18 @@ function Cooldowns:OnEnable()
 		local p = self.db and self.db.profile
 		local essentialCat = GetEssentialCategory()
 		local utilityCat = GetUtilityCategory()
-		local essentialCount = essentialCat and #(Manager:GetCooldownIDsForCategory(essentialCat, "Essential") or {}) or 0
+		local essentialCount = essentialCat and #(Manager:GetCooldownIDsForCategory(essentialCat, "Essential") or {})
+			or 0
 		local utilityCount = utilityCat and #(Manager:GetCooldownIDsForCategory(utilityCat, "Utility") or {}) or 0
-		addon:Log(string.format("Cooldowns status: enabled=%s, essential=%d, utility=%d",
-			tostring(p and p.cdEnabled), essentialCount, utilityCount), "discovery")
+		addon:Log(
+			string.format(
+				"Cooldowns status: enabled=%s, essential=%d, utility=%d",
+				tostring(p and p.cdEnabled),
+				essentialCount,
+				utilityCount
+			),
+			"discovery"
+		)
 	end)
 end
 
@@ -180,7 +188,7 @@ function Cooldowns:ApplyLayoutPosition()
 				container.moduleId = "cooldowns"
 				container:SetMovable(true)
 				container:SetClampedToScreen(true)
-				
+
 				-- Create overlay and label if missing
 				if not container.overlay then
 					container.overlay = container:CreateTexture(nil, "OVERLAY")
@@ -194,7 +202,7 @@ function Cooldowns:ApplyLayoutPosition()
 					container.label:SetText("Cooldowns")
 					container.label:Hide()
 				end
-				
+
 				-- Drag handlers
 				container:SetScript("OnDragStart", function(self)
 					if DraggableContainer:IsUnlocked(self._db) then
@@ -281,9 +289,19 @@ function Cooldowns:UpdateLayout()
 			self._lastDebugTime = GetTime()
 			local point, relativeTo, relativePoint, xOfs, yOfs = container:GetPoint()
 			local proxyCount = 0
-			for _ in pairs(activeProxies) do proxyCount = proxyCount + 1 end
-			addon:Log(string.format("Cooldowns: point=%s, yOfs=%.0f, proxies=%d, height=%d",
-				tostring(point), yOfs or 0, proxyCount, height), "layout")
+			for _ in pairs(activeProxies) do
+				proxyCount = proxyCount + 1
+			end
+			addon:Log(
+				string.format(
+					"Cooldowns: point=%s, yOfs=%.0f, proxies=%d, height=%d",
+					tostring(point),
+					yOfs or 0,
+					proxyCount,
+					height
+				),
+				"layout"
+			)
 		end
 	else
 		container:Hide()
@@ -301,7 +319,7 @@ function Cooldowns:HideBlizzardCooldownViewer()
 		"UtilityCooldownViewer",
 		"CooldownViewerFrame",
 	}
-	
+
 	for _, frameName in ipairs(frameNames) do
 		local blizzViewer = _G[frameName]
 		if blizzViewer and blizzViewer:IsShown() then
@@ -319,11 +337,13 @@ function Cooldowns:ShowBlizzardCooldownViewer()
 		"UtilityCooldownViewer",
 		"CooldownViewerFrame",
 	}
-	
+
 	-- Only show if Blizzard's CVar is enabled
 	local cvarEnabled = GetCVar("cooldownViewerEnabled") == "1"
-	if not cvarEnabled then return end
-	
+	if not cvarEnabled then
+		return
+	end
+
 	for _, frameName in ipairs(frameNames) do
 		local blizzViewer = _G[frameName]
 		if blizzViewer then
@@ -451,13 +471,23 @@ function Cooldowns:PopulateProxy(proxy, cooldownID, cooldownInfo)
 	local hasCD = false
 
 	-- DEBUG: Log cooldown info for first few calls (routes to Mechanic console)
-	if not self._debugCount then self._debugCount = 0 end
+	if not self._debugCount then
+		self._debugCount = 0
+	end
 	if self._debugCount < 10 then
 		self._debugCount = self._debugCount + 1
 		local spellName = C_Spell.GetSpellName(spellID) or "?"
 		if cdInfo then
-			addon:Log(string.format("CD: %s (id=%d): start=%.1f, dur=%.1f",
-				spellName, spellID, cdInfo.startTime or 0, cdInfo.duration or 0), "proxy")
+			addon:Log(
+				string.format(
+					"CD: %s (id=%d): start=%.1f, dur=%.1f",
+					spellName,
+					spellID,
+					cdInfo.startTime or 0,
+					cdInfo.duration or 0
+				),
+				"proxy"
+			)
 		else
 			addon:Log(string.format("CD: %s (id=%d): cdInfo is NIL", spellName, spellID), "proxy")
 		end

@@ -13,7 +13,7 @@ end
 
 function ns.Settings.BuildTrinketsOptions(self)
 	return {
-		name = L["Trinkets"],
+		name = L["Trinket Bar"],
 		handler = ActionHud,
 		type = "group",
 		args = {
@@ -55,26 +55,34 @@ function ns.Settings.BuildTrinketsOptions(self)
 				name = L["Position"],
 				type = "header",
 				order = 10,
-				hidden = function() return IsInStack() end,
+				hidden = function()
+					return IsInStack()
+				end,
 			},
 			positionNote = {
 				name = L["Position is controlled by Layout tab when in HUD Stack."],
 				type = "description",
 				order = 10,
-				hidden = function() return not IsInStack() end,
+				hidden = function()
+					return not IsInStack()
+				end,
 			},
 			dragNote = {
 				name = L["Use the 'Unlock Module Positions' toggle in the Layout tab to drag this module to a new position."],
 				type = "description",
 				order = 11,
-				hidden = function() return IsInStack() end,
+				hidden = function()
+					return IsInStack()
+				end,
 			},
 			resetPosition = {
 				name = L["Reset Position"],
 				desc = L["Reset this module to its default position."],
 				type = "execute",
 				order = 12,
-				hidden = function() return IsInStack() end,
+				hidden = function()
+					return IsInStack()
+				end,
 				func = function()
 					self.db.profile.trinketsXOffset = 150
 					self.db.profile.trinketsYOffset = 0
@@ -93,7 +101,9 @@ function ns.Settings.BuildTrinketsOptions(self)
 				desc = L["Direction to add additional trinkets when more than one is equipped."],
 				type = "select",
 				order = 13,
-				hidden = function() return IsInStack() end,
+				hidden = function()
+					return IsInStack()
+				end,
 				values = {
 					["LEFT"] = L["Left"],
 					["RIGHT"] = L["Right"],
@@ -106,61 +116,75 @@ function ns.Settings.BuildTrinketsOptions(self)
 					ActionHud:GetModule("Trinkets"):UpdateLayout()
 				end,
 			},
-			sizingHeader = { name = L["Sizing"], type = "header", order = 20 },
-			iconWidth = {
-				name = L["Icon Width"],
-				type = "range",
-				min = 10,
-				max = 100,
-				step = 1,
-				order = 21,
-				get = function(info)
-					return self.db.profile.trinketsIconWidth
-				end,
-				set = function(info, val)
-					self.db.profile.trinketsIconWidth = val
-					local LM = ActionHud:GetModule("LayoutManager", true)
-					if LM then
-						LM:TriggerLayoutUpdate()
-					else
-						ActionHud:GetModule("Trinkets"):UpdateLayout()
-					end
-				end,
+			sizingGroup = {
+				name = L["Sizing"],
+				type = "group",
+				inline = true,
+				order = 20,
+				args = {
+					iconWidth = {
+						name = L["Icon Width"],
+						type = "range",
+						min = 10,
+						max = 100,
+						step = 1,
+						order = 1,
+						get = function(info)
+							return self.db.profile.trinketsIconWidth
+						end,
+						set = function(info, val)
+							self.db.profile.trinketsIconWidth = val
+							local LM = ActionHud:GetModule("LayoutManager", true)
+							if LM then
+								LM:TriggerLayoutUpdate()
+							else
+								ActionHud:GetModule("Trinkets"):UpdateLayout()
+							end
+						end,
+					},
+					iconHeight = {
+						name = L["Icon Height"],
+						type = "range",
+						min = 10,
+						max = 100,
+						step = 1,
+						order = 2,
+						get = function(info)
+							return self.db.profile.trinketsIconHeight
+						end,
+						set = function(info, val)
+							self.db.profile.trinketsIconHeight = val
+							local LM = ActionHud:GetModule("LayoutManager", true)
+							if LM then
+								LM:TriggerLayoutUpdate()
+							else
+								ActionHud:GetModule("Trinkets"):UpdateLayout()
+							end
+						end,
+					},
+				},
 			},
-			iconHeight = {
-				name = L["Icon Height"],
-				type = "range",
-				min = 10,
-				max = 100,
-				step = 1,
-				order = 22,
-				get = function(info)
-					return self.db.profile.trinketsIconHeight
-				end,
-				set = function(info, val)
-					self.db.profile.trinketsIconHeight = val
-					local LM = ActionHud:GetModule("LayoutManager", true)
-					if LM then
-						LM:TriggerLayoutUpdate()
-					else
-						ActionHud:GetModule("Trinkets"):UpdateLayout()
-					end
-				end,
-			},
-			fontHeader = { name = L["Typography"], type = "header", order = 30 },
-			timerFontSize = {
-				name = L["Timer Font Size"],
-				type = "select",
-				order = 31,
-				values = { small = L["Small"], medium = L["Medium"], large = L["Large"], huge = L["Huge"] },
-				sorting = { "small", "medium", "large", "huge" },
-				get = function(info)
-					return self.db.profile.trinketsTimerFontSize or "medium"
-				end,
-				set = function(info, val)
-					self.db.profile.trinketsTimerFontSize = val
-					ActionHud:GetModule("Trinkets"):UpdateLayout()
-				end,
+			typographyGroup = {
+				name = L["Typography"],
+				type = "group",
+				inline = true,
+				order = 30,
+				args = {
+					timerFontSize = {
+						name = L["Timer Font Size"],
+						type = "select",
+						order = 1,
+						values = { small = L["Small"], medium = L["Medium"], large = L["Large"], huge = L["Huge"] },
+						sorting = { "small", "medium", "large", "huge" },
+						get = function(info)
+							return self.db.profile.trinketsTimerFontSize or "medium"
+						end,
+						set = function(info, val)
+							self.db.profile.trinketsTimerFontSize = val
+							ActionHud:GetModule("Trinkets"):UpdateLayout()
+						end,
+					},
+				},
 			},
 		},
 	}

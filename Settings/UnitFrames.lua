@@ -97,8 +97,8 @@ function ns.Settings.BuildUnitFramesOptions(self)
 				offsetX = {
 					name = L["X Offset"],
 					type = "range",
-					min = -50,
-					max = 50,
+					min = -25,
+					max = 25,
 					step = 1,
 					order = 4,
 					get = function()
@@ -116,8 +116,8 @@ function ns.Settings.BuildUnitFramesOptions(self)
 				offsetY = {
 					name = L["Y Offset"],
 					type = "range",
-					min = -50,
-					max = 50,
+					min = -25,
+					max = 25,
 					step = 1,
 					order = 5,
 					get = function()
@@ -251,7 +251,12 @@ function ns.Settings.BuildUnitFramesOptions(self)
 						name = L["Color Mode"],
 						type = "select",
 						order = 6,
-						values = { custom = L["Custom"], class = L["Class"], reaction = L["Reaction"] },
+						values = {
+							white = L["White"],
+							custom = L["Custom"],
+							class = L["Class"],
+							reaction = L["Reaction"],
+						},
 						get = function()
 							local db = self.db.profile.ufConfig[frameId]
 							return db and db[category] and db[category][textType] and db[category][textType].colorMode
@@ -271,7 +276,12 @@ function ns.Settings.BuildUnitFramesOptions(self)
 						hasAlpha = false,
 						hidden = function()
 							local db = self.db.profile.ufConfig[frameId]
-							return not (db and db[category] and db[category][textType] and db[category][textType].colorMode == "custom")
+							return not (
+								db
+								and db[category]
+								and db[category][textType]
+								and db[category][textType].colorMode == "custom"
+							)
 						end,
 						get = function()
 							local db = self.db.profile.ufConfig[frameId]
@@ -294,7 +304,7 @@ function ns.Settings.BuildUnitFramesOptions(self)
 			name = frameName,
 			type = "group",
 			order = order,
-			childGroups = "tab",
+			childGroups = "tree",
 			args = {
 				enableGroup = {
 					name = L["Enable"],
@@ -363,7 +373,7 @@ function ns.Settings.BuildUnitFramesOptions(self)
 							end,
 						},
 						height = {
-							name = L["Height"],
+							name = L["Frame Height"],
 							type = "range",
 							min = 10,
 							max = 100,
@@ -377,33 +387,19 @@ function ns.Settings.BuildUnitFramesOptions(self)
 								ActionHud:GetModule("UnitFrames"):UpdateLayout()
 							end,
 						},
-						xOffset = {
-							name = L["X Offset"],
-							type = "range",
-							min = -800,
-							max = 800,
-							step = 1,
+						dragNote = {
+							name = L["Use the 'Unlock Module Positions' toggle in the Layout tab to drag this frame to a new position."],
+							type = "description",
 							order = 3,
-							get = function()
-								return self.db.profile.ufConfig[frameId].xOffset
-							end,
-							set = function(_, val)
-								self.db.profile.ufConfig[frameId].xOffset = val
-								ActionHud:GetModule("UnitFrames"):UpdateLayout()
-							end,
 						},
-						yOffset = {
-							name = L["Y Offset"],
-							type = "range",
-							min = -600,
-							max = 600,
-							step = 1,
+						resetPosition = {
+							name = L["Reset Position"],
+							desc = L["Reset this frame to its default position."],
+							type = "execute",
 							order = 4,
-							get = function()
-								return self.db.profile.ufConfig[frameId].yOffset
-							end,
-							set = function(_, val)
-								self.db.profile.ufConfig[frameId].yOffset = val
+							func = function()
+								self.db.profile.ufConfig[frameId].xOffset = frameId == "player" and -100 or 100
+								self.db.profile.ufConfig[frameId].yOffset = frameId == "focus" and -150 or -300
 								ActionHud:GetModule("UnitFrames"):UpdateLayout()
 							end,
 						},
@@ -591,11 +587,11 @@ function ns.Settings.BuildUnitFramesOptions(self)
 						level = GetTextGroup("healthText", "level", L["Level"], 11),
 						name = GetTextGroup("healthText", "name", L["Name"], 12),
 						value = GetTextGroup("healthText", "value", L["Health Value"], 13),
-						percent = GetTextGroup("healthText", "percent", L["Health Percent"], 14),
+						-- percent removed due to Midnight secret value issues
 
 						powerHeader = { name = L["Power Text"], type = "header", order = 20 },
 						powerValue = GetTextGroup("powerText", "value", L["Power Value"], 21),
-						powerPercent = GetTextGroup("powerText", "percent", L["Power Percent"], 22),
+						-- powerPercent removed due to Midnight secret value issues
 					},
 				},
 				icons = {
@@ -603,6 +599,21 @@ function ns.Settings.BuildUnitFramesOptions(self)
 					type = "group",
 					order = 50,
 					args = {
+						showAll = {
+							name = L["Show All Icons"],
+							desc = L["Show all status icons for testing and placement. Icons will display even if their conditions are not met."],
+							type = "toggle",
+							order = 0,
+							width = "full",
+							get = function()
+								return self.db.profile.ufShowAllIcons
+							end,
+							set = function(_, val)
+								self.db.profile.ufShowAllIcons = val
+								ActionHud:GetModule("UnitFrames"):UpdateLayout()
+								ActionHud:GetModule("UnitFrames"):UpdateAll()
+							end,
+						},
 						margin = {
 							name = L["Icon Margin"],
 							type = "range",
@@ -622,7 +633,12 @@ function ns.Settings.BuildUnitFramesOptions(self)
 						resting = GetIconGroup(frameId, "resting", L["Resting"], 11),
 						pvp = GetIconGroup(frameId, "pvp", L["PVP"], 12),
 						leader = GetIconGroup(frameId, "leader", L["Group Leader"], 13),
-						role = GetIconGroup(frameId, "role", L["Role: Tank"] .. "/" .. L["Role: Healer"] .. "/" .. L["Role: DPS"], 14),
+						role = GetIconGroup(
+							frameId,
+							"role",
+							L["Role: Tank"] .. "/" .. L["Role: Healer"] .. "/" .. L["Role: DPS"],
+							14
+						),
 						guide = GetIconGroup(frameId, "guide", L["Dungeon Guide"], 15),
 						leaderGroup = {
 							name = L["Group Management"],
@@ -661,20 +677,65 @@ function ns.Settings.BuildUnitFramesOptions(self)
 			note = {
 				type = "description",
 				order = 0.1,
-				name = "|cffffcc00" .. L["Custom Unit Frames"] .. "|r\n" .. L["Custom frames for Player and Target with advanced support for Midnight's 'Secret Values'."] .. "\n",
+				name = "|cffffcc00"
+					.. L["Custom Unit Frames"]
+					.. "|r\n"
+					.. L["Custom frames for Player and Target with advanced support for Midnight's 'Secret Values'."]
+					.. "\n",
 			},
 			enable = {
 				name = L["Enable Custom Unit Frames"],
 				desc = L["Enable ActionHud custom player and target unit frames. Compatible with Midnight 12.0 secret values."],
 				type = "toggle",
 				order = 1,
-				width = "full",
+				width = 1.5,
 				get = function(info)
 					return self.db.profile.ufEnabled
 				end,
 				set = function(info, val)
 					self.db.profile.ufEnabled = val
 					ActionHud:GetModule("UnitFrames"):UpdateLayout()
+				end,
+			},
+			hideBlizzard = {
+				name = L["Hide Blizzard Frames"],
+				desc = L["Hide the default Blizzard Player, Target, and Focus frames when custom frames are enabled."],
+				type = "toggle",
+				order = 2,
+				width = 1.5,
+				get = function(info)
+					return self.db.profile.ufHideBlizzard
+				end,
+				set = function(info, val)
+					self.db.profile.ufHideBlizzard = val
+					-- Apply visibility immediately
+					if val then
+						if PlayerFrame then
+							PlayerFrame:SetAlpha(0)
+							PlayerFrame:EnableMouse(false)
+						end
+						if TargetFrame then
+							TargetFrame:SetAlpha(0)
+							TargetFrame:EnableMouse(false)
+						end
+						if FocusFrame then
+							FocusFrame:SetAlpha(0)
+							FocusFrame:EnableMouse(false)
+						end
+					else
+						if PlayerFrame then
+							PlayerFrame:SetAlpha(1)
+							PlayerFrame:EnableMouse(true)
+						end
+						if TargetFrame then
+							TargetFrame:SetAlpha(1)
+							TargetFrame:EnableMouse(true)
+						end
+						if FocusFrame then
+							FocusFrame:SetAlpha(1)
+							FocusFrame:EnableMouse(true)
+						end
+					end
 				end,
 			},
 			player = GetFrameOptions("player", L["Player Frame"], 10),

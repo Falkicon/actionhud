@@ -105,4 +105,3 @@ local start2, dur2, enabled2, mod2 = Utils.GetActionCooldownSafe(999)
 assert_equal(0, start2, "GetActionCooldownSafe error fallback failed")
 
 print("SUCCESS: Utils module verified!")
-

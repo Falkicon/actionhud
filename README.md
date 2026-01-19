@@ -25,11 +25,12 @@ A lightweight, high-performance action bar HUD for World of Warcraft Retail. Dis
 - **Unit Frame Reskin** – Minimalist styling for Player, Target, and Focus frames:
   - Hide portraits and borders for a cleaner look.
   - Flat, solid bar textures with adjustable heights.
-- **Tracked Buffs** – Applies modern styling to Blizzard's native Tracked Buffs icons.
 - **Layout Manager** – Unified system to reorder HUD modules and set custom spacing.
 - **Visualization Tools** – Toggle layout outlines to see component bounds and position empty modules easily.
 - **Profiles** – Support for character-specific settings and profile sharing.
 - **Integration** – Minimap button, Addon Compartment, and DataBroker (LDB) support.
+
+> **⚠️ Temporarily Disabled**: The **Cooldown Manager** module is disabled while Blizzard's interface APIs stabilize in WoW 12.0 (Midnight). It will be revisited once the APIs are more reliable.
 
 ## Installation
 

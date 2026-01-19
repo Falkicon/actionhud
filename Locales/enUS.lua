@@ -11,7 +11,8 @@ L["/ah debug: Toggle debug recording."] = true
 L["/ah clear: Clear debug buffer."] = true
 L["/ah dump: Dump tracked spell info to chat."] = true
 L["Debugging & Layout:"] = true
-L["Use the Layout tab to enable Show Layout Outlines. This helps position frames when they are empty or out of combat."] = true
+L["Use the Layout tab to enable Show Layout Outlines. This helps position frames when they are empty or out of combat."] =
+	true
 L["[DEV MODE] Running from git clone"] = true
 L["Debug recording auto-stopped (buffer cap of %d reached)."] = true
 L["ActionHud:"] = true
@@ -61,7 +62,8 @@ L["Unprotected"] = true
 L["PROTECTED (Standard Aura logic will crash)"] = true
 L["API test complete."] = true
 L["[MIDNIGHT BETA & PTR NOTICE]"] = true
-L["Blizzard is currently transitioning to the new 'Royal' interpretive API model. Styling for Tracked Abilities is temporarily disabled on this client to ensure stability. We are monitoring Blizzard's API changes and will restore these features as soon as possible."] = true
+L["Blizzard is currently transitioning to the new 'Royal' interpretive API model. Styling for Tracked Abilities is temporarily disabled on this client to ensure stability. We are monitoring Blizzard's API changes and will restore these features as soon as possible."] =
+	true
 
 -- Settings UI - General
 L["Lock Frame"] = true
@@ -88,7 +90,8 @@ L["/ah debug: Toggle debug recording."] = true
 L["/ah clear: Clear debug buffer."] = true
 L["/ah dump: Dump tracked spell info to chat."] = true
 L["Debugging & Layout:"] = true
-L["Use the Layout tab to enable Show Layout Outlines. This helps position frames when they are empty or out of combat."] = true
+L["Use the Layout tab to enable Show Layout Outlines. This helps position frames when they are empty or out of combat."] =
+	true
 
 -- Settings UI - Action Bars
 L["Action Bars"] = true
@@ -135,6 +138,9 @@ L["Show damage absorption shields as an overlay on the health bar."] = true
 L["Height"] = true
 L["Power Bar"] = true
 L["Class Resource"] = true
+L["Bar Height"] = true
+L["Frame Height"] = true
+L["Show Border"] = true
 
 -- Settings UI - Cooldown Manager
 L["Cooldown Manager"] = true
@@ -161,11 +167,17 @@ L["Small"] = true
 L["Medium"] = true
 L["Large"] = true
 L["Huge"] = true
+L["Essential Cooldowns"] = true
+L["Utility Cooldowns"] = true
+L["Enable management of Essential Cooldowns frame."] = true
+L["Enable management of Utility Cooldowns frame."] = true
+L["Size of cooldown icons."] = true
 
 -- Settings UI - Tracked Abilities
 L["Tracked Abilities"] = true
 L["Enable it in Gameplay Enhancements to use these features."] = true
-L["ActionHud applies custom styling to Blizzard's Tracked Abilities frames, removing rounded corners and adjusting fonts."] = true
+L["ActionHud applies custom styling to Blizzard's Tracked Abilities frames, removing rounded corners and adjusting fonts."] =
+	true
 L["Custom frames for tracked abilities with independent positioning."] = true
 L["Positioning:"] = true
 L["Use Blizzard's EditMode to move and resize these frames."] = true
@@ -204,24 +216,30 @@ L["Thickness of the border."] = true
 -- Settings UI - Unit Frames
 L["Unit Frames"] = true
 L["Unit Frame Styling:"] = true
-L["ActionHud applies a modern, minimalist aesthetic to Blizzard's unit frames. This module uses a style-only approach that is safe for the Midnight (12.0) environment."] = true
+L["ActionHud applies a modern, minimalist aesthetic to Blizzard's unit frames. This module uses a style-only approach that is safe for the Midnight (12.0) environment."] =
+	true
 L["Experimental Feature:"] = true
-L["Due to Blizzard's API changes in Midnight (12.0), traditional unit frame customization is significantly restricted. ActionHud's styling approach balances these technical limitations with a modern, minimalist aesthetic. This feature will continue to evolve as new APIs become available."] = true
+L["Due to Blizzard's API changes in Midnight (12.0), traditional unit frame customization is significantly restricted. ActionHud's styling approach balances these technical limitations with a modern, minimalist aesthetic. This feature will continue to evolve as new APIs become available."] =
+	true
 L["Note:"] = true
-L["High-impact changes (like bar heights or width) require /reload to properly synchronize anchors and prevent combat taint."] = true
+L["High-impact changes (like bar heights or width) require /reload to properly synchronize anchors and prevent combat taint."] =
+	true
 L["Enable Unit Frame Styling"] = true
 L["Apply ActionHud styling to unit frames."] = true
 L["Appearance"] = true
 L["Hide Portraits"] = true
-L["Hide the circular portrait image plus portrait-area elements (rest indicator, corner embellishment, combat icon)."] = true
+L["Hide the circular portrait image plus portrait-area elements (rest indicator, corner embellishment, combat icon)."] =
+	true
 L["Hide Borders"] = true
-L["Remove the frame border/decoration texture. Note: This also hides the gold ring around the portrait (they're one texture)."] = true
+L["Remove the frame border/decoration texture. Note: This also hides the gold ring around the portrait (they're one texture)."] =
+	true
 L["Flat Bar Texture"] = true
 L["Use a solid flat texture instead of gradient bars."] = true
 L["Show Background"] = true
 L["Add a dark semi-transparent background behind the bars."] = true
 L["Pro Tip:"] = true
-L["To show health and resource numbers on your frames, use the built-in Blizzard setting: Options > Gameplay > Interface > Status Text and select Numeric Value."] = true
+L["To show health and resource numbers on your frames, use the built-in Blizzard setting: Options > Gameplay > Interface > Status Text and select Numeric Value."] =
+	true
 L["Font"] = true
 L["Font for health and power bar text."] = true
 L["Font Size"] = true
@@ -250,6 +268,8 @@ L["Custom Unit Frames"] = true
 L["Custom frames for Player and Target with advanced support for Midnight's 'Secret Values'."] = true
 L["Enable Custom Unit Frames"] = true
 L["Enable ActionHud custom player and target unit frames. Compatible with Midnight 12.0 secret values."] = true
+L["Hide Blizzard Frames"] = true
+L["Hide the default Blizzard Player, Target, and Focus frames when custom frames are enabled."] = true
 L["Bar Width"] = true
 L["Height"] = true
 L["X Offset"] = true
@@ -282,6 +302,7 @@ L["Font Outline"] = true
 L["Color"] = true
 L["Color Mode"] = true
 L["Custom"] = true
+L["White"] = true
 L["Class"] = true
 L["Reaction"] = true
 L["Position"] = true
@@ -299,6 +320,8 @@ L["Bottom Left"] = true
 L["Bottom Center"] = true
 L["Bottom Right"] = true
 L["Status Icons"] = true
+L["Show All Icons"] = true
+L["Show all status icons for testing and placement. Icons will display even if their conditions are not met."] = true
 L["Icon Margin"] = true
 L["Combat"] = true
 L["Resting"] = true
@@ -369,6 +392,7 @@ L["Recorded debug messages. Select all and copy to export."] = true
 
 -- Settings UI - Trinkets
 L["Trinkets"] = true
+L["Trinket Bar"] = true
 L["Enable the sidecar Trinket module."] = true
 L["Sizing & Positioning"] = true
 
@@ -412,7 +436,8 @@ L["TrackedBar"] = true
 
 -- HUD Stack Positioning
 L["Include in HUD Stack"] = true
-L["When enabled, Trinkets will be positioned in the vertical HUD stack. Otherwise, use independent X/Y positioning."] = true
+L["When enabled, Trinkets will be positioned in the vertical HUD stack. Otherwise, use independent X/Y positioning."] =
+	true
 L["Position is controlled by Layout tab when in HUD Stack."] = true
 L["Position"] = true
 L["Horizontal offset from center."] = true
@@ -423,18 +448,24 @@ L["Unlock Frame"] = true
 L["Lock Frame"] = true
 L["Reset Position"] = true
 L["Buffs"] = true
-L["When enabled, this module will be positioned in the vertical HUD stack. Otherwise, use independent X/Y positioning."] = true
+L["When enabled, this module will be positioned in the vertical HUD stack. Otherwise, use independent X/Y positioning."] =
+	true
 L["Unlock Module Positions"] = true
-L["Unlock all modules for drag-and-drop positioning. Modules outside the HUD Stack can be dragged to new positions."] = true
+L["Unlock all modules for drag-and-drop positioning. Modules outside the HUD Stack can be dragged to new positions."] =
+	true
 L["Use the 'Unlock Module Positions' toggle in the Layout tab to drag this module to a new position."] = true
 L["Reset this module to its default position."] = true
-L["Use the Layout tab to enable Unlock Module Positions. This shows colored overlays that can be dragged to reposition."] = true
+L["Use the Layout tab to enable Unlock Module Positions. This shows colored overlays that can be dragged to reposition."] =
+	true
+L["Use the 'Unlock Module Positions' toggle in the Layout tab to drag this frame to a new position."] = true
+L["Reset this frame to its default position."] = true
 L["Show Blizzard Cooldowns (Debug)"] = true
 L["Show Blizzard's Cooldown Viewer alongside ours for testing/validation."] = true
 L["Show Blizzard Buffs (Debug)"] = true
 L["Show Blizzard's buff viewer alongside ours for testing/validation."] = true
 L["Include in HUD Stack"] = true
-L["When enabled, this module is positioned as part of the vertical ActionHud stack. When disabled, it can be positioned independently."] = true
+L["When enabled, this module is positioned as part of the vertical ActionHud stack. When disabled, it can be positioned independently."] =
+	true
 L["Bar Width"] = true
 L["Fixed width for resource bars. Set to 0 to use full HUD width."] = true
 L["Use Fixed Width"] = true

@@ -225,14 +225,24 @@ function AB:ApplyLayoutPosition()
 	container:ClearAllPoints()
 
 	if inStack then
-		-- Stack mode: use full HUD width and position from LayoutManager
-		local containerWidth = LM:GetMaxWidth()
+		-- Stack mode: use own content width, anchor based on barAlignment
+		local containerWidth = self:GetLayoutWidth()
 		local containerHeight = self:CalculateHeight()
 		if containerWidth > 0 and containerHeight > 0 then
 			container:SetSize(containerWidth, containerHeight)
 		end
 		local yOffset = LM:GetModulePosition("actionBars")
-		container:SetPoint("TOP", main, "TOP", 0, yOffset)
+
+		-- Anchor based on alignment within HUD
+		local p = ActionHud.db.profile
+		local align = p.barAlignment or "CENTER"
+		if align == "LEFT" then
+			container:SetPoint("TOPLEFT", main, "TOPLEFT", 0, yOffset)
+		elseif align == "RIGHT" then
+			container:SetPoint("TOPRIGHT", main, "TOPRIGHT", 0, yOffset)
+		else -- CENTER
+			container:SetPoint("TOP", main, "TOP", 0, yOffset)
+		end
 		container:EnableMouse(false)
 	else
 		-- Independent mode: DraggableContainer handles positioning
@@ -248,7 +258,7 @@ function AB:ApplyLayoutPosition()
 				container.moduleId = "actionbars"
 				container:SetMovable(true)
 				container:SetClampedToScreen(true)
-				
+
 				if not container.overlay then
 					container.overlay = container:CreateTexture(nil, "OVERLAY")
 					container.overlay:SetAllPoints()
@@ -261,7 +271,7 @@ function AB:ApplyLayoutPosition()
 					container.label:SetText("Action Bars")
 					container.label:Hide()
 				end
-				
+
 				container:SetScript("OnDragStart", function(self)
 					if DraggableContainer:IsUnlocked(self._db) then
 						self:StartMoving()
@@ -405,18 +415,21 @@ function AB:UpdateLayout()
 	local totalHeight = self:CalculateHeight()
 	local contentWidth = self:GetLayoutWidth()
 
-	-- Report height to LayoutManager
+	-- Report height to LayoutManager - only when in stack
 	local LM = ActionHud:GetModule("LayoutManager", true)
+	local inStack = LM and LM:IsModuleInStack("actionBars")
 	if LM then
-		LM:SetModuleHeight("actionBars", totalHeight)
+		if inStack then
+			LM:SetModuleHeight("actionBars", totalHeight)
+		else
+			-- Release height reservation when not in stack
+			LM:SetModuleHeight("actionBars", 0)
+		end
 	end
 
-	-- Get actual container width (HUD width when in stack, content width otherwise)
-	local inStack = LM and LM:IsModuleInStack("actionBars")
+	-- Get container width - use own content width for tight fit
+	-- Row Alignment handles centering bar blocks within this container
 	local containerWidth = contentWidth
-	if inStack and LM then
-		containerWidth = LM:GetMaxWidth()
-	end
 	container:SetSize(containerWidth, totalHeight)
 
 	local currentY = 0
@@ -522,7 +535,7 @@ function AB:RefreshAll()
 	if not self:IsEnabled() then
 		return
 	end
-	ActionHud:Log("ActionBars: RefreshAll", "events")
+	-- ActionHud:Log("ActionBars: RefreshAll", "events") -- Disabled: too verbose
 	for _, btn in ipairs(buttons) do
 		if btn:IsShown() then
 			self:UpdateAction(btn)
@@ -533,7 +546,7 @@ function AB:RefreshAll()
 end
 
 function AB:ACTIONBAR_SLOT_CHANGED(event, arg1)
-	ActionHud:Log(string.format("ActionBars: %s (slot=%s)", event, tostring(arg1)), "events")
+	-- ActionHud:Log(string.format("ActionBars: %s (slot=%s)", event, tostring(arg1)), "events") -- Disabled: too verbose
 	for _, btn in ipairs(buttons) do
 		if
 			Utils.SafeCompare(btn.baseSlot, arg1, "==")
@@ -557,7 +570,7 @@ function AB:SPELL_UPDATE_COOLDOWN()
 end
 
 function AB:UpdateStateAll()
-	ActionHud:Log("ActionBars: UpdateStateAll", "events")
+	-- ActionHud:Log("ActionBars: UpdateStateAll", "events") -- Disabled: too verbose
 	-- Only update buttons with actions (skip empty slots to reduce overhead)
 	for _, btn in ipairs(buttons) do
 		if btn.hasAction then
@@ -636,7 +649,8 @@ end
 
 -- Default cooldown info structures (same pattern as LibActionButton)
 local defaultCooldownInfo = { startTime = 0, duration = 0, isEnabled = false, modRate = 1 }
-local defaultChargeInfo = { currentCharges = 0, maxCharges = 0, cooldownStartTime = 0, cooldownDuration = 0, chargeModRate = 1 }
+local defaultChargeInfo =
+	{ currentCharges = 0, maxCharges = 0, cooldownStartTime = 0, cooldownDuration = 0, chargeModRate = 1 }
 local defaultLossOfControlInfo = { startTime = 0, duration = 0, modRate = 1 }
 
 function AB:UpdateCooldown(btn)

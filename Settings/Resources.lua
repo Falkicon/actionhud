@@ -49,20 +49,26 @@ function ns.Settings.BuildResourcesOptions(self)
 				name = L["Position is controlled by Layout tab when in HUD Stack."],
 				type = "description",
 				order = 1.6,
-				hidden = function() return not IsInStack() end,
+				hidden = function()
+					return not IsInStack()
+				end,
 			},
 			dragNote = {
 				name = L["Use the 'Unlock Module Positions' toggle in the Layout tab to drag this module to a new position."],
 				type = "description",
 				order = 1.7,
-				hidden = function() return IsInStack() end,
+				hidden = function()
+					return IsInStack()
+				end,
 			},
 			resetPosition = {
 				name = L["Reset Position"],
 				desc = L["Reset this module to its default position."],
 				type = "execute",
 				order = 1.8,
-				hidden = function() return IsInStack() end,
+				hidden = function()
+					return IsInStack()
+				end,
 				func = function()
 					self.db.profile.resourcesXOffset = 0
 					self.db.profile.resourcesYOffset = 100
@@ -74,7 +80,9 @@ function ns.Settings.BuildResourcesOptions(self)
 						end
 					end
 					local Resources = ActionHud:GetModule("Resources", true)
-					if Resources then Resources:ApplyLayoutPosition() end
+					if Resources then
+						Resources:ApplyLayoutPosition()
+					end
 				end,
 			},
 			showTarget = {
@@ -93,7 +101,9 @@ function ns.Settings.BuildResourcesOptions(self)
 			widthNote = {
 				type = "description",
 				order = 3,
-				name = "|cffaaaaaa" .. L["Note: The width of these bars is automatically matched to the Action Bar grid (Action Bars > Icon Width)."] .. "|r",
+				name = "|cffaaaaaa"
+					.. L["Note: The width of these bars is automatically matched to the Action Bar grid (Action Bars > Icon Width)."]
+					.. "|r",
 			},
 			commonHeader = { name = L["Common Settings"], type = "header", order = 10 },
 			commonGroup = {
@@ -134,41 +144,41 @@ function ns.Settings.BuildResourcesOptions(self)
 						end,
 					},
 					useFixedWidth = {
-					name = L["Use Fixed Width"],
-					desc = L["When enabled, use a fixed width instead of matching the HUD width."],
-					type = "toggle",
-					order = 3,
-					get = function(info)
-						return self.db.profile.resBarWidth and self.db.profile.resBarWidth > 0
-					end,
-					set = function(info, val)
-						if val then
-							self.db.profile.resBarWidth = 200 -- Default fixed width
-						else
-							self.db.profile.resBarWidth = nil
-						end
-						self:RefreshLayout()
-					end,
-				},
-				barWidth = {
-					name = L["Bar Width"],
-					desc = L["Fixed width for resource bars."],
-					type = "range",
-					min = 50,
-					max = 600,
-					step = 5,
-					order = 4,
-					hidden = function()
-						return not (self.db.profile.resBarWidth and self.db.profile.resBarWidth > 0)
-					end,
-					get = function(info)
-						return self.db.profile.resBarWidth or 200
-					end,
-					set = function(info, val)
-						self.db.profile.resBarWidth = val
-						self:RefreshLayout()
-					end,
-				},
+						name = L["Use Fixed Width"],
+						desc = L["When enabled, use a fixed width instead of matching the HUD width."],
+						type = "toggle",
+						order = 3,
+						get = function(info)
+							return self.db.profile.resBarWidth and self.db.profile.resBarWidth > 0
+						end,
+						set = function(info, val)
+							if val then
+								self.db.profile.resBarWidth = 200 -- Default fixed width
+							else
+								self.db.profile.resBarWidth = nil
+							end
+							self:RefreshLayout()
+						end,
+					},
+					barWidth = {
+						name = L["Bar Width"],
+						desc = L["Fixed width for resource bars."],
+						type = "range",
+						min = 50,
+						max = 600,
+						step = 5,
+						order = 4,
+						hidden = function()
+							return not (self.db.profile.resBarWidth and self.db.profile.resBarWidth > 0)
+						end,
+						get = function(info)
+							return self.db.profile.resBarWidth or 200
+						end,
+						set = function(info, val)
+							self.db.profile.resBarWidth = val
+							self:RefreshLayout()
+						end,
+					},
 				},
 			},
 			healthGroup = {
@@ -190,7 +200,7 @@ function ns.Settings.BuildResourcesOptions(self)
 						end,
 					},
 					height = {
-						name = L["Height"],
+						name = L["Bar Height"],
 						type = "range",
 						min = 1,
 						max = 30,
@@ -251,7 +261,7 @@ function ns.Settings.BuildResourcesOptions(self)
 						end,
 					},
 					height = {
-						name = L["Height"],
+						name = L["Bar Height"],
 						type = "range",
 						min = 1,
 						max = 30,
@@ -286,7 +296,7 @@ function ns.Settings.BuildResourcesOptions(self)
 						end,
 					},
 					height = {
-						name = L["Height"],
+						name = L["Bar Height"],
 						type = "range",
 						min = 1,
 						max = 20,

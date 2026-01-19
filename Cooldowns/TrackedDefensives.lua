@@ -17,19 +17,16 @@ local TrackedDefensives = addon:NewModule("TrackedDefensives", "AceEvent-3.0")
 -- ============================================================================
 
 function TrackedDefensives:OnInitialize()
-    self.db = addon.db
+	self.db = addon.db
 end
 
 function TrackedDefensives:OnEnable()
-    -- DISABLED: Hooking ExternalDefensivesFrame causes taint
-    addon:Log("TrackedDefensives: DISABLED (hooks cause taint)", "discovery")
+	-- DISABLED: Hooking ExternalDefensivesFrame causes taint
+	addon:Log("TrackedDefensives: DISABLED (hooks cause taint)", "discovery")
 end
 
-function TrackedDefensives:OnDisable()
-end
+function TrackedDefensives:OnDisable() end
 
-function TrackedDefensives:SetLayoutMode(enabled)
-end
+function TrackedDefensives:SetLayoutMode(enabled) end
 
-function TrackedDefensives:UpdateSettings()
-end
+function TrackedDefensives:UpdateSettings() end

@@ -17,7 +17,7 @@ ns.IS_DEV_MODE = IS_DEV_MODE
 
 local defaults = {
 	profile = {
-		locked = false,
+		locked = true,
 		iconWidth = 20,
 		iconHeight = 17,
 		opacity = 0.0,
@@ -75,6 +75,11 @@ local defaults = {
 		utilityCooldownsIconSize = 36,
 		utilityCooldownsColumns = 8,
 
+		-- Per-module HUD alignment (LEFT, CENTER, RIGHT)
+		resourcesAlignment = "CENTER",
+		essentialCooldownsAlignment = "CENTER",
+		utilityCooldownsAlignment = "CENTER",
+
 		-- Tracked Buffs (container-based positioning)
 		styleTrackedBuffs = true,
 		buffsXOffset = 0,
@@ -111,106 +116,119 @@ local defaults = {
 
 		-- Unit Frames (Player/Target/Focus)
 		ufEnabled = false,
+		ufHideBlizzard = false, -- Hide Blizzard PlayerFrame/TargetFrame/FocusFrame
+		ufShowAllIcons = false, -- Show all status icons for testing/placement
+		ufPlayerXOffset = -189,
+		ufPlayerYOffset = 13,
+		ufTargetXOffset = 210,
+		ufTargetYOffset = 13,
+		ufFocusXOffset = -353,
+		ufFocusYOffset = 19,
 		ufHealthHeight = 30,
 		ufPowerHeight = 10,
 		ufWidth = 200,
 		ufConfig = {
 			player = {
 				enabled = true,
-				width = 200,
-				height = 40,
-				xOffset = -200,
-				yOffset = -200,
-				bgColor = { r = 0.1, g = 0.1, b = 0.1 },
-				bgOpacity = 0.8,
-				borderColor = { r = 0.3, g = 0.3, b = 0.3 },
-				borderOpacity = 1,
+				width = 150,
+				height = 50,
+				xOffset = -189,
+				yOffset = 13,
+				font = "Arial Narrow", -- Top-level font for all text elements
+				bgColor = { r = 0, g = 0, b = 0 },
+				bgOpacity = 0.4,
+				borderColor = { r = 0, g = 0, b = 0 },
+				borderOpacity = 0,
 				borderSize = 1,
 				powerBarEnabled = true,
-				powerBarHeight = 8,
+				powerBarHeight = 6,
 				classBarEnabled = true,
 				classBarHeight = 6,
 				textPaddingH = 4,
 				textPaddingV = 2,
 				iconMargin = 2,
 				healthText = {
-					name = { enabled = false, position = "TopLeft", xOffset = 0, yOffset = 0, fontSize = 11, fontOutline = "OUTLINE" },
-					level = { enabled = false, position = "TopRight", xOffset = 0, yOffset = 0, fontSize = 11, fontOutline = "OUTLINE" },
-					value = { enabled = true, position = "Left", xOffset = 0, yOffset = 0, fontSize = 11, fontOutline = "OUTLINE" },
-					percent = { enabled = true, position = "Right", xOffset = 0, yOffset = 0, fontSize = 11, fontOutline = "OUTLINE" },
+					name = {
+						enabled = true,
+						position = "TopLeft",
+						xOffset = 0,
+						yOffset = 0,
+						font = "Arial Narrow",
+						size = 11,
+						outline = "NONE",
+						colorMode = "white",
+					},
+					level = {
+						enabled = true,
+						position = "TopRight",
+						xOffset = 0,
+						yOffset = 0,
+						font = "Arial Narrow",
+						size = 11,
+						outline = "NONE",
+						colorMode = "white",
+					},
+					value = {
+						enabled = true,
+						position = "Center",
+						xOffset = 0,
+						yOffset = 0,
+						font = "Arial Narrow",
+						size = 11,
+						outline = "NONE",
+						colorMode = "white",
+					},
+					-- Percent display removed due to Midnight secret value issues
 				},
 				powerText = {
-					value = { enabled = false, position = "Left", xOffset = 0, yOffset = 0, fontSize = 10, fontOutline = "OUTLINE" },
-					percent = { enabled = false, position = "Right", xOffset = 0, yOffset = 0, fontSize = 10, fontOutline = "OUTLINE" },
+					value = {
+						enabled = false,
+						position = "Left",
+						xOffset = 0,
+						yOffset = 0,
+						font = "Arial Narrow",
+						size = 11,
+						outline = "NONE",
+						colorMode = "white",
+					},
+					percent = {
+						enabled = false,
+						position = "Right",
+						xOffset = 0,
+						yOffset = 0,
+						font = "Arial Narrow",
+						size = 11,
+						outline = "NONE",
+						colorMode = "white",
+					},
 				},
+				iconMargin = 0,
 				icons = {
-					combat = { enabled = true, position = "TopLeft", size = 16 },
-					resting = { enabled = true, position = "TopLeft", size = 16 },
-					pvp = { enabled = true, position = "TopRight", size = 16 },
-					leader = { enabled = true, position = "TopCenter", size = 16 },
-					role = { enabled = true, position = "TopCenter", size = 16 },
-					guide = { enabled = true, position = "TopCenter", size = 16 },
-					mainTank = { enabled = true, position = "TopCenter", size = 16 },
-					mainAssist = { enabled = true, position = "TopCenter", size = 16 },
-					vehicle = { enabled = true, position = "TopRight", size = 16 },
-					phased = { enabled = true, position = "TopRight", size = 16 },
-					summon = { enabled = true, position = "TopRight", size = 16 },
-					readyCheck = { enabled = true, position = "TopRight", size = 16 },
+					combat = { enabled = true, position = "TopLeft", size = 16, offsetX = -10, offsetY = 0 },
+					resting = { enabled = true, position = "TopLeft", size = 16, offsetX = -10, offsetY = 10 },
+					pvp = { enabled = true, position = "Left", size = 16, offsetX = -11, offsetY = 5 },
+					leader = { enabled = true, position = "TopCenter", size = 16, offsetX = 0, offsetY = 10 },
+					role = { enabled = true, position = "Right", size = 16, offsetX = 0, offsetY = 5 },
+					guide = { enabled = true, position = "TopCenter", size = 16, offsetX = 0, offsetY = 13 },
+					mainTank = { enabled = true, position = "BottomRight", size = 16, offsetX = 0, offsetY = 5 },
+					mainAssist = { enabled = true, position = "BottomRight", size = 16, offsetX = 0, offsetY = 2 },
+					vehicle = { enabled = true, position = "TopRight", size = 16, offsetX = 0, offsetY = 10 },
+					phased = { enabled = false, position = "BottomCenter", size = 16, offsetX = 0, offsetY = 5 },
+					summon = { enabled = true, position = "BottomCenter", size = 32, offsetX = 0, offsetY = 0 },
+					readyCheck = { enabled = true, position = "Center", size = 32, offsetX = 0, offsetY = 3 },
 				},
 			},
 			target = {
 				enabled = true,
-				width = 200,
-				height = 40,
-				xOffset = 200,
-				yOffset = -200,
-				bgColor = { r = 0.1, g = 0.1, b = 0.1 },
-				bgOpacity = 0.8,
-				borderColor = { r = 0.3, g = 0.3, b = 0.3 },
-				borderOpacity = 1,
-				borderSize = 1,
-				powerBarEnabled = true,
-				powerBarHeight = 8,
-				classBarEnabled = false,
-				classBarHeight = 6,
-				textPaddingH = 4,
-				textPaddingV = 2,
-				iconMargin = 2,
-				healthText = {
-					name = { enabled = true, position = "TopLeft", xOffset = 0, yOffset = 0, fontSize = 11, fontOutline = "OUTLINE" },
-					level = { enabled = true, position = "TopRight", xOffset = 0, yOffset = 0, fontSize = 11, fontOutline = "OUTLINE" },
-					value = { enabled = true, position = "Left", xOffset = 0, yOffset = 0, fontSize = 11, fontOutline = "OUTLINE" },
-					percent = { enabled = true, position = "Right", xOffset = 0, yOffset = 0, fontSize = 11, fontOutline = "OUTLINE" },
-				},
-				powerText = {
-					value = { enabled = false, position = "Left", xOffset = 0, yOffset = 0, fontSize = 10, fontOutline = "OUTLINE" },
-					percent = { enabled = false, position = "Right", xOffset = 0, yOffset = 0, fontSize = 10, fontOutline = "OUTLINE" },
-				},
-				icons = {
-					combat = { enabled = true, position = "TopLeft", size = 16 },
-					resting = { enabled = false, position = "TopLeft", size = 16 },
-					pvp = { enabled = true, position = "TopRight", size = 16 },
-					leader = { enabled = true, position = "TopCenter", size = 16 },
-					role = { enabled = true, position = "TopCenter", size = 16 },
-					guide = { enabled = true, position = "TopCenter", size = 16 },
-					mainTank = { enabled = true, position = "TopCenter", size = 16 },
-					mainAssist = { enabled = true, position = "TopCenter", size = 16 },
-					vehicle = { enabled = true, position = "TopRight", size = 16 },
-					phased = { enabled = true, position = "TopRight", size = 16 },
-					summon = { enabled = true, position = "TopRight", size = 16 },
-					readyCheck = { enabled = true, position = "TopRight", size = 16 },
-				},
-			},
-			focus = {
-				enabled = false,
-				width = 180,
-				height = 35,
-				xOffset = 0,
-				yOffset = -300,
-				bgColor = { r = 0.1, g = 0.1, b = 0.1 },
-				bgOpacity = 0.8,
-				borderColor = { r = 0.3, g = 0.3, b = 0.3 },
-				borderOpacity = 1,
+				width = 150,
+				height = 50,
+				xOffset = 210,
+				yOffset = 13,
+				font = "Arial Narrow", -- Top-level font for all text elements
+				bgColor = { r = 0, g = 0, b = 0 },
+				bgOpacity = 0.4,
+				borderColor = { r = 0, g = 0, b = 0 },
+				borderOpacity = 0,
 				borderSize = 1,
 				powerBarEnabled = true,
 				powerBarHeight = 6,
@@ -220,28 +238,146 @@ local defaults = {
 				textPaddingV = 2,
 				iconMargin = 2,
 				healthText = {
-					name = { enabled = true, position = "TopLeft", xOffset = 0, yOffset = 0, fontSize = 10, fontOutline = "OUTLINE" },
-					level = { enabled = true, position = "TopRight", xOffset = 0, yOffset = 0, fontSize = 10, fontOutline = "OUTLINE" },
-					value = { enabled = true, position = "Left", xOffset = 0, yOffset = 0, fontSize = 10, fontOutline = "OUTLINE" },
-					percent = { enabled = true, position = "Right", xOffset = 0, yOffset = 0, fontSize = 10, fontOutline = "OUTLINE" },
+					name = {
+						enabled = true,
+						position = "TopLeft",
+						xOffset = 0,
+						yOffset = 0,
+						font = "Arial Narrow",
+						size = 11,
+						outline = "NONE",
+						colorMode = "white",
+					},
+					level = {
+						enabled = true,
+						position = "TopRight",
+						xOffset = 0,
+						yOffset = 0,
+						font = "Arial Narrow",
+						size = 11,
+						outline = "NONE",
+						colorMode = "white",
+					},
+					value = {
+						enabled = true,
+						position = "Center",
+						xOffset = 0,
+						yOffset = 0,
+						font = "Arial Narrow",
+						size = 11,
+						outline = "NONE",
+						colorMode = "white",
+					},
+					-- Percent display removed due to Midnight secret value issues
 				},
 				powerText = {
-					value = { enabled = false, position = "Left", xOffset = 0, yOffset = 0, fontSize = 9, fontOutline = "OUTLINE" },
-					percent = { enabled = false, position = "Right", xOffset = 0, yOffset = 0, fontSize = 9, fontOutline = "OUTLINE" },
+					value = {
+						enabled = false,
+						position = "Left",
+						xOffset = 0,
+						yOffset = 0,
+						font = "Arial Narrow",
+						size = 11,
+						outline = "NONE",
+						colorMode = "white",
+					},
+					-- Percent display removed due to Midnight secret value issues
 				},
+				iconMargin = 0,
 				icons = {
-					combat = { enabled = true, position = "TopLeft", size = 14 },
-					resting = { enabled = false, position = "TopLeft", size = 14 },
-					pvp = { enabled = true, position = "TopRight", size = 14 },
-					leader = { enabled = true, position = "TopCenter", size = 14 },
-					role = { enabled = true, position = "TopCenter", size = 14 },
-					guide = { enabled = true, position = "TopCenter", size = 14 },
-					mainTank = { enabled = true, position = "TopCenter", size = 14 },
-					mainAssist = { enabled = true, position = "TopCenter", size = 14 },
-					vehicle = { enabled = true, position = "TopRight", size = 14 },
-					phased = { enabled = true, position = "TopRight", size = 14 },
-					summon = { enabled = true, position = "TopRight", size = 14 },
-					readyCheck = { enabled = true, position = "TopRight", size = 14 },
+					combat = { enabled = false, position = "TopLeft", size = 16, offsetX = -10, offsetY = 0 },
+					resting = { enabled = false, position = "TopLeft", size = 16, offsetX = -10, offsetY = 10 },
+					pvp = { enabled = true, position = "Left", size = 16, offsetX = -11, offsetY = 5 },
+					leader = { enabled = true, position = "TopCenter", size = 16, offsetX = 0, offsetY = 10 },
+					role = { enabled = true, position = "Right", size = 16, offsetX = 0, offsetY = 5 },
+					guide = { enabled = true, position = "TopCenter", size = 16, offsetX = 0, offsetY = 13 },
+					mainTank = { enabled = true, position = "BottomRight", size = 16, offsetX = 0, offsetY = 5 },
+					mainAssist = { enabled = true, position = "BottomRight", size = 16, offsetX = 0, offsetY = 2 },
+					vehicle = { enabled = true, position = "TopRight", size = 16, offsetX = 0, offsetY = 10 },
+					phased = { enabled = true, position = "BottomCenter", size = 16, offsetX = 0, offsetY = 5 },
+					summon = { enabled = false, position = "BottomCenter", size = 32, offsetX = 0, offsetY = 0 },
+					readyCheck = { enabled = false, position = "Center", size = 32, offsetX = 0, offsetY = 3 },
+				},
+			},
+			focus = {
+				enabled = false,
+				width = 150,
+				height = 35,
+				xOffset = -353,
+				yOffset = 19,
+				font = "Arial Narrow", -- Top-level font for all text elements
+				bgColor = { r = 0, g = 0, b = 0 },
+				bgOpacity = 0.4,
+				borderColor = { r = 0, g = 0, b = 0 },
+				borderOpacity = 0,
+				borderSize = 1,
+				powerBarEnabled = true,
+				powerBarHeight = 6,
+				classBarEnabled = false,
+				classBarHeight = 6,
+				textPaddingH = 4,
+				textPaddingV = 2,
+				iconMargin = 2,
+				healthText = {
+					name = {
+						enabled = true,
+						position = "TopLeft",
+						xOffset = 0,
+						yOffset = 0,
+						font = "Arial Narrow",
+						size = 11,
+						outline = "NONE",
+						colorMode = "white",
+					},
+					level = {
+						enabled = true,
+						position = "TopRight",
+						xOffset = 0,
+						yOffset = 0,
+						font = "Arial Narrow",
+						size = 11,
+						outline = "NONE",
+						colorMode = "white",
+					},
+					value = {
+						enabled = true,
+						position = "BottomCenter",
+						xOffset = 0,
+						yOffset = 0,
+						font = "Arial Narrow",
+						size = 11,
+						outline = "NONE",
+						colorMode = "white",
+					},
+					-- Percent display removed due to Midnight secret value issues
+				},
+				powerText = {
+					value = {
+						enabled = false,
+						position = "Left",
+						xOffset = 0,
+						yOffset = 0,
+						font = "Arial Narrow",
+						size = 11,
+						outline = "NONE",
+						colorMode = "white",
+					},
+					-- Percent display removed due to Midnight secret value issues
+				},
+				iconMargin = 0,
+				icons = {
+					combat = { enabled = false, position = "TopLeft", size = 14, offsetX = -10, offsetY = 0 },
+					resting = { enabled = false, position = "TopLeft", size = 14, offsetX = -10, offsetY = 10 },
+					pvp = { enabled = true, position = "Left", size = 14, offsetX = -11, offsetY = 5 },
+					leader = { enabled = true, position = "TopCenter", size = 14, offsetX = 0, offsetY = 10 },
+					role = { enabled = true, position = "Right", size = 14, offsetX = 0, offsetY = 5 },
+					guide = { enabled = false, position = "TopCenter", size = 14, offsetX = 0, offsetY = 13 },
+					mainTank = { enabled = true, position = "BottomRight", size = 14, offsetX = 0, offsetY = 5 },
+					mainAssist = { enabled = false, position = "BottomRight", size = 14, offsetX = 0, offsetY = 2 },
+					vehicle = { enabled = false, position = "TopRight", size = 14, offsetX = 0, offsetY = 10 },
+					phased = { enabled = true, position = "BottomCenter", size = 14, offsetX = 0, offsetY = 5 },
+					summon = { enabled = false, position = "BottomCenter", size = 28, offsetX = 0, offsetY = 0 },
+					readyCheck = { enabled = false, position = "Center", size = 28, offsetX = 0, offsetY = 3 },
 				},
 			},
 		},
@@ -264,8 +400,8 @@ local defaults = {
 		trinketsIncludeInStack = false, -- Default: independent positioning
 		trinketsIconWidth = 32,
 		trinketsIconHeight = 32,
-		trinketsXOffset = 150,
-		trinketsYOffset = 0,
+		trinketsXOffset = 80,
+		trinketsYOffset = 23,
 		trinketsTimerFontSize = "medium",
 		trinketsGrowDirection = "RIGHT", -- LEFT or RIGHT
 
@@ -479,10 +615,10 @@ function ActionHud:CreateMainFrame()
 		self.db.profile.yOffset = y
 	end)
 
-	-- Subtle 10% grey background when unlocked
+	-- HUD background when layout unlocked (50% black for visibility)
 	f.dragBg = f:CreateTexture(nil, "BACKGROUND")
 	f.dragBg:SetAllPoints()
-	f.dragBg:SetColorTexture(0.1, 0.1, 0.1, 0.3)
+	f.dragBg:SetColorTexture(0, 0, 0, 0.5)
 	f.dragBg:Hide()
 
 	self.frame = f
@@ -514,9 +650,15 @@ function ActionHud:ApplySettings()
 end
 
 function ActionHud:UpdateLockState()
-	local locked = self.db.profile.locked
-	self.frame:EnableMouse(not locked)
-	if locked then
+	local p = self.db.profile
+	local locked = p.locked
+	local layoutUnlocked = p.layoutUnlocked
+
+	-- Enable mouse when HUD is unlocked OR layout is being edited
+	self.frame:EnableMouse(not locked or layoutUnlocked)
+
+	-- Show background when either unlocked or layout is being edited
+	if locked and not layoutUnlocked then
 		self.frame.dragBg:Hide()
 	else
 		self.frame.dragBg:Show()
@@ -611,6 +753,65 @@ function ActionHud:SlashHandler(msg)
 	if msg == "wipe" then
 		ActionHudDB = nil
 		print("|cff33ff99" .. L["ActionHud:"] .. "|r " .. L["SavedVariables wiped. /reload required."])
+		return
+	end
+
+	if msg == "positions" or msg == "pos" then
+		print("|cff33ff99ActionHud:|r Current module/frame positions:")
+		local p = self.db.profile
+
+		-- Main HUD position
+		print("-- Main HUD")
+		print(string.format("hudXOffset = %d,", p.hudXOffset or 0))
+		print(string.format("hudYOffset = %d,", p.hudYOffset or 0))
+
+		-- Unit Frames
+		print("-- Unit Frames")
+		if p.ufConfig then
+			for frameId, cfg in pairs(p.ufConfig) do
+				local xKey = "uf" .. frameId:sub(1, 1):upper() .. frameId:sub(2) .. "XOffset"
+				local yKey = "uf" .. frameId:sub(1, 1):upper() .. frameId:sub(2) .. "YOffset"
+				print(string.format("%s = %d, %s = %d, -- %s", xKey, p[xKey] or 0, yKey, p[yKey] or 0, frameId))
+			end
+		end
+
+		-- Cooldown modules
+		print("-- Cooldowns")
+		local cdKeys = { "essential", "utility", "buffs", "defensives" }
+		for _, key in ipairs(cdKeys) do
+			local xKey = key .. "XOffset"
+			local yKey = key .. "YOffset"
+			if p[xKey] or p[yKey] then
+				print(string.format("%s = %d, %s = %d,", xKey, p[xKey] or 0, yKey, p[yKey] or 0))
+			end
+		end
+
+		-- Action Bars
+		print("-- Action Bars")
+		local abKeys = { "actionBarsXOffset", "actionBarsYOffset" }
+		if p.actionBarsXOffset or p.actionBarsYOffset then
+			print(
+				string.format(
+					"actionBarsXOffset = %d, actionBarsYOffset = %d,",
+					p.actionBarsXOffset or 0,
+					p.actionBarsYOffset or 0
+				)
+			)
+		end
+
+		-- Trinkets
+		print("-- Trinkets")
+		if p.trinketsXOffset or p.trinketsYOffset then
+			print(
+				string.format(
+					"trinketsXOffset = %d, trinketsYOffset = %d,",
+					p.trinketsXOffset or 0,
+					p.trinketsYOffset or 0
+				)
+			)
+		end
+
+		print("|cff33ff99ActionHud:|r Copy above to update defaults in ActionHud.lua")
 		return
 	end
 

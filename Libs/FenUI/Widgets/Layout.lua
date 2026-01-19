@@ -249,7 +249,9 @@ function LayoutMixin:ApplyBackgroundAnchors()
 	-- This avoids NineSlice conflicts by using a dedicated child frame.
 
 	-- GUARD: Prevent re-entrancy during anchor updates which might trigger OnSizeChanged
-	if self.isApplyingBackgroundAnchors then return end
+	if self.isApplyingBackgroundAnchors then
+		return
+	end
 	self.isApplyingBackgroundAnchors = true
 
 	-- Support both single-value inset (number) and asymmetric inset (table)
@@ -1161,7 +1163,8 @@ function LayoutMixin:SetupLifecycleAnimations()
 	local hideAnim = config.hideAnimation
 
 	if showAnim then
-		local anim = type(showAnim) == "string" and FenUI.Animation.Presets[showAnim] or FenUI.Animation:Define(showAnim)
+		local anim = type(showAnim) == "string" and FenUI.Animation.Presets[showAnim]
+			or FenUI.Animation:Define(showAnim)
 		if anim then
 			self:HookScript("OnShow", function()
 				anim:Play(self)
@@ -1170,7 +1173,8 @@ function LayoutMixin:SetupLifecycleAnimations()
 	end
 
 	if hideAnim then
-		local anim = type(hideAnim) == "string" and FenUI.Animation.Presets[hideAnim] or FenUI.Animation:Define(hideAnim)
+		local anim = type(hideAnim) == "string" and FenUI.Animation.Presets[hideAnim]
+			or FenUI.Animation:Define(hideAnim)
 		if anim then
 			local originalHide = self.Hide
 			self.Hide = function(this)

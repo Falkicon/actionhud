@@ -106,6 +106,21 @@ function Utils.IsValueSecret(value)
 	if F and F.IsValueSecret then
 		return F:IsValueSecret(value)
 	end
+
+	-- Midnight Beta: Secret values are a distinct type that is NOT "number"
+	-- but may be returned from APIs expecting numbers.
+	if
+		Utils.IS_MIDNIGHT
+		and type(value) ~= "number"
+		and type(value) ~= "nil"
+		and type(value) ~= "boolean"
+		and type(value) ~= "string"
+		and type(value) ~= "table"
+		and type(value) ~= "function"
+	then
+		return true
+	end
+
 	-- Built-in fallback: check if comparing value errors
 	local ok = pcall(function()
 		return value == value
@@ -138,7 +153,7 @@ function Utils.SafeCompare(a, b, op)
 			return a == b
 		end
 	end)
-	return ok and result or nil
+	return ok and result or false
 end
 
 -- Check if we're in a context where secret values may exist
@@ -311,7 +326,27 @@ function Utils.StripBlizzardDecorations(f)
 	end
 end
 function Utils.DeepCopy(o)
-	return F and F:DeepCopy(o) or o
+	-- FenCore.Tables is the canonical source
+	if FenCore and FenCore.Tables and FenCore.Tables.DeepCopy then
+		return FenCore.Tables.DeepCopy(o)
+	end
+	-- FenUI fallback
+	if F and F.DeepCopy then
+		return F:DeepCopy(o)
+	end
+	-- Built-in fallback
+	if type(o) ~= "table" then
+		return o
+	end
+	local copy = {}
+	for k, v in pairs(o) do
+		if type(v) == "table" then
+			copy[k] = Utils.DeepCopy(v)
+		else
+			copy[k] = v
+		end
+	end
+	return copy
 end
 
 --------------------------------------------------------------------------------

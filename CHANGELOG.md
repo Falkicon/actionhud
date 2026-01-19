@@ -1,4 +1,44 @@
 # Changelog
+## [0.5.0] - 2026-01-19
+
+### Changed
+- Reduced icon offset slider range to ±25px
+
+## [0.5.0] - 2026-01-19
+
+### Fixed
+- Fixed X/Y offset slider property name mismatch
+
+## [0.5.0] - 2026-01-19
+
+### Changed
+- Set default background opacity to 40% for all unit frames
+
+## [0.5.0] - 2026-01-19
+
+### Fixed
+- Fixed combat taint error with InCombatLockdown protection
+
+## [0.5.0] - 2026-01-19
+
+### Added
+- Enhanced summon icon with Pending/Accepted/Declined states
+
+## [0.5.0] - 2026-01-19
+
+### Fixed
+- Fixed role icon texcoords (0.3 crop) for proper centering
+
+## [0.5.0] - 2026-01-19
+
+### Changed
+- Set default icon positions and offsets for all unit frames
+
+## [0.5.0] - 2026-01-19
+
+### Fixed
+- Fixed all 12 status icon textures with proper Blizzard paths
+
 
 All notable changes to this project will be documented in this file.
 

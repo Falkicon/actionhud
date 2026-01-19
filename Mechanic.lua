@@ -236,8 +236,16 @@ function ActionHudMechanic:GetTestResult(id)
 			message = testResult and "Midnight-safe APIs working" or "Safe APIs not available",
 			details = {
 				{ label = "Utils Module", value = Utils and "OK" or "nil", status = Utils and "pass" or "fail" },
-				{ label = "SafeCompare", value = hasSafeCompare and "OK" or "nil", status = hasSafeCompare and "pass" or "fail" },
-				{ label = "Test 5>3", value = testResult and "Pass" or "Fail", status = testResult and "pass" or "fail" },
+				{
+					label = "SafeCompare",
+					value = hasSafeCompare and "OK" or "nil",
+					status = hasSafeCompare and "pass" or "fail",
+				},
+				{
+					label = "Test 5>3",
+					value = testResult and "Pass" or "Fail",
+					status = testResult and "pass" or "fail",
+				},
 			},
 		}
 	end

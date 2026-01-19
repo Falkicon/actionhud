@@ -55,9 +55,15 @@ function Utils:GetActionCooldownSafe(actionID)
 			local duration = info.duration
 			local modRate = info.modRate
 			-- Only default to 0/1 if nil (not if secret)
-			if startTime == nil then startTime = 0 end
-			if duration == nil then duration = 0 end
-			if modRate == nil then modRate = 1 end
+			if startTime == nil then
+				startTime = 0
+			end
+			if duration == nil then
+				duration = 0
+			end
+			if modRate == nil then
+				modRate = 1
+			end
 			return startTime, duration, info.isEnabled, modRate
 		end
 	end
