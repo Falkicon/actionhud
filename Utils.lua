@@ -87,7 +87,10 @@ function Utils.FormatDurationSafe(seconds)
 end
 
 function Utils.GetTimerFont(size)
-	return F and F:GetTimerFont(size) or "GameFontHighlightOutline"
+	if F and F.GetTimerFont then
+		return F:GetTimerFont(size)
+	end
+	return "GameFontHighlightOutline"
 end
 
 --------------------------------------------------------------------------------

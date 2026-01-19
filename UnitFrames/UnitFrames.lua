@@ -15,19 +15,23 @@ local BACKDROP = {
 	bgFile = "Interface\\Buttons\\WHITE8X8",
 	edgeFile = "Interface\\Buttons\\WHITE8X8",
 	edgeSize = 1,
-	insets = { left = 0, right = 0, top = 0, bottom = 0 }
+	insets = { left = 0, right = 0, top = 0, bottom = 0 },
 }
 
 -- Helper to safely return a value or a default, avoiding boolean tests on secrets
 local function Pass(v, default)
-    if type(v) == "nil" then return default or 0 end
-    return v
+	if type(v) == "nil" then
+		return default or 0
+	end
+	return v
 end
 
 -- Robust IsActive check that avoids crashing on secret values
 local function IsActive(val)
-	if type(val) == "nil" then return false end
-	
+	if type(val) == "nil" then
+		return false
+	end
+
 	-- In Midnight, secrets have type "number" but crash on comparison.
 	if Utils.IsValueSecret(val) then
 		return true -- Assume active if secret
@@ -39,22 +43,28 @@ local function IsActive(val)
 	end
 
 	-- Fallback for other types
-	local ok, res = pcall(function() return val > 0 end)
-	if not ok then return true end
+	local ok, res = pcall(function()
+		return val > 0
+	end)
+	if not ok then
+		return true
+	end
 	return res
 end
 
 -- Format large numbers (1000 -> 1K) safely
 local function FormatValue(val)
-	if type(val) == "nil" then return "???" end
-	
+	if type(val) == "nil" then
+		return "???"
+	end
+
 	-- If it's a number, we can use AbbreviateNumbers
 	if type(val) == "number" then
 		local ok, res = pcall(AbbreviateNumbers, val)
 		return ok and res or tostring(val)
 	end
 
-	-- If it's a secret value, AbbreviateNumbers might crash. 
+	-- If it's a secret value, AbbreviateNumbers might crash.
 	-- We return it as-is for %s formatting later.
 	return val
 end
@@ -63,19 +73,19 @@ end
 local function CreateUnitBar(parent, name)
 	local bar = CreateFrame("StatusBar", nil, parent)
 	bar:SetStatusBarTexture(FLAT_BAR_TEXTURE)
-	
+
 	-- Background for the bar
 	bar.bg = bar:CreateTexture(nil, "BACKGROUND")
 	bar.bg:SetAllPoints()
 	bar.bg:SetColorTexture(0.1, 0.1, 0.1, 0.5)
-	
+
 	-- Heal Prediction Overlay
 	bar.predict = CreateFrame("StatusBar", nil, bar)
 	bar.predict:SetAllPoints()
 	bar.predict:SetStatusBarTexture(FLAT_BAR_TEXTURE)
 	bar.predict:SetStatusBarColor(0, 1, 0, 0.4)
 	bar.predict:SetFrameLevel(bar:GetFrameLevel() + 1)
-	
+
 	-- Absorb Overlay
 	bar.absorb = CreateFrame("StatusBar", nil, bar)
 	bar.absorb:SetAllPoints()
@@ -85,7 +95,7 @@ local function CreateUnitBar(parent, name)
 	if bar.absorb.SetReverseFill then
 		bar.absorb:SetReverseFill(true)
 	end
-	
+
 	return bar
 end
 
@@ -103,10 +113,13 @@ local function CreateIcon(parent, name)
 end
 
 local function ApplyTextStyle(fontString, config, unit)
-	if not fontString or not config then return end
+	if not fontString or not config then
+		return
+	end
 
-	local fontPath = LSM:Fetch("font", config.font)
-	fontString:SetFont(fontPath, config.size, config.outline ~= "NONE" and config.outline or nil)
+	local fontPath = LSM:Fetch("font", config.font) or "Fonts\\FRIZQT__.TTF"
+	local fontSize = config.size or 12  -- Default to 12 if nil
+	fontString:SetFont(fontPath, fontSize, config.outline ~= "NONE" and config.outline or nil)
 
 	local r, g, b = 1, 1, 1
 	if config.colorMode == "custom" then
@@ -156,21 +169,21 @@ function UnitFrames:CreateFrames()
 		local f = CreateFrame("Frame", "ActionHudUnitFrame_" .. frameId, UIParent, "BackdropTemplate")
 		f.unit = unit
 		f.unitId = frameId
-		
+
 		-- Background
 		f.bg = f:CreateTexture(nil, "BACKGROUND")
 		f.bg:SetAllPoints()
-		
+
 		-- Border (using Backdrop)
 		f.border = CreateFrame("Frame", nil, f, "BackdropTemplate")
 		f.border:SetAllPoints()
-		
+
 		-- Bars
 		f.health = CreateUnitBar(f, "Health")
 		f.health:SetClipsChildren(true)
 		f.power = CreateUnitBar(f, "Power")
 		f.class = CreateUnitBar(f, "Class")
-		
+
 		-- Health Text Elements
 		f.healthElements = {
 			level = CreateTextElement(f.health, "Level"),
@@ -178,13 +191,13 @@ function UnitFrames:CreateFrames()
 			value = CreateTextElement(f.health, "Value"),
 			percent = CreateTextElement(f.health, "Percent"),
 		}
-		
+
 		-- Power Text Elements
 		f.powerElements = {
 			value = CreateTextElement(f.power, "Value"),
 			percent = CreateTextElement(f.power, "Percent"),
 		}
-		
+
 		-- Icons
 		f.icons = {
 			combat = CreateIcon(f, "Combat"),
@@ -200,7 +213,7 @@ function UnitFrames:CreateFrames()
 			summon = CreateIcon(f, "Summon"),
 			readyCheck = CreateIcon(f, "ReadyCheck"),
 		}
-		
+
 		self.frames[frameId] = f
 	end
 	self:UpdateLayout()
@@ -208,13 +221,17 @@ end
 
 function UnitFrames:UpdateLayout()
 	if not self.db.profile.ufEnabled then
-		for _, f in pairs(self.frames) do f:Hide() end
+		for _, f in pairs(self.frames) do
+			f:Hide()
+		end
 		return
 	end
 
 	for frameId, f in pairs(self.frames) do
 		local db = self.db.profile.ufConfig[frameId]
-		if not db then return end
+		if not db then
+			return
+		end
 
 		if not db.enabled then
 			f:Hide()
@@ -238,9 +255,11 @@ function UnitFrames:UpdateLayout()
 			local hH = db.height
 			local pH = db.powerBarEnabled and db.powerBarHeight or 0
 			local cH = (frameId == "player" and db.classBarEnabled) and db.classBarHeight or 0
-			
+
 			local healthActualH = hH - pH - cH
-			if healthActualH < 1 then healthActualH = 1 end
+			if healthActualH < 1 then
+				healthActualH = 1
+			end
 
 			f.health:SetHeight(healthActualH)
 			f.health:SetPoint("TOPLEFT", f, "TOPLEFT")
@@ -326,7 +345,7 @@ function UnitFrames:UpdateFrameValues(f)
 		f:Hide()
 		return
 	end
-	
+
 	local db = self.db.profile.ufConfig[f.unitId]
 	if not db or not db.enabled then
 		f:Hide()
@@ -335,20 +354,25 @@ function UnitFrames:UpdateFrameValues(f)
 	f:Show()
 
 	-- 1. Health Bar (Native Passthrough)
-	local curH = UnitHealth(unit)
-	local maxH = UnitHealthMax(unit)
+	local curH = UnitHealth(unit) -- @scan-ignore: midnight-friendly-unit
+	local maxH = UnitHealthMax(unit) -- @scan-ignore: midnight-friendly-unit
 	f.health:SetMinMaxValues(0, Pass(maxH, 1))
 	f.health:SetValue(Pass(curH, 0))
 
 	-- 2. Power Bar
-	local curP = UnitPower(unit)
-	local maxP = UnitPowerMax(unit)
+	local curP = UnitPower(unit) -- @scan-ignore: midnight-friendly-unit
+	local maxP = UnitPowerMax(unit) -- @scan-ignore: midnight-friendly-unit
 	f.power:SetMinMaxValues(0, Pass(maxP, 1))
 	f.power:SetValue(Pass(curP, 0))
-	
+
 	-- Visibility logic for Power
 	if db.powerBarEnabled then
-		if Utils.IsValueSecret(curP) or Utils.IsValueSecret(maxP) or type(curP) ~= "number" or type(maxP) ~= "number" then
+		if
+			Utils.IsValueSecret(curP)
+			or Utils.IsValueSecret(maxP)
+			or type(curP) ~= "number"
+			or type(maxP) ~= "number"
+		then
 			-- If either is secret, we must show the bar (since we can't compare)
 			f.power:Show()
 		else
@@ -363,14 +387,20 @@ function UnitFrames:UpdateFrameValues(f)
 	if f.unitId == "player" and db.classBarEnabled then
 		local _, powerToken = UnitPowerType("player")
 		-- Basic check: if it's not a primary resource, show class bar
-		if powerToken and powerToken ~= "MANA" and powerToken ~= "RAGE" and powerToken ~= "FOCUS" and powerToken ~= "ENERGY" then
+		if
+			powerToken
+			and powerToken ~= "MANA"
+			and powerToken ~= "RAGE"
+			and powerToken ~= "FOCUS"
+			and powerToken ~= "ENERGY"
+		then
 			showClass = true
 		end
 	end
 	f.class:SetShown(showClass)
 	if showClass then
-		local curC = UnitPower("player", nil, true) -- Displayable class power
-		local maxC = UnitPowerMax("player", nil, true)
+		local curC = UnitPower("player", nil, true) -- @scan-ignore: midnight-player-only
+		local maxC = UnitPowerMax("player", nil, true) -- @scan-ignore: midnight-player-only
 		f.class:SetMinMaxValues(0, Pass(maxC, 1))
 		f.class:SetValue(Pass(curC, 0))
 	end
@@ -383,7 +413,12 @@ function UnitFrames:UpdateFrameValues(f)
 		-- Heal Prediction
 		if IsActive(incomingHeals) then
 			f.health.predict:Show()
-			if type(incomingHeals) == "number" and not Utils.IsValueSecret(incomingHeals) and type(curH) == "number" and not Utils.IsValueSecret(curH) then
+			if
+				type(incomingHeals) == "number"
+				and not Utils.IsValueSecret(incomingHeals)
+				and type(curH) == "number"
+				and not Utils.IsValueSecret(curH)
+			then
 				f.health.predict:SetMinMaxValues(0, Pass(maxH, 1))
 				f.health.predict:SetValue(curH + incomingHeals)
 			else
@@ -410,21 +445,27 @@ function UnitFrames:UpdateFrameValues(f)
 
 	-- 5. Text Display (The "Gold Standard" Pattern)
 	-- Health Text
-	local displayH = UnitHealth(unit, true)
-	local displayMaxH = UnitHealthMax(unit, true)
-	
+	local displayH = UnitHealth(unit, true) -- @scan-ignore: midnight-friendly-unit
+	local displayMaxH = UnitHealthMax(unit, true) -- @scan-ignore: midnight-friendly-unit
+
 	if db.healthText.name.enabled then
-		pcall(function() f.healthElements.name.fontString:SetText(GetUnitName(unit, true)) end)
+		pcall(function()
+			f.healthElements.name.fontString:SetText(GetUnitName(unit, true))
+		end)
 	end
-	
+
 	if db.healthText.level.enabled then
-		pcall(function() f.healthElements.level.fontString:SetText(UnitLevel(unit)) end)
+		pcall(function()
+			f.healthElements.level.fontString:SetText(UnitLevel(unit))
+		end)
 	end
 
 	if db.healthText.value.enabled then
 		local hStr = FormatValue(displayH)
 		local mStr = FormatValue(displayMaxH)
-		pcall(function() f.healthElements.value.fontString:SetFormattedText("%s/%s", hStr, mStr) end)
+		pcall(function()
+			f.healthElements.value.fontString:SetFormattedText("%s/%s", hStr, mStr)
+		end)
 	end
 
 	if db.healthText.percent.enabled then
@@ -432,8 +473,13 @@ function UnitFrames:UpdateFrameValues(f)
 			local pct = UnitHealthPercent(unit, true, 100) -- CurveConstants.ScaleTo100 is 100
 			if type(pct) == "nil" then
 				-- Fallback to manual calc if displayable values are non-secret numbers
-				if type(displayMaxH) == "number" and not Utils.IsValueSecret(displayMaxH) and displayMaxH > 0 
-				   and type(displayH) == "number" and not Utils.IsValueSecret(displayH) then
+				if
+					type(displayMaxH) == "number"
+					and not Utils.IsValueSecret(displayMaxH)
+					and displayMaxH > 0
+					and type(displayH) == "number"
+					and not Utils.IsValueSecret(displayH)
+				then
 					pct = math.floor((displayH / displayMaxH) * 100)
 				else
 					pct = "???"
@@ -445,13 +491,15 @@ function UnitFrames:UpdateFrameValues(f)
 
 	-- Power Text
 	local _, powerToken = UnitPowerType(unit)
-	local displayP = UnitPower(unit, nil, true)
-	local displayMaxP = UnitPowerMax(unit, nil, true)
+	local displayP = UnitPower(unit, nil, true) -- @scan-ignore: midnight-friendly-unit
+	local displayMaxP = UnitPowerMax(unit, nil, true) -- @scan-ignore: midnight-friendly-unit
 
 	if db.powerText.value.enabled then
 		local pStr = FormatValue(displayP)
 		local pmStr = FormatValue(displayMaxP)
-		pcall(function() f.powerElements.value.fontString:SetFormattedText("%s/%s", pStr, pmStr) end)
+		pcall(function()
+			f.powerElements.value.fontString:SetFormattedText("%s/%s", pStr, pmStr)
+		end)
 	end
 
 	-- 6. Status Icons (Basic placeholder for now)
@@ -460,7 +508,7 @@ function UnitFrames:UpdateFrameValues(f)
 		if config and config.enabled then
 			local show = false
 			local atlas = nil
-			
+
 			if iconId == "combat" then
 				show = UnitAffectingCombat(unit)
 				atlas = "orderhalltalents-done-check"
@@ -468,11 +516,13 @@ function UnitFrames:UpdateFrameValues(f)
 				show = (unit == "player" and IsResting())
 				atlas = "RestingIcon"
 			end
-			
+
 			if show then
 				tex:Show()
 				tex:SetSize(config.size, config.size)
-				if atlas then tex:SetAtlas(atlas) end
+				if atlas then
+					tex:SetAtlas(atlas)
+				end
 				-- Position logic...
 			else
 				tex:Hide()
