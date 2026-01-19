@@ -347,11 +347,21 @@ function UnitFrames:UpdateLayout()
 	local DraggableContainer = ns.DraggableContainer
 
 	if not self.db.profile.ufEnabled then
-		for frameId, f in pairs(self.frames) do
-			f:Hide()
-			local container = self.containers and self.containers[frameId]
-			if container then
-				container:Hide()
+		-- Can't modify secure frames during combat
+		if not InCombatLockdown() then
+			for frameId, f in pairs(self.frames) do
+				-- Unregister unit watch so it doesn't auto-show when unit exists (target/focus only)
+				if frameId ~= "player" then
+					UnregisterUnitWatch(f)
+				end
+				local container = self.containers and self.containers[frameId]
+				if container then
+					if frameId ~= "player" then
+						UnregisterUnitWatch(container)
+					end
+					container:Hide()
+				end
+				f:Hide()
 			end
 		end
 		return
@@ -366,11 +376,29 @@ function UnitFrames:UpdateLayout()
 		local container = self.containers and self.containers[frameId]
 
 		if not db.enabled then
+			-- Unregister unit watch for individual frame disable
+			if frameId ~= "player" then
+				UnregisterUnitWatch(f)
+				if container then
+					UnregisterUnitWatch(container)
+				end
+			end
 			f:Hide()
 			if container then
 				container:Hide()
 			end
 		else
+			-- Re-register unit watch for target/focus frames
+			if frameId ~= "player" then
+				-- Ensure unit attribute is set
+				f:SetAttribute("unit", f.unit)
+				RegisterUnitWatch(f)
+				if container then
+					container:SetAttribute("unit", f.unit)
+					RegisterUnitWatch(container)
+				end
+			end
+
 			-- Update container size and position
 			if container then
 				container:SetSize(db.width, db.height)
@@ -384,10 +412,16 @@ function UnitFrames:UpdateLayout()
 					local isUnlocked = DraggableContainer:IsUnlocked(self.db)
 					f:EnableMouse(not isUnlocked)
 				end
-				container:Show()
+				-- Only manually show player container (unit watch handles target/focus)
+				if frameId == "player" then
+					container:Show()
+				end
 			end
 
-			f:Show()
+			-- Only manually show player frame (unit watch handles target/focus)
+			if frameId == "player" then
+				f:Show()
+			end
 
 			-- Visuals
 			f.bg:SetColorTexture(db.bgColor.r, db.bgColor.g, db.bgColor.b, db.bgOpacity)
