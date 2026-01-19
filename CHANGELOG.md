@@ -1,4 +1,14 @@
 # Changelog
+## [2.9.1] - 2026-01-19
+
+### Fixed
+- Fixed unit frames staying visible when custom frames disabled
+
+## [2.9.1] - 2026-01-19
+
+### Fixed
+- Fixed combat taint error when resetting profile during combat
+
 ## [0.5.0] - 2026-01-19
 
 ### Changed
