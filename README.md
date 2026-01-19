@@ -9,6 +9,15 @@ A lightweight, high-performance action bar HUD for World of Warcraft Retail. Dis
 
 > **Midnight Compatibility**: This addon is fully prepared for WoW 12.0 (Midnight). It uses passthrough patterns for secret values during combat, defensive API wrappers, and graceful degradation for restricted zones.
 
+### Complete Your UI for Midnight
+
+Check out these complementary addons to round out your interface:
+
+- **[Danders Frames](https://www.curseforge.com/wow/addons/danders-frames)** – Clean party & raid frames
+- **[TweaksUI: Cooldowns](https://www.curseforge.com/wow/addons/cooldown-manager-tweaks)** – Cooldown and buff skinning
+- **[ClassyMap](https://www.curseforge.com/wow/addons/classymap)** – Lightweight map replacement
+- **[Weekly](https://www.curseforge.com/wow/addons/weekly-to-do-tracker)** – Activity tracker for Midnight and pre-expansion events
+
 ## Features
 
 - **Action Bar Mirroring** – Dynamically synchronizes with Blizzard's **Action Bar 1** and **Action Bar 2** layout (rows/columns) from Edit Mode.
