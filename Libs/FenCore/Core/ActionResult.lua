@@ -22,11 +22,11 @@ local ActionResult = {}
 ---@param reasoning? string Optional explanation
 ---@return ActionResult<T>
 function ActionResult.success(data, reasoning)
-	return {
-		success = true,
-		data = data,
-		reasoning = reasoning,
-	}
+    return {
+        success = true,
+        data = data,
+        reasoning = reasoning,
+    }
 end
 
 --- Create a failed ActionResult.
@@ -35,28 +35,28 @@ end
 ---@param suggestion? string What to do about it
 ---@return ActionResult
 function ActionResult.error(code, message, suggestion)
-	return {
-		success = false,
-		error = {
-			code = code,
-			message = message,
-			suggestion = suggestion,
-		},
-	}
+    return {
+        success = false,
+        error = {
+            code = code,
+            message = message,
+            suggestion = suggestion,
+        },
+    }
 end
 
 --- Check if a result is successful.
 ---@param result ActionResult
 ---@return boolean
 function ActionResult.isSuccess(result)
-	return result and result.success == true
+    return result and result.success == true
 end
 
 --- Check if a result is an error.
 ---@param result ActionResult
 ---@return boolean
 function ActionResult.isError(result)
-	return result and result.success == false
+    return result and result.success == false
 end
 
 --- Unwrap a result, returning data or nil.
@@ -64,10 +64,10 @@ end
 ---@param result ActionResult<T>
 ---@return T|nil
 function ActionResult.unwrap(result)
-	if result and result.success then
-		return result.data
-	end
-	return nil
+    if result and result.success then
+        return result.data
+    end
+    return nil
 end
 
 --- Unwrap a result, throwing error if failed.
@@ -75,21 +75,21 @@ end
 ---@param result ActionResult<T>
 ---@return T
 function ActionResult.unwrapOrThrow(result)
-	if result and result.success then
-		return result.data
-	end
-	local errMsg = result and result.error and result.error.message or "Unknown error"
-	error(errMsg, 2)
+    if result and result.success then
+        return result.data
+    end
+    local errMsg = result and result.error and result.error.message or "Unknown error"
+    error(errMsg, 2)
 end
 
 --- Get error code from a failed result.
 ---@param result ActionResult
 ---@return string|nil
 function ActionResult.getErrorCode(result)
-	if result and result.error then
-		return result.error.code
-	end
-	return nil
+    if result and result.error then
+        return result.error.code
+    end
+    return nil
 end
 
 --- Map a successful result to a new value.
@@ -98,10 +98,10 @@ end
 ---@param fn fun(data: T): U Mapping function
 ---@return ActionResult<U>
 function ActionResult.map(result, fn)
-	if result and result.success then
-		return ActionResult.success(fn(result.data), result.reasoning)
-	end
-	return result
+    if result and result.success then
+        return ActionResult.success(fn(result.data), result.reasoning)
+    end
+    return result
 end
 
 FenCore.ActionResult = ActionResult

@@ -12,7 +12,7 @@
 -- @release $Id$
 local CallbackHandler = LibStub("CallbackHandler-1.0")
 
-local MAJOR, MINOR = "AceEvent-3.0", 4
+local MAJOR, MINOR = "AceEvent-3.0", 6
 local AceEvent = LibStub:NewLibrary(MAJOR, MINOR)
 
 if not AceEvent then
@@ -22,7 +22,15 @@ end
 -- Lua APIs
 local pairs = pairs
 
-AceEvent.frame = AceEvent.frame or CreateFrame("Frame", "AceEvent30Frame") -- our event frame
+-- WoW 12.0+: Frames can become protected/tainted. Always create a fresh
+-- anonymous frame to avoid inheriting taint from earlier addon loads.
+if AceEvent.frame then
+	pcall(function()
+		AceEvent.frame:UnregisterAllEvents()
+		AceEvent.frame:SetScript("OnEvent", nil)
+	end)
+end
+AceEvent.frame = CreateFrame("Frame") -- always fresh anonymous frame
 AceEvent.embeds = AceEvent.embeds or {} -- what objects embed this lib
 
 -- APIs and registry for blizzard events, using CallbackHandler lib
@@ -30,12 +38,29 @@ if not AceEvent.events then
 	AceEvent.events = CallbackHandler:New(AceEvent, "RegisterEvent", "UnregisterEvent", "UnregisterAllEvents")
 end
 
+-- WoW 12.0+: RegisterEvent can be protected during addon init.
+-- Use pcall and defer if needed.
+local pendingEvents = {}
+
 function AceEvent.events:OnUsed(target, eventname)
-	AceEvent.frame:RegisterEvent(eventname)
+	local success = pcall(AceEvent.frame.RegisterEvent, AceEvent.frame, eventname)
+	if not success then
+		pendingEvents[eventname] = true
+		if not AceEvent.deferTimer then
+			AceEvent.deferTimer = C_Timer.After(0, function()
+				AceEvent.deferTimer = nil
+				for ev in pairs(pendingEvents) do
+					pcall(AceEvent.frame.RegisterEvent, AceEvent.frame, ev)
+				end
+				wipe(pendingEvents)
+			end)
+		end
+	end
 end
 
 function AceEvent.events:OnUnused(target, eventname)
-	AceEvent.frame:UnregisterEvent(eventname)
+	pendingEvents[eventname] = nil
+	pcall(AceEvent.frame.UnregisterEvent, AceEvent.frame, eventname)
 end
 
 -- APIs and registry for IPC messages, using CallbackHandler lib

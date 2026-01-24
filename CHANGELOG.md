@@ -1,4 +1,14 @@
 # Changelog
+## [2.10.0] - 2026-01-24
+
+### Fixed
+- **Midnight M+ Charge Display**: Fixed action bar charges not showing in M+ combat by using `C_ActionBar.GetActionDisplayCount` pattern (from LibActionButton-1.0)
+- **M+ Instance Layout**: Fixed action bars switching from 1 row to 2 rows when entering instances by pre-caching Edit Mode settings in safe zones
+- **Secret Value Detection**: Improved `Utils.IsValueSecret` to use `issecretvalue()` global as primary detection method
+
+### Changed
+- **Charge Display Logic**: Simplified count/charge display code - removed manual secret checks in favor of Blizzard's display-ready API
+
 ## [2.9.1] - 2026-01-19
 
 ### Fixed

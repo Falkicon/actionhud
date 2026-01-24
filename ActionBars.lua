@@ -135,7 +135,18 @@ function AB:OnEnable()
 		self:CreateButtons(container)
 	end
 
-	self:RegisterEvent("PLAYER_ENTERING_WORLD", "RefreshAll")
+	self:RegisterEvent("PLAYER_ENTERING_WORLD", function()
+		-- Pre-cache layout settings when in safe zone (not in instance)
+		-- This ensures we have valid cache data when entering M+/raids
+		local inInstance = IsInInstance()
+		if not inInstance and not InCombatLockdown() then
+			AB:ClearLayoutCache()
+			-- Force read Edit Mode settings to populate cache
+			AB:GetEditModeSettings(1)
+			AB:GetEditModeSettings(2)
+		end
+		AB:RefreshAll()
+	end)
 	self:RegisterEvent("EDIT_MODE_LAYOUTS_UPDATED", function()
 		-- Clear cache and delay update to ensure Blizzard's internal state is fully saved
 		AB:ClearLayoutCache()
@@ -755,10 +766,45 @@ function AB:UpdateState(btn)
 	end
 	local actionID = btn.actionID
 
-	-- Use the new native display count API (Midnight standard)
-	-- This handles both charges and regular counts, and is non-secret.
-	local count = Utils.GetActionDisplayCountSafe(actionID)
-	btn.count:SetText(count or "")
+	-- Handle count display: ability charges OR item stacks
+	-- Use LibActionButton-1.0 pattern: C_ActionBar.GetActionDisplayCount returns display-ready text
+	-- that handles secret values internally. Pass directly to SetText.
+	
+	-- Primary: Use C_ActionBar.GetActionDisplayCount for actions (Midnight-safe)
+	if C_ActionBar and C_ActionBar.GetActionDisplayCount then
+		-- This API returns display-ready text (handles secrets internally)
+		-- Second param is maxDisplayCount (9999 = show all)
+		local displayText = C_ActionBar.GetActionDisplayCount(actionID, 9999)
+		btn.count:SetText(displayText)
+		btn.count:SetAlpha(1)
+		return
+	end
+	
+	-- Fallback for pre-Midnight or if API not available
+	-- Must use readable comparisons here (errors if secret)
+	local ok, displayText = pcall(function()
+		-- Check charges first
+		local chargeInfo = Utils.GetSpellChargesSafe(btn.spellID)
+		if chargeInfo and chargeInfo.maxCharges and chargeInfo.maxCharges > 1 then
+			return chargeInfo.currentCharges
+		end
+		
+		-- Check item count
+		local count = GetActionCount and GetActionCount(actionID)
+		if count and count > 1 then
+			return count
+		end
+		
+		return nil
+	end)
+	
+	if ok and displayText then
+		btn.count:SetText(displayText)
+		btn.count:SetAlpha(1)
+	else
+		btn.count:SetText("")
+		btn.count:SetAlpha(1)
+	end
 
 	local isUsable, noMana = IsUsableAction(actionID) -- @scan-ignore: midnight-normalized
 	if not isUsable and not noMana then

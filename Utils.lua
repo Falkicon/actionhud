@@ -98,7 +98,12 @@ end
 --------------------------------------------------------------------------------
 
 function Utils.IsValueSecret(value)
-	-- FenCore.Secrets is the canonical source
+	-- Primary: Use Midnight's dedicated issecretvalue() global (12.0+)
+	if issecretvalue then
+		return issecretvalue(value) == true
+	end
+	
+	-- FenCore.Secrets fallback
 	if Secrets then
 		return Secrets.IsSecret(value)
 	end
@@ -286,7 +291,36 @@ function Utils.IsSpellOverlayedSafe(s)
 	return F and F:IsSpellOverlayedSafe(s)
 end
 function Utils.GetActionDisplayCountSafe(a)
-	return F and F:GetActionDisplayCountSafe(a)
+	-- Try FenUI first
+	if F and F.GetActionDisplayCountSafe then
+		local count = F:GetActionDisplayCountSafe(a)
+		-- Check for secret value before comparing
+		if count and not Utils.IsValueSecret(count) and count > 0 then
+			return count
+		end
+	end
+	-- Built-in fallback using legacy GetActionCount (works for items)
+	if GetActionCount then
+		local ok, count = pcall(GetActionCount, a)
+		if ok and count and not Utils.IsValueSecret(count) and type(count) == "number" then
+			return count
+		end
+	end
+	-- Midnight: Try C_ActionBar.GetActionDisplayCount directly
+	if C_ActionBar and C_ActionBar.GetActionDisplayCount then
+		local ok, count = pcall(C_ActionBar.GetActionDisplayCount, a)
+		if ok and count and not Utils.IsValueSecret(count) then
+			if type(count) == "table" then
+				local val = count.count or count.displayCount
+				if val and not Utils.IsValueSecret(val) then
+					return val
+				end
+				return 0
+			end
+			return count
+		end
+	end
+	return 0
 end
 function Utils.GetActionBarPageSafe()
 	return F and F:GetActionBarPageSafe() or 1
