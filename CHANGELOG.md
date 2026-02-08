@@ -1,4 +1,11 @@
 # Changelog
+## [2.12.0] - 2026-02-08
+
+### Added
+- Added Target of Target unit frame with configurable health/power bars, name/level text, and class-colored icons
+- Added "Copy Settings From" dropdown in unit frame settings for quick configuration between player/target/targettarget/focus frames
+- Added Hide Blizzard Target of Target frame toggle
+
 ## [2.11.0] - 2026-02-08
 
 ### Added

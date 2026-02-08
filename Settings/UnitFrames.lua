@@ -336,6 +336,9 @@ function ns.Settings.BuildUnitFramesOptions(self)
 								if frameId ~= "target" then
 									vals.target = L["Target Frame"]
 								end
+								if frameId ~= "targettarget" then
+									vals.targettarget = L["Target of Target"]
+								end
 								if frameId ~= "focus" then
 									vals.focus = L["Focus Frame"]
 								end
@@ -722,6 +725,10 @@ function ns.Settings.BuildUnitFramesOptions(self)
 							FocusFrame:SetAlpha(0)
 							FocusFrame:EnableMouse(false)
 						end
+						if TargetFrameToT then
+							TargetFrameToT:SetAlpha(0)
+							TargetFrameToT:EnableMouse(false)
+						end
 					else
 						if PlayerFrame then
 							PlayerFrame:SetAlpha(1)
@@ -735,11 +742,16 @@ function ns.Settings.BuildUnitFramesOptions(self)
 							FocusFrame:SetAlpha(1)
 							FocusFrame:EnableMouse(true)
 						end
+						if TargetFrameToT then
+							TargetFrameToT:SetAlpha(1)
+							TargetFrameToT:EnableMouse(true)
+						end
 					end
 				end,
 			},
 			player = GetFrameOptions("player", L["Player Frame"], 10),
 			target = GetFrameOptions("target", L["Target Frame"], 20),
+			targettarget = GetFrameOptions("targettarget", L["Target of Target"], 25),
 			focus = GetFrameOptions("focus", L["Focus Frame"], 30),
 		},
 	}

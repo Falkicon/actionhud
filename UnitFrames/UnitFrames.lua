@@ -162,6 +162,7 @@ function UnitFrames:OnEnable()
 	self:CreateFrames()
 	self:RegisterEvent("PLAYER_TARGET_CHANGED", "UpdateAll")
 	self:RegisterEvent("PLAYER_FOCUS_CHANGED", "UpdateAll")
+	self:RegisterEvent("UNIT_TARGET", "OnUnitTarget") -- For targettarget updates
 	self:RegisterEvent("UNIT_HEALTH", "UpdateFrameEvent")
 	self:RegisterEvent("UNIT_MAXHEALTH", "UpdateFrameEvent")
 	self:RegisterEvent("UNIT_POWER_UPDATE", "UpdateFrameEvent")
@@ -189,6 +190,11 @@ function UnitFrames:ApplyBlizzardFrameVisibility()
 			FocusFrame:SetAlpha(0)
 			FocusFrame:EnableMouse(false)
 		end
+		-- Hide Blizzard's Target of Target frame
+		if TargetFrameToT then
+			TargetFrameToT:SetAlpha(0)
+			TargetFrameToT:EnableMouse(false)
+		end
 	else
 		if PlayerFrame then
 			PlayerFrame:SetAlpha(1)
@@ -201,6 +207,10 @@ function UnitFrames:ApplyBlizzardFrameVisibility()
 		if FocusFrame then
 			FocusFrame:SetAlpha(1)
 			FocusFrame:EnableMouse(true)
+		end
+		if TargetFrameToT then
+			TargetFrameToT:SetAlpha(1)
+			TargetFrameToT:EnableMouse(true)
 		end
 	end
 end
@@ -216,6 +226,7 @@ function UnitFrames:CreateFrames()
 	local units = {
 		player = { unit = "player", moduleId = "ufPlayer", defaultX = -200, defaultY = 50 },
 		target = { unit = "target", moduleId = "ufTarget", defaultX = 200, defaultY = 50 },
+		targettarget = { unit = "targettarget", moduleId = "ufTargettarget", defaultX = 370, defaultY = 50 },
 		focus = { unit = "focus", moduleId = "ufFocus", defaultX = 200, defaultY = -50 },
 	}
 
@@ -537,6 +548,17 @@ end
 function UnitFrames:UpdateFrameEvent(event, unit)
 	for _, f in pairs(self.frames) do
 		if f.unit == unit then
+			self:UpdateFrameValues(f)
+		end
+	end
+end
+
+-- When any unit's target changes, update targettarget frame
+function UnitFrames:OnUnitTarget(event, unit)
+	if unit == "target" then
+		-- Target's target changed, update the targettarget frame
+		local f = self.frames.targettarget
+		if f then
 			self:UpdateFrameValues(f)
 		end
 	end

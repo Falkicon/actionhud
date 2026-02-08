@@ -262,6 +262,7 @@ L["Target Frame"] = true
 L["Apply styling to the Target Frame."] = true
 L["Focus Frame"] = true
 L["Apply styling to the Focus Frame."] = true
+L["Target of Target"] = true
 
 -- Settings UI - Custom Unit Frames
 L["Custom Unit Frames"] = true
