@@ -164,6 +164,12 @@ function AB:OnEnable()
 	self:RegisterEvent("ACTIONBAR_UPDATE_USABLE", "UpdateStateAll")
 	self:RegisterEvent("SPELL_UPDATE_CHARGES", "UpdateStateAll")
 
+	-- Midnight 12.0+: Push-based events for usability and range
+	if C_ActionBar then
+		self:RegisterEvent("ACTION_USABLE_CHANGED")
+		self:RegisterEvent("ACTION_RANGE_CHECK_UPDATE")
+	end
+
 	-- Hook Edit Mode exit to force a layout refresh
 	if EditModeManagerFrame then
 		hooksecurefunc(EditModeManagerFrame, "ExitEditMode", function()
@@ -171,6 +177,20 @@ function AB:OnEnable()
 			AB:UpdateLayout()
 		end)
 	end
+
+	-- Range ticker: periodic out-of-range check (0.2s, standard for action bar addons)
+	if not AB.rangeTicker then
+		AB.rangeTicker = CreateFrame("Frame")
+		AB.rangeTicker.elapsed = 0
+		AB.rangeTicker:SetScript("OnUpdate", function(self, elapsed)
+			self.elapsed = self.elapsed + elapsed
+			if self.elapsed >= 0.2 then
+				self.elapsed = 0
+				AB:UpdateRange()
+			end
+		end)
+	end
+	AB.rangeTicker:Show()
 
 	self:UpdateLayout()
 	self:RefreshAll()
@@ -540,6 +560,10 @@ function AB:OnDisable()
 	for _, btn in ipairs(buttons) do
 		btn:Hide()
 	end
+	-- Stop range ticker when disabled
+	if AB.rangeTicker then
+		AB.rangeTicker:Hide()
+	end
 end
 
 function AB:RefreshAll()
@@ -581,11 +605,63 @@ function AB:SPELL_UPDATE_COOLDOWN()
 end
 
 function AB:UpdateStateAll()
-	-- ActionHud:Log("ActionBars: UpdateStateAll", "events") -- Disabled: too verbose
 	-- Only update buttons with actions (skip empty slots to reduce overhead)
 	for _, btn in ipairs(buttons) do
 		if btn.hasAction then
 			self:UpdateState(btn)
+		end
+	end
+end
+
+-- Midnight 12.0+: Targeted usability update from push event
+function AB:ACTION_USABLE_CHANGED(event, changes)
+	if not changes then
+		self:UpdateStateAll()
+		return
+	end
+	for _, change in ipairs(changes) do
+		for _, btn in ipairs(buttons) do
+			if btn.hasAction and Utils.SafeCompare(btn.actionID, change.slot, "==") then
+				self:UpdateState(btn)
+				break
+			end
+		end
+	end
+end
+
+-- Midnight 12.0+: Push range update for opted-in action slots
+function AB:ACTION_RANGE_CHECK_UPDATE(event, action, inRange, checksRange)
+	for _, btn in ipairs(buttons) do
+		if btn.hasAction and Utils.SafeCompare(btn.actionID, action, "==") then
+			btn._checksRange = checksRange
+			btn._inRange = inRange
+			self:UpdateState(btn)
+			break
+		end
+	end
+end
+
+-- Range ticker: check all visible buttons for range changes (0.2s interval)
+-- Passes "target" explicitly since C_ActionBar.IsActionInRange defaults to "player"
+function AB:UpdateRange()
+	for _, btn in ipairs(buttons) do
+		if btn.hasAction and btn:IsShown() then
+			local inRange
+			if C_ActionBar and C_ActionBar.IsActionInRange then
+				local ok, val = pcall(C_ActionBar.IsActionInRange, btn.actionID, "target")
+				if ok then
+					inRange = val
+				end
+			else
+				inRange = IsActionInRange(btn.actionID) -- @scan-ignore: midnight-normalized
+			end
+			local outOfRange = (inRange ~= nil and not Utils.IsValueSecret(inRange) and inRange == false)
+			local wasOutOfRange = btn._outOfRange or false
+			if outOfRange ~= wasOutOfRange then
+				btn._outOfRange = outOfRange
+				btn._inRange = inRange
+				self:UpdateState(btn)
+			end
 		end
 	end
 end
@@ -766,47 +842,37 @@ function AB:UpdateState(btn)
 	end
 	local actionID = btn.actionID
 
-	-- Handle count display: ability charges OR item stacks
-	-- Use LibActionButton-1.0 pattern: C_ActionBar.GetActionDisplayCount returns display-ready text
-	-- that handles secret values internally. Pass directly to SetText.
-	
-	-- Primary: Use C_ActionBar.GetActionDisplayCount for actions (Midnight-safe)
+	-- 1) Count display
 	if C_ActionBar and C_ActionBar.GetActionDisplayCount then
-		-- This API returns display-ready text (handles secrets internally)
-		-- Second param is maxDisplayCount (9999 = show all)
-		local displayText = C_ActionBar.GetActionDisplayCount(actionID, 9999)
-		btn.count:SetText(displayText)
-		btn.count:SetAlpha(1)
-		return
-	end
-	
-	-- Fallback for pre-Midnight or if API not available
-	-- Must use readable comparisons here (errors if secret)
-	local ok, displayText = pcall(function()
-		-- Check charges first
-		local chargeInfo = Utils.GetSpellChargesSafe(btn.spellID)
-		if chargeInfo and chargeInfo.maxCharges and chargeInfo.maxCharges > 1 then
-			return chargeInfo.currentCharges
-		end
-		
-		-- Check item count
-		local count = GetActionCount and GetActionCount(actionID)
-		if count and count > 1 then
-			return count
-		end
-		
-		return nil
-	end)
-	
-	if ok and displayText then
-		btn.count:SetText(displayText)
-		btn.count:SetAlpha(1)
+		-- Midnight: native API returns display-ready text (handles secrets internally)
+		local ok, displayText = pcall(C_ActionBar.GetActionDisplayCount, actionID, 9999)
+		btn.count:SetText(ok and displayText or "")
 	else
-		btn.count:SetText("")
-		btn.count:SetAlpha(1)
+		-- Pre-Midnight fallback
+		local ok, displayText = pcall(function()
+			local chargeInfo = Utils.GetSpellChargesSafe(btn.spellID)
+			if chargeInfo and chargeInfo.maxCharges and chargeInfo.maxCharges > 1 then
+				return chargeInfo.currentCharges
+			end
+			local count = GetActionCount and GetActionCount(actionID)
+			if count and count > 1 then
+				return count
+			end
+			return nil
+		end)
+		btn.count:SetText(ok and displayText or "")
+	end
+	btn.count:SetAlpha(1)
+
+	-- 2) Usability coloring (grey = not usable, blue = no mana, white = ready)
+	local isUsable, noMana = IsUsableAction(actionID) -- @scan-ignore: midnight-normalized
+	-- Handle nil (wrapper unavailable) and secret values: default to usable
+	if isUsable == nil or Utils.IsValueSecret(isUsable) then
+		isUsable, noMana = true, false
+	elseif Utils.IsValueSecret(noMana) then
+		noMana = false
 	end
 
-	local isUsable, noMana = IsUsableAction(actionID) -- @scan-ignore: midnight-normalized
 	if not isUsable and not noMana then
 		btn.icon:SetDesaturated(true)
 		btn.icon:SetVertexColor(0.4, 0.4, 0.4)
@@ -818,12 +884,14 @@ function AB:UpdateState(btn)
 		btn.icon:SetVertexColor(1, 1, 1)
 	end
 
-	if ActionButton_GetInRange and ActionButton_GetInRange(actionID) == false then
-		if IsActionInRange(actionID) == false then
-			btn.icon:SetVertexColor(0.8, 0.1, 0.1)
-		end -- @scan-ignore: midnight-normalized
+	-- 3) Range override (red tint when explicitly out of range)
+	-- Use stored push-event state (_inRange) from ACTION_RANGE_CHECK_UPDATE or range ticker
+	local inRange = btn._inRange
+	if inRange ~= nil and not Utils.IsValueSecret(inRange) and inRange == false then
+		btn.icon:SetVertexColor(0.8, 0.1, 0.1)
 	end
 
+	-- 4) Proc glow
 	local isOverlayed = false
 	if btn.spellID then
 		isOverlayed = Utils.IsSpellOverlayedSafe(btn.spellID)

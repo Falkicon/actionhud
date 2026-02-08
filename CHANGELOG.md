@@ -1,4 +1,14 @@
 # Changelog
+## [2.11.0] - 2026-02-08
+
+### Added
+- Added Midnight 12.0 push-based event handlers for ACTION_USABLE_CHANGED and ACTION_RANGE_CHECK_UPDATE
+- Added 0.2s range ticker for real-time out-of-range detection with C_ActionBar.IsActionInRange
+
+### Fixed
+- Fixed ADDON_ACTION_FORBIDDEN taint errors caused by other addons hooking LoadAddOn (AceEvent-3.0 v9)
+- Restored action bar usability states: grey/desaturated for unavailable, blue tint for no mana, red tint for out of range
+
 ## [2.10.0] - 2026-01-24
 
 ### Fixed
