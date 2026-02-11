@@ -146,6 +146,7 @@ function AB:OnEnable()
 			AB:GetEditModeSettings(2)
 		end
 		AB:RefreshAll()
+		AB:UpdateCombatVisibility()
 	end)
 	self:RegisterEvent("EDIT_MODE_LAYOUTS_UPDATED", function()
 		-- Clear cache and delay update to ensure Blizzard's internal state is fully saved
@@ -169,6 +170,10 @@ function AB:OnEnable()
 		self:RegisterEvent("ACTION_USABLE_CHANGED")
 		self:RegisterEvent("ACTION_RANGE_CHECK_UPDATE")
 	end
+
+	-- Combat visibility: hide/show based on combat state
+	self:RegisterEvent("PLAYER_REGEN_DISABLED", "UpdateCombatVisibility") -- entered combat
+	self:RegisterEvent("PLAYER_REGEN_ENABLED", "UpdateCombatVisibility") -- left combat
 
 	-- Hook Edit Mode exit to force a layout refresh
 	if EditModeManagerFrame then
@@ -553,6 +558,31 @@ function AB:UpdateOpacity()
 	end
 end
 
+-- Show or hide the action bars based on combat state and hideOutOfCombat setting
+function AB:UpdateCombatVisibility(event)
+	if not container or not self:IsEnabled() then
+		return
+	end
+	local p = ActionHud.db.profile
+	if not p.hideOutOfCombat then
+		container:SetAlpha(1)
+		return
+	end
+	-- Use the event name directly to avoid InCombatLockdown() timing issues
+	if event == "PLAYER_REGEN_DISABLED" then
+		container:SetAlpha(1)
+	elseif event == "PLAYER_REGEN_ENABLED" then
+		container:SetAlpha(0)
+	else
+		-- Manual call (settings change, PLAYER_ENTERING_WORLD, etc.)
+		if InCombatLockdown() then
+			container:SetAlpha(1)
+		else
+			container:SetAlpha(0)
+		end
+	end
+end
+
 function AB:OnDisable()
 	if container then
 		container:Hide()
@@ -655,10 +685,10 @@ function AB:UpdateRange()
 			else
 				inRange = IsActionInRange(btn.actionID) -- @scan-ignore: midnight-normalized
 			end
-			local outOfRange = (inRange ~= nil and not Utils.IsValueSecret(inRange) and inRange == false)
-			local wasOutOfRange = btn._outOfRange or false
-			if outOfRange ~= wasOutOfRange then
-				btn._outOfRange = outOfRange
+			-- Compare directly against _inRange (the value UpdateState reads)
+			-- to avoid desync when ACTION_RANGE_CHECK_UPDATE sets _inRange
+			-- without updating _outOfRange
+			if inRange ~= btn._inRange then
 				btn._inRange = inRange
 				self:UpdateState(btn)
 			end
@@ -704,6 +734,11 @@ function AB:UpdateAction(btn)
 	end
 
 	btn.actionID = actionID
+
+	-- Clear stale range state when the action changes so UpdateState
+	-- doesn't apply a red tint from the previous spell
+	btn._inRange = nil
+
 	local type, id = GetActionInfo(actionID)
 	if type == "spell" then
 		btn.spellID = id

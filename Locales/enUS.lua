@@ -97,6 +97,9 @@ L["Use the Layout tab to enable Show Layout Outlines. This helps position frames
 L["Action Bars"] = true
 L["Enable"] = true
 L["Enable the main Action Bar Grid."] = true
+L["Hide Out of Combat"] = true
+L["Hide the action bars when not in combat."] = true
+L["Hide the resource bars when not in combat."] = true
 L["Dimensions"] = true
 L["Icon Width"] = true
 L["Width of the action icons."] = true

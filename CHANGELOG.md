@@ -1,4 +1,14 @@
 # Changelog
+## [2.13.0] - 2026-02-10
+
+### Added
+- Added "Hide Out of Combat" toggle for Action Bars (fades bars when not in combat)
+- Added "Hide Out of Combat" toggle for Resource Bars (same behavior)
+
+### Fixed
+- Fixed action bar range tint (red) getting permanently stuck by resolving state desync between push events and range ticker
+- Fixed combat visibility not triggering on combat start due to `InCombatLockdown()` timing race
+
 ## [2.12.0] - 2026-02-08
 
 ### Added

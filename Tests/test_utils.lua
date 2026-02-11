@@ -6,7 +6,7 @@
 
 -- 1. Mock WoW Environment
 _G = _G or {}
-local buildInfo = { "11.2.8", "58234", "Dec 22 2025", 120000 }
+local buildInfo = { "12.0.1", "64889", "Jan 20 2026", 120001 }
 GetBuildInfo = function()
 	return unpack(buildInfo)
 end

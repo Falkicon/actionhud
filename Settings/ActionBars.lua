@@ -28,6 +28,22 @@ function ns.Settings.BuildActionBarsOptions(self)
 					self:RefreshLayout()
 				end,
 			},
+			hideOutOfCombat = {
+				name = L["Hide Out of Combat"],
+				type = "toggle",
+				order = 1.1,
+				desc = L["Hide the action bars when not in combat."],
+				get = function(info)
+					return self.db.profile.hideOutOfCombat
+				end,
+				set = function(info, val)
+					self.db.profile.hideOutOfCombat = val
+					local AB = ActionHud:GetModule("ActionBars", true)
+					if AB then
+						AB:UpdateCombatVisibility()
+					end
+				end,
+			},
 			actionBarsIncludeInStack = {
 				name = L["Include in HUD Stack"],
 				desc = L["When enabled, this module is positioned as part of the vertical ActionHud stack. When disabled, it can be positioned independently."],

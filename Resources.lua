@@ -618,6 +618,8 @@ function Resources:OnEnable()
 
 	self:RegisterEvent("PLAYER_TARGET_CHANGED", "OnEvent")
 	self:RegisterEvent("PLAYER_ENTERING_WORLD", "OnEvent")
+	self:RegisterEvent("PLAYER_REGEN_DISABLED", "UpdateCombatVisibility")
+	self:RegisterEvent("PLAYER_REGEN_ENABLED", "UpdateCombatVisibility")
 	self:RegisterEvent("UNIT_HEALTH", "OnEvent")
 	self:RegisterEvent("UNIT_HEAL_PREDICTION", "OnEvent")
 	self:RegisterEvent("UNIT_ABSORB_AMOUNT_CHANGED", "OnEvent")
@@ -634,6 +636,32 @@ function Resources:OnEnable()
 	UpdateClassPower()
 
 	self:UpdateLayout()
+	self:UpdateCombatVisibility()
+end
+
+-- Show or hide resource bars based on combat state and resHideOutOfCombat setting
+function Resources:UpdateCombatVisibility(event)
+	if not container or not RCFG.enabled then
+		return
+	end
+	local p = addon.db.profile
+	if not p.resHideOutOfCombat then
+		container:SetAlpha(1)
+		return
+	end
+	-- Use the event name directly to avoid InCombatLockdown() timing issues
+	if event == "PLAYER_REGEN_DISABLED" then
+		container:SetAlpha(1)
+	elseif event == "PLAYER_REGEN_ENABLED" then
+		container:SetAlpha(0)
+	else
+		-- Manual call (settings change, PLAYER_ENTERING_WORLD, etc.)
+		if InCombatLockdown() then
+			container:SetAlpha(1)
+		else
+			container:SetAlpha(0)
+		end
+	end
 end
 
 function Resources:OnEvent(event, unit)

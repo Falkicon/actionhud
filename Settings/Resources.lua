@@ -29,6 +29,22 @@ function ns.Settings.BuildResourcesOptions(self)
 					self:RefreshLayout()
 				end,
 			},
+			hideOutOfCombat = {
+				name = L["Hide Out of Combat"],
+				type = "toggle",
+				order = 1.1,
+				desc = L["Hide the resource bars when not in combat."],
+				get = function(info)
+					return self.db.profile.resHideOutOfCombat
+				end,
+				set = function(info, val)
+					self.db.profile.resHideOutOfCombat = val
+					local Res = ActionHud:GetModule("Resources", true)
+					if Res then
+						Res:UpdateCombatVisibility()
+					end
+				end,
+			},
 			includeInStack = {
 				name = L["Include in HUD Stack"],
 				desc = L["When enabled, this module will be positioned in the vertical HUD stack. Otherwise, use independent X/Y positioning."],
