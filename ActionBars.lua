@@ -775,6 +775,40 @@ local defaultChargeInfo =
 	{ currentCharges = 0, maxCharges = 0, cooldownStartTime = 0, cooldownDuration = 0, chargeModRate = 1 }
 local defaultLossOfControlInfo = { startTime = 0, duration = 0, modRate = 1 }
 
+local function HasSecretCooldownValues(cooldownInfo, chargeInfo, lossOfControlInfo)
+	return Utils.IsValueSecret(cooldownInfo.startTime)
+		or Utils.IsValueSecret(cooldownInfo.duration)
+		or Utils.IsValueSecret(cooldownInfo.isEnabled)
+		or Utils.IsValueSecret(chargeInfo.cooldownStartTime)
+		or Utils.IsValueSecret(chargeInfo.cooldownDuration)
+		or Utils.IsValueSecret(lossOfControlInfo.startTime)
+		or Utils.IsValueSecret(lossOfControlInfo.duration)
+end
+
+local function ClearCooldownDisplay(cooldownFrame)
+	if not cooldownFrame then
+		return
+	end
+	if cooldownFrame.Clear then
+		cooldownFrame:Clear()
+	end
+	cooldownFrame:Hide()
+end
+
+local function TryApplyDurationObjectCooldown(cooldownFrame, durationObject, drawEdge)
+	if not cooldownFrame or not durationObject or not cooldownFrame.SetCooldownFromDurationObject then
+		return false
+	end
+
+	local ok = pcall(function()
+		cooldownFrame:SetDrawEdge(drawEdge == true)
+		cooldownFrame:SetCooldownFromDurationObject(durationObject, true)
+		cooldownFrame:Show()
+	end)
+
+	return ok
+end
+
 function AB:UpdateCooldown(btn)
 	if not btn.hasAction then
 		return
@@ -809,9 +843,11 @@ function AB:UpdateCooldown(btn)
 		end
 	end
 
+	local hasSecretCooldownValues = HasSecretCooldownValues(cooldownInfo, chargeInfo, lossOfControlInfo)
+
 	-- Use Blizzard's ActionButton_ApplyCooldown if available (12.0+ helper)
 	-- Requires valid cooldown frames - create chargeCooldown on demand if needed
-	if ActionButton_ApplyCooldown then
+	if ActionButton_ApplyCooldown and not hasSecretCooldownValues then
 		-- Create chargeCooldown frame on demand (same pattern as LibActionButton)
 		if not btn.chargeCooldown then
 			btn.chargeCooldown = CreateFrame("Cooldown", nil, btn, "CooldownFrameTemplate")
@@ -821,6 +857,33 @@ function AB:UpdateCooldown(btn)
 			btn.chargeCooldown:SetFrameLevel(btn:GetFrameLevel())
 		end
 		ActionButton_ApplyCooldown(btn.cd, cooldownInfo, btn.chargeCooldown, chargeInfo, nil, lossOfControlInfo)
+		return
+	end
+
+	if hasSecretCooldownValues then
+		local appliedDurationObject = false
+
+		if C_ActionBar and C_ActionBar.GetActionCooldownDuration then
+			local ok, durationObject = pcall(C_ActionBar.GetActionCooldownDuration, btn.actionID)
+			if ok and durationObject then
+				appliedDurationObject = TryApplyDurationObjectCooldown(btn.cd, durationObject, true)
+			end
+		end
+
+		if not appliedDurationObject and C_ActionBar and C_ActionBar.GetActionChargeDuration then
+			local ok, durationObject = pcall(C_ActionBar.GetActionChargeDuration, btn.actionID)
+			if ok and durationObject then
+				appliedDurationObject = TryApplyDurationObjectCooldown(btn.cd, durationObject, true)
+			end
+		end
+
+		ClearCooldownDisplay(btn.chargeCooldown)
+
+		if appliedDurationObject then
+			return
+		end
+
+		ClearCooldownDisplay(btn.cd)
 		return
 	end
 

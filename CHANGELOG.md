@@ -1,4 +1,10 @@
 # Changelog
+## [2.13.1] - 2026-03-24
+
+### Fixed
+- Fixed Midnight secret-value cooldown crashes on custom action buttons by bypassing Blizzard cooldown helpers for protected cooldown payloads and using duration-object fallbacks when available
+- Fixed combat lockdown taint from `ActionHudFrame:SetSize()` by deferring layout container resizing until combat ends
+
 ## [2.13.0] - 2026-02-10
 
 ### Added

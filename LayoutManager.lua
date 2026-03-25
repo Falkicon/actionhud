@@ -4,7 +4,7 @@
 local addonName, ns = ...
 local L = LibStub("AceLocale-3.0"):GetLocale("ActionHud")
 local addon = LibStub("AceAddon-3.0"):GetAddon("ActionHud")
-local LayoutManager = addon:NewModule("LayoutManager")
+local LayoutManager = addon:NewModule("LayoutManager", "AceEvent-3.0")
 ns.LayoutManager = LayoutManager
 
 -- Module registry: modules that CAN be in the stack
@@ -55,6 +55,7 @@ local DEFAULT_GAPS = { 4, 0 }
 
 -- Cache of module heights (updated by modules when they render)
 local moduleHeights = {}
+local pendingLayoutUpdate = false
 
 function LayoutManager:OnInitialize()
 	-- Nothing needed here - we use addon.db directly
@@ -63,6 +64,14 @@ end
 function LayoutManager:OnEnable()
 	-- Ensure layout data exists
 	self:EnsureLayoutData()
+	self:RegisterEvent("PLAYER_REGEN_ENABLED", "OnPlayerRegenEnabled")
+end
+
+function LayoutManager:OnPlayerRegenEnabled()
+	if pendingLayoutUpdate then
+		pendingLayoutUpdate = false
+		self:TriggerLayoutUpdate()
+	end
 end
 
 -- Get profile safely (addon.db may not be set during very early calls)
@@ -348,6 +357,14 @@ end
 
 -- Trigger layout update for all modules
 function LayoutManager:TriggerLayoutUpdate()
+	if InCombatLockdown() then
+		pendingLayoutUpdate = true
+		addon:Log("Layout update deferred until combat ends", "layout")
+		return
+	end
+
+	pendingLayoutUpdate = false
+
 	local activeStack = self:GetActiveStack()
 	local gaps = self:GetGaps()
 
@@ -403,6 +420,11 @@ end
 function LayoutManager:UpdateContainerSize()
 	local main = _G["ActionHudFrame"]
 	if not main then
+		return
+	end
+
+	if InCombatLockdown() then
+		pendingLayoutUpdate = true
 		return
 	end
 
