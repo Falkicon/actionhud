@@ -362,6 +362,7 @@ function LayoutManager:TriggerLayoutUpdate()
 		addon:Log("Layout update deferred until combat ends", "layout")
 		return
 	end
+	local perfStart = ns.RecordPerformance and debugprofilestop()
 
 	pendingLayoutUpdate = false
 
@@ -414,6 +415,9 @@ function LayoutManager:TriggerLayoutUpdate()
 	end
 
 	addon:Log("=== Layout Update Complete ===", "layout")
+	if perfStart then
+		ns.RecordPerformance("LayoutRecalc", perfStart)
+	end
 end
 
 -- Update the main HUD container size

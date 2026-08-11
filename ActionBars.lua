@@ -660,6 +660,7 @@ function AB:RefreshAll()
 	if not self:IsEnabled() then
 		return
 	end
+	local perfStart = ns.RecordPerformance and debugprofilestop()
 	-- ActionHud:Log("ActionBars: RefreshAll", "events") -- Disabled: too verbose
 	for _, btn in ipairs(buttons) do
 		if btn:IsShown() then
@@ -670,6 +671,9 @@ function AB:RefreshAll()
 	end
 	self:RebuildButtonIndex()
 	self:RefreshRangeRegistrations()
+	if perfStart then
+		ns.RecordPerformance("ActionBarsUpdate", perfStart)
+	end
 end
 
 function AB:ACTIONBAR_SLOT_CHANGED(event, arg1)
@@ -690,11 +694,15 @@ function AB:ACTIONBAR_SLOT_CHANGED(event, arg1)
 end
 
 function AB:SPELL_UPDATE_COOLDOWN()
+	local perfStart = ns.RecordPerformance and debugprofilestop()
 	-- Only update buttons with actions (skip empty slots to reduce overhead)
 	for _, btn in ipairs(buttons) do
 		if btn.hasAction then
 			self:UpdateCooldown(btn)
 		end
+	end
+	if perfStart then
+		ns.RecordPerformance("CooldownsUpdate", perfStart)
 	end
 end
 

@@ -1,4 +1,10 @@
 # Changelog
+## [2.13.5] - 2026-08-10
+
+### Fixed
+- Record active resource, action-bar, cooldown, and layout timings for the Mechanic performance panel
+- Stop advertising the inactive Edit Mode polling metric
+
 ## [2.13.1] - 2026-03-24
 
 ### Fixed

@@ -741,6 +741,7 @@ function Resources:OnEvent(event, unit)
 	if not self._runtimeActive or not RCFG.enabled then
 		return
 	end
+	local perfStart = ns.RecordPerformance and debugprofilestop()
 	-- addon:Log(string.format("Resources: %s (unit=%s)", event, tostring(unit)), "events") -- Disabled: too verbose
 
 	if event == "PLAYER_ENTERING_WORLD" then
@@ -789,6 +790,9 @@ function Resources:OnEvent(event, unit)
 		self:UpdateLayout()
 	elseif event == "RUNE_POWER_UPDATE" then
 		UpdateClassPower()
+	end
+	if perfStart then
+		ns.RecordPerformance("ResourcesUpdate", perfStart)
 	end
 end
 

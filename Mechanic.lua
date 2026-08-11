@@ -267,13 +267,19 @@ function ActionHudMechanic:RecordPerfMetric(name, duration)
 	perfMetrics[name] = duration
 end
 
+function ns.RecordPerformance(name, startedAt)
+	if type(startedAt) ~= "number" then
+		return
+	end
+	ActionHudMechanic:RecordPerfMetric(name, debugprofilestop() - startedAt)
+end
+
 function ActionHudMechanic:GetPerformanceSubMetrics()
 	return {
 		{ name = "Resources Update", ms = perfMetrics.ResourcesUpdate or 0, description = "Health/power bars" },
 		{ name = "ActionBars Update", ms = perfMetrics.ActionBarsUpdate or 0, description = "Action bar refresh" },
 		{ name = "Cooldowns Update", ms = perfMetrics.CooldownsUpdate or 0, description = "Cooldown tracking" },
 		{ name = "Layout Recalc", ms = perfMetrics.LayoutRecalc or 0, description = "Module stacking" },
-		{ name = "Edit Mode Polling", ms = perfMetrics.EditModePolling or 0, description = "Native viewer snap-back" },
 	}
 end
 
