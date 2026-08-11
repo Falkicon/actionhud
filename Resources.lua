@@ -56,7 +56,23 @@ local RuneSpecColors = {
 	[3] = { r = 0.3, g = 0.7, b = 0.3 }, -- Unholy (Green)
 }
 
-local function CreateBar(parent)
+local function GetPlayerClassToken()
+	local _, class = UnitClass("player")
+	if Utils.IsValueSecret(class) then
+		return nil
+	end
+	return class
+end
+
+local function UnitExistsSafe(unit)
+	local exists = UnitExists(unit)
+	if Utils.IsValueSecret(exists) then
+		return false
+	end
+	return exists == true
+end
+
+local function CreateBar(parent, withHealthOverlays)
 	local bar = CreateFrame("StatusBar", nil, parent)
 	bar:SetStatusBarTexture(FLAT_BAR_TEXTURE)
 	bar:SetMinMaxValues(0, 1)
@@ -66,31 +82,31 @@ local function CreateBar(parent)
 	bar.bg:SetAllPoints()
 	bar.bg:SetColorTexture(0, 0, 0, 0.5)
 
-	-- Add Predict/Absorb overlays if this is a health bar
-	-- We'll initialize them later in CreateBar if type is set, or just always for safety
-	bar.predict = CreateFrame("StatusBar", nil, bar)
-	bar.predict:SetStatusBarTexture(FLAT_BAR_TEXTURE)
-	bar.predict:SetAllPoints()
-	bar.predict:SetAlpha(0.4)
-	bar.predict:SetStatusBarColor(0, 0.8, 0) -- Green for heals
-	bar.predict:SetFrameLevel(bar:GetFrameLevel() + 1)
-	bar.predict:Hide()
+	if withHealthOverlays then
+		bar.predict = CreateFrame("StatusBar", nil, bar)
+		bar.predict:SetStatusBarTexture(FLAT_BAR_TEXTURE)
+		bar.predict:SetAllPoints()
+		bar.predict:SetAlpha(0.4)
+		bar.predict:SetStatusBarColor(0, 0.8, 0) -- Green for heals
+		bar.predict:SetFrameLevel(bar:GetFrameLevel() + 1)
+		bar.predict:Hide()
 
-	bar.absorb = CreateFrame("StatusBar", nil, bar)
-	bar.absorb:SetStatusBarTexture(FLAT_BAR_TEXTURE)
-	bar.absorb:SetAlpha(0.6) -- Higher alpha for visibility
-	bar.absorb:SetStatusBarColor(0, 1, 1) -- Brighter teal for absorbs
-	bar.absorb:SetFrameLevel(bar:GetFrameLevel() + 2) -- Top layer
-	if bar.absorb.SetReverseFill then
-		bar.absorb:SetReverseFill(true)
+		bar.absorb = CreateFrame("StatusBar", nil, bar)
+		bar.absorb:SetStatusBarTexture(FLAT_BAR_TEXTURE)
+		bar.absorb:SetAlpha(0.6) -- Higher alpha for visibility
+		bar.absorb:SetStatusBarColor(0, 1, 1) -- Brighter teal for absorbs
+		bar.absorb:SetFrameLevel(bar:GetFrameLevel() + 2) -- Top layer
+		if bar.absorb.SetReverseFill then
+			bar.absorb:SetReverseFill(true)
+		end
+		bar.absorb:Hide()
 	end
-	bar.absorb:Hide()
 
 	return bar
 end
 
 local function GetClassPowerType()
-	local _, class = UnitClass("player")
+	local class = GetPlayerClassToken()
 	if class == "ROGUE" or class == "DRUID" then
 		return Enum.PowerType.ComboPoints
 	elseif class == "PALADIN" then
@@ -109,17 +125,6 @@ local function GetClassPowerType()
 	return nil
 end
 
-local function GetReadyRuneCount()
-	local count = 0
-	for i = 1, 6 do
-		local _, _, ready = GetRuneCooldown(i)
-		if ready then
-			count = count + 1
-		end
-	end
-	return count
-end
-
 local function GetClassPowerFractional(unit, pType)
 	-- Use pcall for all power operations to handle secret values
 	local ok, cur = pcall(UnitPower, unit, pType) -- @scan-ignore: midnight-player-only
@@ -128,13 +133,16 @@ local function GetClassPowerFractional(unit, pType)
 	end
 
 	if pType == Enum.PowerType.SoulShards then
-		local _, class = UnitClass(unit)
+		local class = GetPlayerClassToken()
 		if class == "WARLOCK" then
 			local spec = Utils.GetSpecializationSafe()
 			-- Destruction Warlocks (Spec 3) have partial shards
 			if spec == 3 then
 				local rawOk, raw = pcall(UnitPower, unit, pType, true) -- @scan-ignore: midnight-player-only
-				local mod = (UnitPowerDisplayMod and UnitPowerDisplayMod(pType)) or 100
+				local mod = UnitPowerDisplayMod and UnitPowerDisplayMod(pType)
+				if Utils.IsValueSecret(mod) or type(mod) == "nil" then
+					mod = 100
+				end
 				if rawOk and mod ~= 0 then
 					local divOk, result = pcall(function()
 						return raw / mod
@@ -147,9 +155,14 @@ local function GetClassPowerFractional(unit, pType)
 		end
 	elseif pType == Enum.PowerType.Essence then
 		local partialOk, partial = pcall(function()
-			return UnitPartialPower and UnitPartialPower(unit, pType) or 0
+			if UnitPartialPower then
+				return UnitPartialPower(unit, pType)
+			end
+			return 0
 		end)
-		partial = (partialOk and partial) or 0
+		if not partialOk or type(partial) == "nil" then
+			partial = 0
+		end
 		local addOk, result = pcall(function()
 			return cur + (partial / 1000.0)
 		end)
@@ -210,8 +223,12 @@ local function CanShowClassPower()
 	end
 
 	-- For Warlocks, always show bar if in combat
-	local _, class = UnitClass("player")
-	if class == "WARLOCK" and UnitAffectingCombat("player") then
+	local class = GetPlayerClassToken()
+	local inCombat = UnitAffectingCombat("player")
+	if Utils.IsValueSecret(inCombat) then
+		inCombat = false
+	end
+	if class == "WARLOCK" and inCombat == true then
 		return true, pType, maxNum
 	end
 
@@ -354,7 +371,7 @@ local function UpdateClassPower()
 end
 
 local function UpdateBarColor(bar, unit)
-	if not bar or not UnitExists(unit) then
+	if not bar or not UnitExistsSafe(unit) then
 		return
 	end
 
@@ -363,7 +380,7 @@ local function UpdateBarColor(bar, unit)
 end
 
 local function UpdateBarValue(bar, unit)
-	if not bar or not UnitExists(unit) then
+	if not bar or not UnitExistsSafe(unit) then
 		bar:SetValue(0)
 		if bar.predict then
 			bar.predict:Hide()
@@ -589,18 +606,18 @@ function Resources:OnEnable()
 		playerGroup = CreateFrame("Frame", nil, container)
 		targetGroup = CreateFrame("Frame", nil, container)
 
-		playerHealth = CreateBar(playerGroup)
+		playerHealth = CreateBar(playerGroup, true)
 		playerHealth.type = "HEALTH"
 		playerHealth:SetClipsChildren(true)
-		playerPower = CreateBar(playerGroup)
+		playerPower = CreateBar(playerGroup, false)
 		playerPower.type = "POWER"
 
 		playerClassBar = CreateFrame("Frame", nil, playerGroup)
 
-		targetHealth = CreateBar(targetGroup)
+		targetHealth = CreateBar(targetGroup, true)
 		targetHealth.type = "HEALTH"
 		targetHealth:SetClipsChildren(true)
-		targetPower = CreateBar(targetGroup)
+		targetPower = CreateBar(targetGroup, false)
 		targetPower.type = "POWER"
 	end
 
@@ -951,7 +968,7 @@ function Resources:UpdateLayout()
 	end
 
 	local useSplit = false
-	if RCFG.showTarget and UnitExists("target") then
+	if RCFG.showTarget and UnitExistsSafe("target") then
 		useSplit = true
 	end
 

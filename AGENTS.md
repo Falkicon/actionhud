@@ -23,21 +23,21 @@ A compact action bar HUD overlay that displays ability icons, cooldowns, and pro
 - **Action Bar Mirroring**: Dynamically synchronizes layout (rows, icons) with Blizzard's Edit Mode settings for Bar 1 and Bar 6.
 - **Dynamic Layout**: Components automatically restack and update HUD height when modules or individual bars are toggled.
 - Supports stance/form page swapping via `GetBonusBarOffset()`
-- Hijacks Blizzard's CooldownViewer frames using a proxy system
-- **Midnight Compatibility**: ActionHud is fully compatible with the "Royal" interpretive API model (Beta 5+). All systems use **Async Styling Injection** (`C_Timer.After(0)`) and native **Duration Objects** to ensure 100% stability in combat.
+- Uses Blizzard's opt-in action range events and native duration objects where available.
+- **Midnight Compatibility**: ActionHud targets WoW 12.1 and treats protected values as opaque pass-through data. Combat testing remains required for every protected-API change.
 
 ### Key Midnight Patterns
 
 1.  **Safe Wrappers**: Always use `Utils.GetActionCooldownSafe()`, `Utils.GetInventoryItemCooldownSafe()`, `Utils.GetActionDisplayCountSafe()`, etc., instead of global APIs. These handle `C_ActionBar`/`C_Item` table returns and secret values.
 2.  **Safe Comparisons**: Use `Utils.SafeCompare(a, b, op)` for any numeric comparison involving values from game APIs (health, power, cooldowns).
-3.  **Deprecation Scanning**: Use the tool in `../ADDON_DEV/Tools/DeprecationScanner` to verify compatibility.
-4.  **Scoped Ignores**: When a line is verified safe, use `-- @scan-ignore: midnight` to silence the scanner for the current game version.
+3.  **Regression Tests**: Run `python Tests/run.py`; it compiles first-party Lua and executes the standalone protected-value tests.
+4.  **Scoped Ignores**: Existing `-- @scan-ignore: midnight-*` comments document reviewed API boundaries; do not add one without verifying the call in combat.
 
 ---
 
 ## ⚠️ Temporarily Disabled Modules (Midnight API Stabilization)
 
-The following modules are **disabled** while Blizzard's interface APIs stabilize in WoW 12.0:
+The following modules are retained as source but are not loaded or packaged while Blizzard's cooldown-viewer APIs stabilize:
 
 | Module | Status | Reason |
 |--------|--------|--------|
@@ -58,17 +58,14 @@ These features will be revisited in a future update once the APIs are more relia
 | `LayoutManager.lua` | Centralized module positioning and stack management |
 | `ActionBars.lua` | Action bar grid (6×4 button frames) |
 | `Resources.lua` | Health, Power, and Class Resource bars (individual visibility/height) |
-| `Cooldowns/Manager.lua` | Centralized proxy pool, aura cache, Blizzard frame management |
-| `Cooldowns/Cooldowns.lua` | Essential/Utility cooldown icons (custom proxies) |
-| `Cooldowns/TrackedBuffs.lua` | Tracked Buffs reskin (hooks BuffIconCooldownViewer) - style-only approach |
-| `Cooldowns/TrackedDefensives.lua` | External Defensives reskin (hooks ExternalDefensivesFrame) - **DISABLED in 12.0** |
-| `UnitFrames/UnitFrames.lua` | Unit Frame reskin (PlayerFrame, TargetFrame, FocusFrame) |
+| `Cooldowns/` | Dormant cooldown-viewer experiments; not listed in `ActionHud.toc` |
+| `UnitFrames/UnitFrames.lua` | Optional custom secure unit frames for Player, Target, Target of Target, and Focus |
 | `Trinkets.lua` | Dedicated module for tracking equipped trinket cooldowns |
 | `Settings/init.lua` | Core settings setup, shared helpers, AceConfig registration |
 | `Settings/ActionBars.lua` | Action Bars tab options |
 | `Settings/Resources.lua` | Resource Bars tab options |
-| `Settings/Cooldowns.lua` | Cooldown Manager tab options |
-| `Settings/Tracked.lua` | Tracked Abilities (Buffs/Defensives) tab options |
+| `Settings/EssentialCooldowns.lua` | Dormant source; not listed in `ActionHud.toc` |
+| `Settings/UtilityCooldowns.lua` | Dormant source; not listed in `ActionHud.toc` |
 | `Settings/UnitFrames.lua` | Unit Frames tab options |
 | `Settings/Trinkets.lua` | Trinkets tab options |
 | `Settings/Layout.lua` | Layout/Stack order tab options |
@@ -83,10 +80,10 @@ These features will be revisited in a future update once the APIs are more relia
 The HUD uses a centralized `LayoutManager` module that coordinates vertical stacking of all components.
 
 **Stack Model:**
-- All modules (Resources, ActionBars, Cooldowns) are treated as "rows" in a vertical stack
+- Active stack modules (Resources, Action Bars, and optionally Trinkets) are treated as rows in a vertical stack
 - Resources module handles Health, Power, and Class Resource bars
 - Order is fully customizable via the Layout settings panel
-- TrackedBuffs uses style-only approach (working); TrackedDefensives disabled in 12.0
+- Cooldown-viewer modules are excluded from the active registry and load path
 
 **Module Integration:**
 Each stackable module implements:
@@ -117,9 +114,9 @@ Each stackable module implements:
 | Proc | Yellow | 1px | +12 | `SPELL_ACTIVATION_OVERLAY_GLOW_*` events |
 | Assist | Blue | 2px | +5 | `hooksecurefunc(AssistedCombatManager, "SetAssistedHighlightFrameShown", ...)` |
 
-### The Proxy System (Cooldowns/)
+### Dormant Proxy Experiments (`Cooldowns/`)
 
-ActionHud uses different strategies for different CooldownViewer components:
+This section describes retained historical experiments. None of these files are loaded by `ActionHud.toc` or included in CurseForge packages.
 
 #### Cooldowns Module (Essential/Utility)
 Uses a **"hide-only" visibility model** with custom proxy frames:
@@ -166,26 +163,13 @@ Uses a **"hide-only" visibility model** with custom proxy frames:
 
 > **Note:** TrackedDefensives is disabled due to WoW 12.0's secret value protection on aura APIs. See `docs/aura-api-testing.md` for details.
 
-**TrackedBuffs** remains fully functional using a style-only approach.
+**TrackedBuffs** is also dormant and not loaded.
 
-#### UnitFrames Module (Style-Only Approach)
+#### UnitFrames Module
 
-**Midnight (12.0) Compatibility:** Uses the same style-only approach for Player, Target, and Focus frames.
+The active implementation creates optional `SecureUnitButtonTemplate` frames for Player, Target, Target of Target, and Focus. It does not reskin Blizzard frames. Frames and unit-scoped events are created only when the feature is enabled.
 
-| Blizzard Frame | ActionHud Hook |
-|----------------|----------------|
-| `PlayerFrame` | `PlayerFrame_UpdateArt`, `PlayerFrame_UpdateStatus` |
-| `TargetFrame` | `TargetFrame_Update`, `TargetFrame_CheckClassification` |
-| `FocusFrame` | `FocusFrame:Update` |
-
-**Design:**
-1. Hook into Blizzard's unit frame update functions
-2. Style operations only:
-   - Hide portrait textures (circular character images)
-   - Hide border/decoration textures
-   - Apply flat solid bar texture
-   - Adjust health/mana bar height and width
-   - Style class resource bars (combo points, holy power, etc.)
+Blizzard frames can optionally be hidden while the custom frames are active and are restored when the feature is disabled.
 
 **Available Settings:**
 
@@ -313,21 +297,7 @@ For detailed implementation docs, see the `Docs/` folder:
 
 ### FenCore Integration
 
-ActionHud uses FenCore for pure logic domains with graceful fallbacks:
-
-- **Math.Clamp**: Used by settings validators in `Core/init.lua`
-- All FenCore usage is wrapped via `Core/FenCoreCompat.lua` for optional dependency
-
-The FenCoreCompat module provides fallback implementations when FenCore is not available, ensuring ActionHud works standalone or with FenCore.
-
-**Verify FenCore integration:**
-```bash
-# Sync FenCore library (if needed)
-mech call libs.sync -i '{"addon": "ActionHud"}'
-
-# Run sandbox tests
-mech call sandbox.test -i '{"addon": "ActionHud"}'
-```
+FenCore is an optional dependency. `Utils.lua` uses its environment, secret, and table helpers when present and falls back to the minimal embedded FenUI utilities or local implementations. Legacy `Core/FenCoreCompat.lua` and `Core/init.lua` remain test/reference source but are not in the runtime load path.
 
 ### FenUI Integration
 
@@ -342,7 +312,7 @@ All FenUI usage includes fallback to basic implementations when FenUI is unavail
 
 ## Agent Guidelines
 
-1. Maintain separation between `Core.lua` (logic) and `SettingsUI.lua` (config)
+1. Maintain separation between runtime modules and the files under `Settings/`
 2. Test stance/form bar swaps (Druid, Rogue) when modifying slot logic
 3. Prefer smaller, focused modules over large monolithic files
 
@@ -350,10 +320,10 @@ All FenUI usage includes fallback to basic implementations when FenUI is unavail
 
 ## Tooling and Localization
 
-### Standard Workflows
-- **Linting**: `mech call addon.lint -i '{"addon": "ActionHud"}'`
-- **Formatting**: `mech call addon.format -i '{"addon": "ActionHud"}'` (uses StyLua)
-- **Testing**: `mech call sandbox.test -i '{"addon": "ActionHud"}'`
+### Standard Workflow
+
+- **Testing and syntax validation**: install `lupa==2.8`, then run `python Tests/run.py` from the addon root.
+- GitHub Actions runs the same command for pushes and pull requests.
 
 ### Localization (AceLocale-3.0)
 ActionHud uses standard localization patterns. All UI strings must be wrapped in `L["KEY"]`.
@@ -369,6 +339,6 @@ ActionHud uses standard localization patterns. All UI strings must be wrapped in
 - **Adding Strings**: When adding new UI elements, update `Locales/enUS.lua` with the new key.
 
 ### Unit Testing
-Critical utility functions in `Utils.lua` (especially Midnight-safe comparisons) are covered by unit tests in `Tests/test_utils.lua`.
+Protected-value wrappers, action cooldowns, unit-frame identity handling, scoped unit events, and layout-gap behavior are covered by the standalone files under `Tests/`.
 - **Mocking**: The test environment mocks necessary WoW APIs (`GetBuildInfo`, `issecretvalue`, etc.).
-- **Execution**: Run via the `run_tests` tool or manually with a Lua interpreter if available.
+- **Execution**: Run `python Tests/run.py` from the addon root.

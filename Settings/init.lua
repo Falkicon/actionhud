@@ -52,6 +52,8 @@ end
 -- ============================================================================
 
 function ns.Settings.BuildGeneralOptions(self)
+	local getMetadata = C_AddOns and C_AddOns.GetAddOnMetadata or GetAddOnMetadata
+	local version = getMetadata and getMetadata(addonName, "Version") or "dev"
 	return {
 		name = "ActionHud",
 		handler = ActionHud,
@@ -90,7 +92,7 @@ function ns.Settings.BuildGeneralOptions(self)
 				type = "description",
 				name = string.format(
 					"|cff33ff99%s|r\n\n%s\n\n|cffffcc00%s|r\n%s\n\n%s\n  - |cffffffff%s|r %s\n  - |cffffffff%s|r %s\n  \n%s",
-					L["ActionHud 2.6.2"],
+					"ActionHud " .. version,
 					L["A minimalist HUD mirroring Action Bars 1 & 2 in a 6x4 grid."],
 					L["Required Setup:"],
 					L["Click the button below to open WoW's Gameplay Enhancements settings."],

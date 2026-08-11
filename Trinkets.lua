@@ -150,9 +150,14 @@ function Trinkets:UpdateCooldowns()
 			end
 
 			-- Handle secret duration or normal comparison
-			local showSwipe = isEnabled
-				and duration
-				and (Utils.IsValueSecret(duration) or Utils.SafeCompare(duration, 0, ">"))
+			local showSwipe = false
+			if isEnabled then
+				if Utils.IsValueSecret(duration) then
+					showSwipe = true
+				elseif duration ~= nil then
+					showSwipe = Utils.SafeCompare(duration, 0, ">")
+				end
+			end
 
 			if showSwipe then
 				f.cooldown:SetCooldown(startTime, duration)

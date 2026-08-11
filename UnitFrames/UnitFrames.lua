@@ -273,7 +273,7 @@ end
 local FormatValue = IdentitySafety.FormatValue
 
 -- Create a single status bar with overlays
-local function CreateUnitBar(parent, name)
+local function CreateUnitBar(parent, withHealthOverlays)
 	local bar = CreateFrame("StatusBar", nil, parent)
 	bar:SetStatusBarTexture(FLAT_BAR_TEXTURE)
 	bar:SetStatusBarColor(0.5, 0.5, 0.5, 1) -- Neutral gray default, will be colored in UpdateFrameValues
@@ -285,25 +285,25 @@ local function CreateUnitBar(parent, name)
 	bar.bg:SetAllPoints()
 	bar.bg:SetColorTexture(0.1, 0.1, 0.1, 0.5)
 
-	-- Heal Prediction Overlay
-	bar.predict = CreateFrame("StatusBar", nil, bar)
-	bar.predict:SetAllPoints()
-	bar.predict:SetStatusBarTexture(FLAT_BAR_TEXTURE)
-	bar.predict:SetStatusBarColor(0, 1, 0, 0.4)
-	bar.predict:SetFrameLevel(bar:GetFrameLevel() + 1)
-	bar.predict:EnableMouse(false)
-	bar.predict:Hide() -- Hidden by default, shown when heal prediction is active
+	if withHealthOverlays then
+		bar.predict = CreateFrame("StatusBar", nil, bar)
+		bar.predict:SetAllPoints()
+		bar.predict:SetStatusBarTexture(FLAT_BAR_TEXTURE)
+		bar.predict:SetStatusBarColor(0, 1, 0, 0.4)
+		bar.predict:SetFrameLevel(bar:GetFrameLevel() + 1)
+		bar.predict:EnableMouse(false)
+		bar.predict:Hide()
 
-	-- Absorb Overlay
-	bar.absorb = CreateFrame("StatusBar", nil, bar)
-	bar.absorb:SetAllPoints()
-	bar.absorb:SetStatusBarTexture(FLAT_BAR_TEXTURE)
-	bar.absorb:SetStatusBarColor(0, 0.8, 1, 0.6)
-	bar.absorb:SetFrameLevel(bar:GetFrameLevel() + 2)
-	bar.absorb:EnableMouse(false)
-	bar.absorb:Hide() -- Hidden by default, shown when absorb shield is present
-	if bar.absorb.SetReverseFill then
-		bar.absorb:SetReverseFill(true)
+		bar.absorb = CreateFrame("StatusBar", nil, bar)
+		bar.absorb:SetAllPoints()
+		bar.absorb:SetStatusBarTexture(FLAT_BAR_TEXTURE)
+		bar.absorb:SetStatusBarColor(0, 0.8, 1, 0.6)
+		bar.absorb:SetFrameLevel(bar:GetFrameLevel() + 2)
+		bar.absorb:EnableMouse(false)
+		bar.absorb:Hide()
+		if bar.absorb.SetReverseFill then
+			bar.absorb:SetReverseFill(true)
+		end
 	end
 
 	return bar
@@ -597,10 +597,10 @@ function UnitFrames:CreateFrames()
 		f.border:EnableMouse(false)
 
 		-- Bars
-		f.health = CreateUnitBar(f, "Health")
+		f.health = CreateUnitBar(f, true)
 		f.health:SetClipsChildren(true)
-		f.power = CreateUnitBar(f, "Power")
-		f.class = CreateUnitBar(f, "Class")
+		f.power = CreateUnitBar(f, false)
+		f.class = CreateUnitBar(f, false)
 
 		-- Health Text Elements
 		f.healthElements = {

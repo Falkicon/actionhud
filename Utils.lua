@@ -457,9 +457,15 @@ function Utils.GetActionTextureSafe(a)
 		if ok and type(texture) == "table" then
 			return texture.texture or texture.icon
 		end
-		return ok and texture or nil
+		if ok then
+			return texture
+		end
+		return nil
 	end
-	return GetActionTexture and GetActionTexture(a) or nil
+	if GetActionTexture then
+		return GetActionTexture(a)
+	end
+	return nil
 end
 function Utils.IsUsableActionSafe(a)
 	if F and F.IsUsableActionSafe then
@@ -614,16 +620,28 @@ end
 function Utils.GetUnitColor(unit, barType, mult)
 	mult = mult or 1
 	if barType == "HEALTH" then
-		if UnitIsPlayer(unit) then
+		local isPlayer = UnitIsPlayer(unit)
+		if Utils.IsValueSecret(isPlayer) then
+			return 0.5 * mult, 0.5 * mult, 0.5 * mult
+		end
+		if isPlayer == true then
 			local _, class = UnitClass(unit)
+			if Utils.IsValueSecret(class) then
+				return 0.5 * mult, 0.5 * mult, 0.5 * mult
+			end
 			local c = RAID_CLASS_COLORS[class]
 			if c then
 				return c.r * mult, c.g * mult, c.b * mult
 			end
 		else
-			if UnitIsEnemy("player", unit) then
+			local isEnemy = UnitIsEnemy("player", unit)
+			local isFriend = UnitIsFriend("player", unit)
+			if Utils.IsValueSecret(isEnemy) or Utils.IsValueSecret(isFriend) then
+				return 0.5 * mult, 0.5 * mult, 0.5 * mult
+			end
+			if isEnemy == true then
 				return 0.8 * mult, 0, 0
-			elseif UnitIsFriend("player", unit) then
+			elseif isFriend == true then
 				return 0, 0.8 * mult, 0
 			else
 				return 0.8 * mult, 0.8 * mult, 0
@@ -632,10 +650,18 @@ function Utils.GetUnitColor(unit, barType, mult)
 		return 0, 0.8 * mult, 0
 	elseif barType == "POWER" or barType == "MANA" then
 		local pType, pToken, altR, altG, altB = UnitPowerType(unit)
-		local info = PowerBarColor[pToken]
+		local info
+		if not Utils.IsValueSecret(pToken) then
+			info = PowerBarColor[pToken]
+		end
 		if info then
 			return info.r * mult, info.g * mult, info.b * mult
-		elseif altR then
+		elseif
+			not Utils.IsValueSecret(altR)
+			and not Utils.IsValueSecret(altG)
+			and not Utils.IsValueSecret(altB)
+			and altR ~= nil
+		then
 			return altR * mult, altG * mult, altB * mult
 		end
 		return 0, 0, 0.8 * mult

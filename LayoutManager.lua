@@ -269,15 +269,15 @@ function LayoutManager:GetStackHeight()
 	local gaps = self:GetGaps()
 
 	local totalHeight = 0
+	local previousVisibleIndex
 	for i, id in ipairs(stack) do
 		local h = self:GetModuleHeight(id)
 		if h > 0 then
-			totalHeight = totalHeight + h
-			-- Only add gap if this isn't the last module in the stack
-			-- AND there's potentially another module coming after it
-			if i < #stack then
-				totalHeight = totalHeight + (gaps[i] or 0)
+			if previousVisibleIndex then
+				totalHeight = totalHeight + (gaps[previousVisibleIndex] or 0)
 			end
+			totalHeight = totalHeight + h
+			previousVisibleIndex = i
 		end
 	end
 

@@ -61,6 +61,25 @@ issecretvalue = function(value)
 	return secretValues[value] == true
 end
 
+local identityValues = {}
+UnitIsPlayer = function()
+	return identityValues.isPlayer
+end
+UnitClass = function()
+	return "Mage", identityValues.class
+end
+UnitIsEnemy = function()
+	return identityValues.isEnemy
+end
+UnitIsFriend = function()
+	return identityValues.isFriend
+end
+UnitPowerType = function()
+	return 0, identityValues.powerToken, identityValues.altR, identityValues.altG, identityValues.altB
+end
+RAID_CLASS_COLORS = { MAGE = { r = 0.25, g = 0.5, b = 0.75 } }
+PowerBarColor = { MANA = { r = 0, g = 0, b = 1 } }
+
 print("Loading embedded FenUI utilities...")
 FenCore = nil
 FenUI = {}
@@ -189,6 +208,19 @@ assertEqual(false, Utils.IsValueSecret(normalValue), "Normal value identified as
 assertEqual(true, Utils.IsValueSecret(secretValue), "Secret value not identified")
 assertEqual(true, Utils.SafeCompare(10, 5, ">"), "SafeCompare numeric comparison failed")
 assertEqual(false, Utils.SafeCompare(secretValue, 10, ">"), "SafeCompare secret fallback failed")
+
+identityValues.isPlayer = true
+identityValues.class = secretValue
+local r, g, b = Utils.GetUnitColor("target", "HEALTH", 1)
+assertEqual(0.5, r, "Restricted class color fallback red changed")
+assertEqual(0.5, g, "Restricted class color fallback green changed")
+assertEqual(0.5, b, "Restricted class color fallback blue changed")
+
+identityValues.powerToken = secretValue
+r, g, b = Utils.GetUnitColor("target", "POWER", 1)
+assertEqual(0, r, "Restricted power color fallback red changed")
+assertEqual(0, g, "Restricted power color fallback green changed")
+assertEqual(0.8, b, "Restricted power color fallback blue changed")
 
 local cooldownFrame = {
 	SetCooldown = function(self, start, duration)

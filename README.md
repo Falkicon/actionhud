@@ -2,12 +2,12 @@
 
 A lightweight, high-performance action bar HUD for World of Warcraft Retail. Displays a compact grid of your primary action bars, synchronized with Blizzard's native Edit Mode settings.
 
-![WoW Version](https://img.shields.io/badge/WoW-11.0%2B-blue)
-![Interface](https://img.shields.io/badge/Interface-120001-green)
+![WoW Version](https://img.shields.io/badge/WoW-12.1%2B-blue)
+![Interface](https://img.shields.io/badge/Interface-120100-green)
 [![GitHub](https://img.shields.io/badge/GitHub-Falkicon%2FActionHud-181717?logo=github)](https://github.com/Falkicon/ActionHud)
 [![Sponsor](https://img.shields.io/badge/Sponsor-pink?logo=githubsponsors)](https://github.com/sponsors/Falkicon)
 
-> **Midnight Compatibility**: This addon is fully prepared for WoW 12.0 (Midnight). It uses passthrough patterns for secret values during combat, defensive API wrappers, and graceful degradation for restricted zones.
+> **Midnight Compatibility**: ActionHud targets WoW 12.1 and uses protected-value passthrough patterns, defensive API wrappers, and graceful degradation in restricted combat contexts.
 
 ### Complete Your UI for Midnight
 
@@ -109,7 +109,7 @@ Open the settings panel via slash command or `Esc` → `Options` → `AddOns` �
 
 ## Requirements
 
-- World of Warcraft Retail 11.0+ or Midnight Beta
+- World of Warcraft Retail 12.1+
 - Action Bars 1 and 2 configured as described above
 
 ## Files
@@ -127,9 +127,9 @@ Open the settings panel via slash command or `Esc` → `Options` → `AddOns` �
 
 ## Technical Notes
 
-- **Event-Driven** – Primary updates react to game events; minimal polling with adaptive throttling (20 Hz active, 2 Hz idle)
-- **Static Frames** – All 24 buttons are created once at load, never during combat
-- **Minimal Memory** – Reuses textures, frames, and tables; eliminates per-frame allocations
+- **Event-Driven** – Action state, usability, cooldown, and range updates use Blizzard events, including opt-in push range checks.
+- **Static Frames** – Action buttons are created once when the module starts; optional secure unit frames are created only when enabled and outside combat.
+- **Scoped Unit Events** – Health and power events subscribe only to the player, target, focus, and target-of-target units that ActionHud displays.
 - **API Resilience** – All critical APIs wrapped with `pcall` for stability across patches
 - **Midnight Ready** – Passthrough patterns for secret values; graceful degradation when data is restricted
 - **Ace3 Framework** – Uses AceAddon, AceDB, AceConfig for robust infrastructure
