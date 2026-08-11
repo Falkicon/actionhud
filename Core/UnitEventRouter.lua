@@ -37,7 +37,7 @@ local function ApplyRegistrations(state, generation)
 
 	state.frame:UnregisterAllEvents()
 	for event, registration in pairs(state.registrations) do
-		state.frame:RegisterUnitEvent(event, unpack(registration.units))
+		pcall(state.frame.RegisterUnitEvent, state.frame, event, unpack(registration.units))
 	end
 end
 

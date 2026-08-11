@@ -29,16 +29,7 @@ container:SetPoint("CENTER", UIParent, "CENTER", 0, -100) -- Default position
 local editModeAccumulated = 0
 local lastEditModeReport = 0
 
-container:SetScript("OnUpdate", function(self)
-	-- Only enforce positioning during Edit Mode
-	if not (EditModeManagerFrame and EditModeManagerFrame:IsShown()) then
-		if editModeAccumulated > 0 and ActionHudMechanic then
-			ActionHudMechanic:RecordPerfMetric("EditModePolling", 0)
-		end
-		editModeAccumulated = 0
-		return
-	end
-
+local function EnforceEditModePosition(self)
 	local start = debugprofilestop()
 
 	local blizzFrame = _G[BLIZZARD_FRAME_NAME]
@@ -59,7 +50,19 @@ container:SetScript("OnUpdate", function(self)
 		editModeAccumulated = 0
 		lastEditModeReport = now
 	end
-end)
+end
+
+local function SetEditModePolling(enabled)
+	container:SetScript("OnUpdate", enabled and EnforceEditModePosition or nil)
+	if not enabled then
+		if editModeAccumulated > 0 and ActionHudMechanic then
+			ActionHudMechanic:RecordPerfMetric("EditModePolling", 0)
+		end
+		editModeAccumulated = 0
+	end
+end
+
+SetEditModePolling(EditModeManagerFrame and EditModeManagerFrame:IsShown())
 
 function EssentialCooldownsLayout:OnInitialize()
 	self.db = addon.db
@@ -137,7 +140,11 @@ function EssentialCooldownsLayout:SetupContainer()
 	-- Hook Edit Mode to restore positioning when it closes
 	-- (Edit Mode allows users to move Blizzard frames, which desynchronizes them from our containers)
 	if EditModeManagerFrame and not self._editModeHooked then
+		EditModeManagerFrame:HookScript("OnShow", function()
+			SetEditModePolling(true)
+		end)
 		EditModeManagerFrame:HookScript("OnHide", function()
+			SetEditModePolling(false)
 			addon:Log("EssentialCooldownsLayout: Edit Mode closed, restoring position", "layout")
 			local frame = self:GetBlizzardFrame()
 			if frame then
@@ -147,6 +154,7 @@ function EssentialCooldownsLayout:SetupContainer()
 			self:UpdateLayout()
 		end)
 		self._editModeHooked = true
+		SetEditModePolling(EditModeManagerFrame:IsShown())
 	end
 
 	-- Hook to apply styling reset to icons as they're created

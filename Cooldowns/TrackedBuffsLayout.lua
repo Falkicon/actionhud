@@ -25,11 +25,7 @@ container:SetPoint("CENTER", UIParent, "CENTER", 0, -180) -- Default position
 
 -- Add OnUpdate polling to constantly reposition Blizzard viewer (blocks Edit Mode)
 -- Only runs when Edit Mode is active for performance
-container:SetScript("OnUpdate", function(self)
-	if not (EditModeManagerFrame and EditModeManagerFrame:IsShown()) then
-		return
-	end
-
+local function EnforceEditModePosition(self)
 	local blizzFrame = _G[BLIZZARD_FRAME_NAME]
 	if blizzFrame and blizzFrame._ActionHud_Controlled then
 		if blizzFrame._ActionHud_OrigSetPoint then
@@ -37,7 +33,13 @@ container:SetScript("OnUpdate", function(self)
 			blizzFrame._ActionHud_OrigSetPoint(blizzFrame, "CENTER", self, "CENTER")
 		end
 	end
-end)
+end
+
+local function SetEditModePolling(enabled)
+	container:SetScript("OnUpdate", enabled and EnforceEditModePosition or nil)
+end
+
+SetEditModePolling(EditModeManagerFrame and EditModeManagerFrame:IsShown())
 
 function TrackedBuffsLayout:OnInitialize()
 	self.db = addon.db
@@ -134,7 +136,11 @@ function TrackedBuffsLayout:SetupContainer()
 
 	-- Hook Edit Mode to restore positioning when it closes
 	if EditModeManagerFrame and not self._editModeHooked then
+		EditModeManagerFrame:HookScript("OnShow", function()
+			SetEditModePolling(true)
+		end)
 		EditModeManagerFrame:HookScript("OnHide", function()
+			SetEditModePolling(false)
 			addon:Log("TrackedBuffsLayout: Edit Mode closed, restoring position", "layout")
 			local frame = self:GetBlizzardFrame()
 			if frame then
@@ -144,6 +150,7 @@ function TrackedBuffsLayout:SetupContainer()
 			self:UpdateLayout()
 		end)
 		self._editModeHooked = true
+		SetEditModePolling(EditModeManagerFrame:IsShown())
 	end
 
 	-- Hook Blizzard frame's ArrangeFrames to update container size when buffs change

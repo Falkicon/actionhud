@@ -72,6 +72,13 @@ local function UnitExistsSafe(unit)
 	return exists == true
 end
 
+local function SafeNumber(value)
+	if value == nil or Utils.IsValueSecret(value) then
+		return nil
+	end
+	return tonumber(value)
+end
+
 local function CreateBar(parent, withHealthOverlays)
 	local bar = CreateFrame("StatusBar", nil, parent)
 	bar:SetStatusBarTexture(FLAT_BAR_TEXTURE)
@@ -93,6 +100,7 @@ local function CreateBar(parent, withHealthOverlays)
 
 		bar.absorb = CreateFrame("StatusBar", nil, bar)
 		bar.absorb:SetStatusBarTexture(FLAT_BAR_TEXTURE)
+		bar.absorb:SetAllPoints()
 		bar.absorb:SetAlpha(0.6) -- Higher alpha for visibility
 		bar.absorb:SetStatusBarColor(0, 1, 1) -- Brighter teal for absorbs
 		bar.absorb:SetFrameLevel(bar:GetFrameLevel() + 2) -- Top layer
@@ -144,6 +152,9 @@ local function GetClassPowerFractional(unit, pType)
 					mod = 100
 				end
 				if rawOk and mod ~= 0 then
+					if type(raw) == "number" and not Utils.IsValueSecret(raw) then
+						return raw / mod
+					end
 					local divOk, result = pcall(function()
 						return raw / mod
 					end)
@@ -154,14 +165,20 @@ local function GetClassPowerFractional(unit, pType)
 			end
 		end
 	elseif pType == Enum.PowerType.Essence then
-		local partialOk, partial = pcall(function()
-			if UnitPartialPower then
-				return UnitPartialPower(unit, pType)
-			end
-			return 0
-		end)
+		local partialOk, partial = true, 0
+		if UnitPartialPower then
+			partialOk, partial = pcall(UnitPartialPower, unit, pType)
+		end
 		if not partialOk or type(partial) == "nil" then
 			partial = 0
+		end
+		if
+			type(cur) == "number"
+			and type(partial) == "number"
+			and not Utils.IsValueSecret(cur)
+			and not Utils.IsValueSecret(partial)
+		then
+			return cur + (partial / 1000.0)
 		end
 		local addOk, result = pcall(function()
 			return cur + (partial / 1000.0)
@@ -177,7 +194,7 @@ end
 local function CanShowClassPower()
 	local pType = GetClassPowerType()
 	if not pType then
-		return false, nil, 0
+		return false, nil, 0, nil
 	end
 
 	local max = UnitPowerMax("player", pType) -- @scan-ignore: midnight-player-only
@@ -187,23 +204,8 @@ local function CanShowClassPower()
 	local maxIsSecret = Utils.IsValueSecret(max)
 	local curIsSecret = Utils.IsValueSecret(cur)
 
-	-- Safe tonumber that handles secret values
-	local function SafeNum(v)
-		if v == nil then
-			return nil
-		end
-		if Utils.IsValueSecret(v) then
-			return nil
-		end
-		local ok, result = pcall(tonumber, v)
-		if ok then
-			return result
-		end
-		return nil
-	end
-
-	local maxNum = SafeNum(max)
-	local curNum = SafeNum(cur)
+	local maxNum = SafeNumber(max)
+	local curNum = SafeNumber(cur)
 
 	-- Normalize internal units (some clients return 300 for 3 shards)
 	if maxNum and maxNum > 10 then
@@ -215,11 +217,11 @@ local function CanShowClassPower()
 
 	if maxIsSecret or curIsSecret or not maxNum then
 		-- Fallback for secret OR non-numeric values
-		return true, pType, 5
+		return true, pType, 5, cur
 	end
 
 	if maxNum <= 0 then
-		return false, pType, 0
+		return false, pType, 0, cur
 	end
 
 	-- For Warlocks, always show bar if in combat
@@ -229,41 +231,52 @@ local function CanShowClassPower()
 		inCombat = false
 	end
 	if class == "WARLOCK" and inCombat == true then
-		return true, pType, maxNum
+		return true, pType, maxNum, cur
 	end
 
 	-- Show if we have any power (including partials)
 	if not curNum or curNum <= 0.01 then
-		return false, pType, 0
+		return false, pType, 0, cur
 	end
 
-	return true, pType, maxNum
+	return true, pType, maxNum, cur
 end
 
 local function UpdateClassPower()
 	if not playerClassBar then
-		return
+		return false
 	end
 
-	local show, pType, max = CanShowClassPower()
+	local wasShown = playerClassBar:IsShown()
+	if not RCFG.classEnabled then
+		playerClassBar:Hide()
+		return wasShown
+	end
+	local show, pType, max, curFractional = CanShowClassPower()
 	if not show then
 		playerClassBar:Hide()
-		return
+		return wasShown
 	end
 
 	-- Get fractional power (3.4 shards, 5.2 essence, etc)
-	local curFractional = GetClassPowerFractional("player", pType)
 	local curIsSecret = Utils.IsValueSecret(curFractional)
 
 	-- Force max to be numeric for the loop (safely)
 	if Utils.IsValueSecret(max) then
 		max = 5
 	else
-		local ok, numMax = pcall(tonumber, max)
-		max = (ok and numMax) or 5
+		max = tonumber(max) or 5
 	end
 
 	playerClassBar:Show()
+	local width = playerClassBar:GetWidth()
+	if width <= 0 then
+		width = container:GetWidth()
+	end
+	local height = playerClassBar:GetHeight()
+	local layoutChanged = playerClassBar._segmentMax ~= max
+		or playerClassBar._segmentWidth ~= width
+		or playerClassBar._segmentHeight ~= height
 
 	-- Ensure segments exist as StatusBars
 	for i = 1, max do
@@ -277,6 +290,7 @@ local function UpdateClassPower()
 			f.bg:SetColorTexture(0, 0, 0, 0.3)
 
 			classSegments[i] = f
+			layoutChanged = true
 		elseif not classSegments[i].SetStatusBarColor then
 			-- Conversion safety: if it was a texture, we need to replace it
 			-- This shouldn't happen after the first reload but good for dev
@@ -288,18 +302,8 @@ local function UpdateClassPower()
 			f.bg:SetAllPoints()
 			f.bg:SetColorTexture(0, 0, 0, 0.3)
 			classSegments[i] = f
+			layoutChanged = true
 		end
-	end
-
-	-- Hide extra
-	for i = max + 1, #classSegments do
-		classSegments[i]:Hide()
-	end
-
-	-- Layout
-	local width = playerClassBar:GetWidth()
-	if width <= 0 then
-		width = container:GetWidth()
 	end
 
 	local spacing = 1
@@ -314,16 +318,26 @@ local function UpdateClassPower()
 		baseColor = RuneSpecColors[spec] or ClassBarColors[pType]
 	end
 
+	if layoutChanged then
+		playerClassBar._segmentMax = max
+		playerClassBar._segmentWidth = width
+		playerClassBar._segmentHeight = height
+		for i = max + 1, #classSegments do
+			classSegments[i]:Hide()
+		end
+	end
+
 	for i = 1, max do
 		local seg = classSegments[i]
-		seg:ClearAllPoints()
-		seg:SetWidth(segWidth)
-		seg:SetHeight(playerClassBar:GetHeight())
-
-		if i == 1 then
-			seg:SetPoint("LEFT", playerClassBar, "LEFT", 0, 0)
-		else
-			seg:SetPoint("LEFT", classSegments[i - 1], "RIGHT", spacing, 0)
+		if layoutChanged then
+			seg:ClearAllPoints()
+			seg:SetWidth(segWidth)
+			seg:SetHeight(height)
+			if i == 1 then
+				seg:SetPoint("LEFT", playerClassBar, "LEFT", 0, 0)
+			else
+				seg:SetPoint("LEFT", classSegments[i - 1], "RIGHT", spacing, 0)
+			end
 		end
 
 		-- Calculate fill for this specific segment (0.0 to 1.0)
@@ -343,31 +357,33 @@ local function UpdateClassPower()
 
 		-- Color / Alpha
 		if curIsSecret then
-			seg:SetAlpha(0.6)
-			local c = baseColor
-			if c then
-				seg:SetStatusBarColor(c.r * 0.8, c.g * 0.8, c.b * 0.8)
-			else
-				seg:SetStatusBarColor(0.8, 0.8, 0)
+			if seg._alpha ~= 0.6 then
+				seg._alpha = 0.6
+				seg:SetAlpha(0.6)
 			end
 		else
 			local fillAlpha = 0.3
-			local ok, result = pcall(function()
-				return fill > 0
-			end)
-			if ok and result then
+			if fill > 0 then
 				fillAlpha = 1
 			end
-			seg:SetAlpha(fillAlpha)
-			local c = baseColor
-			if c then
-				seg:SetStatusBarColor(c.r, c.g, c.b)
+			if seg._alpha ~= fillAlpha then
+				seg._alpha = fillAlpha
+				seg:SetAlpha(fillAlpha)
+			end
+		end
+		if seg._baseColor ~= baseColor or seg._dimmedColor ~= curIsSecret then
+			seg._baseColor = baseColor
+			seg._dimmedColor = curIsSecret
+			local multiplier = curIsSecret and 0.8 or 1
+			if baseColor then
+				seg:SetStatusBarColor(baseColor.r * multiplier, baseColor.g * multiplier, baseColor.b * multiplier)
 			else
-				seg:SetStatusBarColor(1, 1, 0)
+				seg:SetStatusBarColor(multiplier, multiplier, 0)
 			end
 		end
 		seg:Show()
 	end
+	return not wasShown
 end
 
 local function UpdateBarColor(bar, unit)
@@ -377,6 +393,81 @@ local function UpdateBarColor(bar, unit)
 
 	local r, g, b = Utils.GetUnitColor(unit, bar.type, 0.85)
 	bar:SetStatusBarColor(r, g, b)
+end
+
+local function SafeSetMinMax(targetBar, minVal, maxVal)
+	local normalizedMax = 1
+	if not Utils.IsValueSecret(maxVal) then
+		local numMax = tonumber(maxVal)
+		if numMax and numMax > 0 then
+			normalizedMax = numMax
+		end
+	end
+	if targetBar._safeMin ~= minVal or targetBar._safeMax ~= normalizedMax then
+		targetBar._safeMin = minVal
+		targetBar._safeMax = normalizedMax
+		targetBar:SetMinMaxValues(minVal, normalizedMax)
+	end
+end
+
+local function GetRawUnitAbsorb(unit)
+	if not UnitGetTotalAbsorbs then
+		return 0
+	end
+	local value = UnitGetTotalAbsorbs(unit)
+	if type(value) == "nil" then
+		return 0
+	end
+	return value
+end
+
+local function IsActive(value)
+	if type(value) == "nil" then
+		return false
+	end
+	if Utils.IsValueSecret(value) then
+		return true
+	end
+	return type(value) == "number" and value > 0
+end
+
+local function SetPredictionAnchor(bar, anchoredToValue)
+	local prediction = bar.predict
+	local mode = anchoredToValue and "value" or "bar"
+	if prediction._anchorMode == mode then
+		if anchoredToValue then
+			local width = bar:GetWidth()
+			if prediction._barWidth ~= width then
+				prediction._barWidth = width
+				prediction:SetWidth(width)
+			end
+		end
+		return true
+	end
+
+	prediction._anchorMode = mode
+	prediction:ClearAllPoints()
+	if anchoredToValue then
+		local texture = bar:GetStatusBarTexture()
+		if texture then
+			prediction:SetPoint("TOPLEFT", texture, "TOPRIGHT")
+			prediction:SetPoint("BOTTOMLEFT", texture, "BOTTOMRIGHT")
+			local width = bar:GetWidth()
+			prediction._barWidth = width
+			prediction:SetWidth(width)
+			return true
+		end
+		return false
+	end
+	prediction:SetAllPoints()
+	return true
+end
+
+local function SafeDebugValue(value)
+	if Utils.IsValueSecret(value) then
+		return "<secret>"
+	end
+	return tostring(value)
 end
 
 local function UpdateBarValue(bar, unit)
@@ -389,19 +480,6 @@ local function UpdateBarValue(bar, unit)
 			bar.absorb:Hide()
 		end
 		return
-	end
-
-	local function SafeSetMinMax(targetBar, minVal, maxVal)
-		if Utils.IsValueSecret(maxVal) then
-			targetBar:SetMinMaxValues(minVal, 1)
-			return
-		end
-		local ok, numMax = pcall(tonumber, maxVal)
-		if ok and numMax and numMax > 0 then
-			targetBar:SetMinMaxValues(minVal, numMax)
-		else
-			targetBar:SetMinMaxValues(minVal, 1)
-		end
 	end
 
 	local cur, max
@@ -432,52 +510,20 @@ local function UpdateBarValue(bar, unit)
 	if bar.type == "HEALTH" and (RCFG.showPredict or RCFG.showAbsorbs) then
 		local incomingHeals, _, _, _, calcAbsorb = Utils.GetUnitHealsSafe(unit, healCalculator)
 
-		-- Use a safe helper for direct API calls that might return secret values
-		local function GetRawUnitAbsorb(u)
-			if not UnitGetTotalAbsorbs then
-				return 0
-			end
-			local val = UnitGetTotalAbsorbs(u)
-			if type(val) == "nil" then
-				return 0
-			end
-			return val
-		end
-
 		local unitAbsorb = GetRawUnitAbsorb(unit)
-
-		-- Helper to check if a value is "active" (non-zero or secret)
-		-- Helper to check if a numeric value is active (non-zero or secret)
-		-- Strictly safe for Midnight secret values
-		local function IsActive(v)
-			if type(v) == "nil" then
-				return false
-			end
-			local ok, result = pcall(function()
-				return v > 0
-			end)
-			return not ok or result
-		end
 
 		-- 1. Heal Prediction (Incoming Heals)
 		if RCFG.showPredict and IsActive(incomingHeals) then
 			SafeSetMinMax(bar.predict, 0, max)
 			if Utils.IsValueSecret(cur) then
 				-- Royal: Anchor to current health texture and fill to the right
-				local tex = bar:GetStatusBarTexture()
-				if tex then
-					bar.predict:ClearAllPoints()
-					bar.predict:SetPoint("TOPLEFT", tex, "TOPRIGHT")
-					bar.predict:SetPoint("BOTTOMLEFT", tex, "BOTTOMRIGHT")
-					-- Set width to full bar width to ensure correct SetValue scaling
-					bar.predict:SetWidth(bar:GetWidth())
+				if SetPredictionAnchor(bar, true) then
 					bar.predict:SetValue(incomingHeals)
 					bar.predict:Show()
 				end
 			else
 				-- Legacy: Stack but cap at max
-				bar.predict:ClearAllPoints()
-				bar.predict:SetAllPoints()
+				SetPredictionAnchor(bar, false)
 				if
 					not Utils.IsValueSecret(cur)
 					and not Utils.IsValueSecret(incomingHeals)
@@ -488,12 +534,7 @@ local function UpdateBarValue(bar, unit)
 				else
 					-- If secret, just pass the prediction value directly.
 					-- Without knowing 'cur', we can't reliably stack it, so we anchor it.
-					local tex = bar:GetStatusBarTexture()
-					if tex then
-						bar.predict:ClearAllPoints()
-						bar.predict:SetPoint("TOPLEFT", tex, "TOPRIGHT")
-						bar.predict:SetPoint("BOTTOMLEFT", tex, "BOTTOMRIGHT")
-						bar.predict:SetWidth(bar:GetWidth())
+					if SetPredictionAnchor(bar, true) then
 						bar.predict:SetValue(incomingHeals)
 					else
 						bar.predict:SetValue(incomingHeals)
@@ -508,13 +549,6 @@ local function UpdateBarValue(bar, unit)
 		-- 2. Absorbs (Shields) - Reverse Fill from Right
 		if RCFG.showAbsorbs and (IsActive(calcAbsorb) or IsActive(unitAbsorb)) then
 			SafeSetMinMax(bar.absorb, 0, max)
-			bar.absorb:ClearAllPoints()
-			bar.absorb:SetAllPoints()
-
-			-- Force reverse fill state
-			if bar.absorb.SetReverseFill then
-				bar.absorb:SetReverseFill(true)
-			end
 
 			-- Prefer secret value for pass-through, or max of numbers
 			local absorbValue = 0
@@ -526,12 +560,10 @@ local function UpdateBarValue(bar, unit)
 				local calcNum = 0
 				local unitNum = 0
 				if not Utils.IsValueSecret(calcAbsorb) then
-					local ok1, n1 = pcall(tonumber, calcAbsorb)
-					calcNum = (ok1 and n1) or 0
+					calcNum = tonumber(calcAbsorb) or 0
 				end
 				if not Utils.IsValueSecret(unitAbsorb) then
-					local ok2, n2 = pcall(tonumber, unitAbsorb)
-					unitNum = (ok2 and n2) or 0
+					unitNum = tonumber(unitAbsorb) or 0
 				end
 				absorbValue = math.max(calcNum, unitNum)
 			end
@@ -545,20 +577,14 @@ local function UpdateBarValue(bar, unit)
 		-- Debug logging (Safe)
 		if addon.db.profile.debugResources then
 			pcall(function()
-				local function s(v)
-					if Utils.IsValueSecret(v) then
-						return "<secret>"
-					end
-					return tostring(v)
-				end
 				addon:Log(
 					string.format(
 						"Resources: %s Health update: cur=%s max=%s predict=%s absorb=%s",
 						unit,
-						s(cur),
-						s(max),
-						s(incomingHeals),
-						s(calcAbsorb ~= 0 and calcAbsorb or unitAbsorb)
+						SafeDebugValue(cur),
+						SafeDebugValue(max),
+						SafeDebugValue(incomingHeals),
+						SafeDebugValue(IsActive(calcAbsorb) and calcAbsorb or unitAbsorb)
 					),
 					"resources"
 				)
@@ -736,17 +762,8 @@ function Resources:OnEvent(event, unit)
 	elseif event == "UNIT_POWER_UPDATE" then
 		if unit == "player" then
 			UpdateBarValue(playerPower, "player")
-			local cType = GetClassPowerType()
-			if cType then
-				local shouldShow = CanShowClassPower()
-				local isShown = playerClassBar:IsShown()
-				if shouldShow ~= isShown then
-					self:UpdateLayout()
-				else
-					if shouldShow then
-						UpdateClassPower()
-					end
-				end
+			if GetClassPowerType() and UpdateClassPower() then
+				self:UpdateLayout()
 			end
 		end
 		if unit == "target" then

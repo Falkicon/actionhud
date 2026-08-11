@@ -232,6 +232,8 @@ local showRole, _, roleCoord = IdentitySafety.GetStatusIconState("role", "target
 assertEqual(true, showRole, "unrestricted role must still show")
 assertEqual(0.3, roleCoord[1], "unrestricted damage role texture coordinates changed")
 assertEqual(0.59375, roleCoord[2], "unrestricted damage role texture coordinates changed")
+local _, _, repeatedRoleCoord = IdentitySafety.GetStatusIconState("role", "target", false)
+assertEqual(roleCoord, repeatedRoleCoord, "status icon updates should reuse texture-coordinate tables")
 
 apiValues.summon = Enum.SummonStatus.Accepted
 local showSummon, summonTexture = IdentitySafety.GetStatusIconState("summon", "target", false)
@@ -293,5 +295,8 @@ for _, unsafePattern in ipairs({
 }) do
 	assertNotContains(source, unsafePattern, "direct identity composition returned")
 end
+
+assertContains(source, 'self:UpdateFrameValues(f, "status")', "status events must use their targeted update path")
+assertContains(source, 'updateKind == "powerLayout"', "power layout events must remain separated from power ticks")
 
 print("SUCCESS: unit-frame identity values are filtered before use")

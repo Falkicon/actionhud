@@ -306,4 +306,49 @@ do
 	ActionButton_ApplyCooldown = nil
 end
 
+do
+	local cooldownInfo = { startTime = 10, duration = 30, isEnabled = true, isActive = true, modRate = 1 }
+	local chargeInfo = {
+		currentCharges = 0,
+		maxCharges = 0,
+		cooldownStartTime = 0,
+		cooldownDuration = 0,
+		chargeModRate = 1,
+		isActive = false,
+	}
+	local lossOfControlInfo = {
+		startTime = 0,
+		duration = 0,
+		modRate = 1,
+		isActive = false,
+		shouldReplaceNormalCooldown = false,
+	}
+	local createCount = 0
+	local appliedChargeFrame = "unset"
+	ActionButton_ApplyCooldown = function(_, _, chargeFrame)
+		appliedChargeFrame = chargeFrame
+	end
+	C_ActionBar = {
+		GetActionCooldown = function()
+			return cooldownInfo
+		end,
+		GetActionCharges = function()
+			return chargeInfo
+		end,
+		GetActionLossOfControlCooldownInfo = function()
+			return lossOfControlInfo
+		end,
+	}
+	CreateFrame = function()
+		createCount = createCount + 1
+		return NewCooldownFrame()
+	end
+
+	local button = { hasAction = true, actionID = 42, cd = NewCooldownFrame() }
+	ActionBars:UpdateCooldown(button)
+	AssertEqual(0, createCount, "non-charge actions should not allocate a second cooldown frame")
+	AssertEqual(nil, appliedChargeFrame, "non-charge actions should pass no charge cooldown frame")
+	ActionButton_ApplyCooldown = nil
+end
+
 print("SUCCESS: ActionBars restricted cooldown compositor verified!")

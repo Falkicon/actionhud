@@ -323,6 +323,7 @@ local SuppressEffectFrame
 
 -- Track containers that need child monitoring
 local monitoredContainers = {}
+local scannerFrame
 
 -- Suppress a single effect frame with hooks (and optionally its children)
 SuppressEffectFrame = function(itemFrame, effectFrame, name, suppressChildren)
@@ -385,6 +386,9 @@ SuppressEffectFrame = function(itemFrame, effectFrame, name, suppressChildren)
 				itemFrame = itemFrame,
 				name = name,
 			}
+			if scannerFrame then
+				scannerFrame:Show()
+			end
 		end
 	end
 end
@@ -393,23 +397,34 @@ end
 local continuousSuppressFrames = {}
 
 -- Periodic scanner for dynamically created children in effect containers
--- Runs every frame (OnUpdate) to catch PandemicIcon the moment it appears
+-- Runs at a short interval while monitored frames exist to catch PandemicIcon
 -- AND continuously suppresses frames that Blizzard keeps trying to show
-local scannerFrame = CreateFrame("Frame")
+scannerFrame = CreateFrame("Frame")
+scannerFrame:Hide()
+
+local function SuppressNewChildren(info, ...)
+	for index = 1, select("#", ...) do
+		local child = select(index, ...)
+		if not child._ahHooked then
+			SuppressEffectFrame(info.itemFrame, child, info.name .. "_dyn", true)
+			continuousSuppressFrames[child] = info.itemFrame
+		end
+	end
+end
 
 scannerFrame:SetScript("OnUpdate", function(self, elapsed)
+	self._elapsed = (self._elapsed or 0) + elapsed
+	if self._elapsed < 0.1 then
+		return
+	end
+	self._elapsed = 0
+	local hasWork = false
+
 	-- Scan for new children in monitored containers
 	for container, info in pairs(monitoredContainers) do
 		if container and info.itemFrame._ahReset then
-			-- Check for new unhooked children every frame
-			local children = { container:GetChildren() }
-			for _, child in ipairs(children) do
-				if not child._ahHooked then
-					SuppressEffectFrame(info.itemFrame, child, info.name .. "_dyn", true)
-					-- Also add to continuous suppression list
-					continuousSuppressFrames[child] = info.itemFrame
-				end
-			end
+			hasWork = true
+			SuppressNewChildren(info, container:GetChildren())
 		elseif not info.itemFrame._ahReset then
 			-- Item frame no longer reset, remove from monitoring
 			monitoredContainers[container] = nil
@@ -419,14 +434,23 @@ scannerFrame:SetScript("OnUpdate", function(self, elapsed)
 	-- Continuously force suppression on frames Blizzard keeps re-showing
 	for frame, itemFrame in pairs(continuousSuppressFrames) do
 		if frame and itemFrame._ahReset then
-			-- Nuclear option: move it off-screen where it can never be seen
-			frame:ClearAllPoints()
-			frame:SetPoint("CENTER", UIParent, "CENTER", 10000, 10000)
-			frame:SetAlpha(0)
+			hasWork = true
+			-- Hooks normally keep these suppressed. Only write when Blizzard has
+			-- actually restored visibility instead of rebuilding anchors every frame.
+			if frame:IsShown() or frame:GetAlpha() > 0 then
+				frame:Hide()
+				frame:ClearAllPoints()
+				frame:SetPoint("CENTER", UIParent, "CENTER", 10000, 10000)
+				frame:SetAlpha(0)
+			end
 		else
 			-- No longer needed
 			continuousSuppressFrames[frame] = nil
 		end
+	end
+
+	if not hasWork then
+		self:Hide()
 	end
 end)
 

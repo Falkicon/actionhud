@@ -19,7 +19,9 @@ local IsActionInRange = Utils.IsActionInRangeSafe -- @scan-ignore: midnight-norm
 local math_floor = math.floor
 
 local buttons = {}
+local buttonsByActionID = {}
 local registeredRangeActions = {}
+local desiredRangeActions = {}
 local container = nil -- ActionBars container frame
 local layoutCache = {} -- Cache for Edit Mode settings to avoid frequent API calls
 
@@ -162,11 +164,11 @@ function AB:OnEnable()
 	self:RegisterEvent("SPELL_UPDATE_COOLDOWN")
 	self:RegisterEvent("LOSS_OF_CONTROL_ADDED", "SPELL_UPDATE_COOLDOWN")
 	self:RegisterEvent("LOSS_OF_CONTROL_UPDATE", "SPELL_UPDATE_COOLDOWN")
-	self:RegisterEvent("SPELL_ACTIVATION_OVERLAY_GLOW_SHOW", "UpdateStateAll")
-	self:RegisterEvent("SPELL_ACTIVATION_OVERLAY_GLOW_HIDE", "UpdateStateAll")
+	self:RegisterEvent("SPELL_ACTIVATION_OVERLAY_GLOW_SHOW", "OnSpellActivationOverlay")
+	self:RegisterEvent("SPELL_ACTIVATION_OVERLAY_GLOW_HIDE", "OnSpellActivationOverlay")
 	self:RegisterEvent("ACTIONBAR_UPDATE_STATE", "UpdateStateAll")
-	self:RegisterEvent("ACTIONBAR_UPDATE_USABLE", "UpdateStateAll")
-	self:RegisterEvent("SPELL_UPDATE_CHARGES", "UpdateStateAll")
+	self:RegisterEvent("ACTIONBAR_UPDATE_USABLE", "UpdateUsabilityAll")
+	self:RegisterEvent("SPELL_UPDATE_CHARGES", "UpdateChargesAll")
 
 	-- Midnight 12.0+: Push-based events for usability and range
 	if C_ActionBar then
@@ -364,6 +366,7 @@ function AB:CreateButtons(parent)
 		btn.count = btn:CreateFontString(nil, "OVERLAY", "NumberFontNormal")
 		btn.count:SetPoint("BOTTOMRIGHT", 0, 0)
 		btn.count:SetJustifyH("RIGHT")
+		btn.count:SetAlpha(1)
 
 		-- Proc Glow (Yellow)
 		btn.glow = CreateFrame("Frame", nil, btn, "BackdropTemplate")
@@ -378,7 +381,7 @@ function AB:CreateButtons(parent)
 
 	-- Setup Assist Hook
 	if AssistedCombatManager then
-		hooksecurefunc(AssistedCombatManager, "SetAssistedHighlightFrameShown", function(mgr, actionButton, shown)
+			hooksecurefunc(AssistedCombatManager, "SetAssistedHighlightFrameShown", function(mgr, actionButton, shown)
 			if not actionButton or not actionButton.action then
 				return
 			end
@@ -388,25 +391,27 @@ function AB:CreateButtons(parent)
 			if Utils.IsValueSecret(targetID) then
 				return
 			end
+			if Utils.IsValueSecret(shown) then
+				return
+			end
 
-			for _, b in ipairs(buttons) do
-				if Utils.SafeCompare(b.actionID, targetID, "==") then
-					if not b.assistGlow then
-						b.assistGlow = CreateFrame("Frame", nil, b, "BackdropTemplate")
-						b.assistGlow:SetAllPoints()
-						b.assistGlow:SetBackdrop({ edgeFile = "Interface\\Buttons\\WHITE8x8", edgeSize = 2 })
-						b.assistGlow:SetBackdropBorderColor(0, 0.8, 1, 1)
-						b.assistGlow:SetFrameLevel(b:GetFrameLevel() + 5)
+			local b = buttonsByActionID[targetID]
+			if b then
+				if not b.assistGlow then
+					b.assistGlow = CreateFrame("Frame", nil, b, "BackdropTemplate")
+					b.assistGlow:SetAllPoints()
+					b.assistGlow:SetBackdrop({ edgeFile = "Interface\\Buttons\\WHITE8x8", edgeSize = 2 })
+					b.assistGlow:SetBackdropBorderColor(0, 0.8, 1, 1)
+					b.assistGlow:SetFrameLevel(b:GetFrameLevel() + 5)
+					b.assistGlow:Hide()
+				end
+				if b.assistGlow then
+					-- Apply Alpha
+					b.assistGlow:SetBackdropBorderColor(0, 0.8, 1, ActionHud.db.profile.assistGlowAlpha)
+					if shown then
+						b.assistGlow:Show()
+					else
 						b.assistGlow:Hide()
-					end
-					if b.assistGlow then
-						-- Apply Alpha
-						b.assistGlow:SetBackdropBorderColor(0, 0.8, 1, ActionHud.db.profile.assistGlowAlpha)
-						if shown then
-							b.assistGlow:Show()
-						else
-							b.assistGlow:Hide()
-						end
 					end
 				end
 			end
@@ -619,25 +624,34 @@ function AB:RefreshRangeRegistrations()
 		return
 	end
 
-	local desired = {}
+	wipe(desiredRangeActions)
 	for _, btn in ipairs(buttons) do
 		if btn.hasAction and btn:IsShown() then
-			desired[btn.actionID] = true
+			desiredRangeActions[btn.actionID] = true
 		end
 	end
 
 	for actionID in pairs(registeredRangeActions) do
-		if not desired[actionID] then
+		if not desiredRangeActions[actionID] then
 			pcall(C_ActionBar.EnableActionRangeCheck, actionID, false)
 			registeredRangeActions[actionID] = nil
 		end
 	end
-	for actionID in pairs(desired) do
+	for actionID in pairs(desiredRangeActions) do
 		if not registeredRangeActions[actionID] then
 			local ok = pcall(C_ActionBar.EnableActionRangeCheck, actionID, true)
 			if ok then
 				registeredRangeActions[actionID] = true
 			end
+		end
+	end
+end
+
+function AB:RebuildButtonIndex()
+	wipe(buttonsByActionID)
+	for _, btn in ipairs(buttons) do
+		if btn.hasAction and btn:IsShown() then
+			buttonsByActionID[btn.actionID] = btn
 		end
 	end
 end
@@ -654,6 +668,7 @@ function AB:RefreshAll()
 			self:UpdateState(btn)
 		end
 	end
+	self:RebuildButtonIndex()
 	self:RefreshRangeRegistrations()
 end
 
@@ -670,6 +685,7 @@ function AB:ACTIONBAR_SLOT_CHANGED(event, arg1)
 			self:UpdateState(btn)
 		end
 	end
+	self:RebuildButtonIndex()
 	self:RefreshRangeRegistrations()
 end
 
@@ -691,31 +707,67 @@ function AB:UpdateStateAll()
 	end
 end
 
+function AB:UpdateUsabilityAll()
+	for _, btn in ipairs(buttons) do
+		if btn.hasAction then
+			self:UpdateUsability(btn)
+		end
+	end
+end
+
+function AB:UpdateChargesAll()
+	for _, btn in ipairs(buttons) do
+		if btn.hasAction then
+			self:UpdateCount(btn)
+			self:UpdateCooldown(btn)
+		end
+	end
+end
+
+function AB:OnSpellActivationOverlay(event, spellID)
+	if spellID == nil then
+		for _, btn in ipairs(buttons) do
+			if btn.hasAction then
+				self:UpdateProc(btn)
+			end
+		end
+		return
+	end
+	if Utils.IsValueSecret(spellID) then
+		return
+	end
+	for _, btn in ipairs(buttons) do
+		if btn.hasAction and btn.spellID == spellID then
+			self:UpdateProc(btn)
+		end
+	end
+end
+
 -- Midnight 12.0+: Targeted usability update from push event
 function AB:ACTION_USABLE_CHANGED(event, changes)
 	if not changes then
-		self:UpdateStateAll()
+		self:UpdateUsabilityAll()
 		return
 	end
 	for _, change in ipairs(changes) do
-		for _, btn in ipairs(buttons) do
-			if btn.hasAction and Utils.SafeCompare(btn.actionID, change.slot, "==") then
-				self:UpdateState(btn)
-				break
-			end
+		local slot = change.slot
+		local btn = not Utils.IsValueSecret(slot) and buttonsByActionID[slot]
+		if btn then
+			self:UpdateUsability(btn)
 		end
 	end
 end
 
 -- Midnight 12.0+: Push range update for opted-in action slots
 function AB:ACTION_RANGE_CHECK_UPDATE(event, action, inRange, checksRange)
-	for _, btn in ipairs(buttons) do
-		if btn.hasAction and Utils.SafeCompare(btn.actionID, action, "==") then
-			btn._checksRange = checksRange
-			btn._inRange = inRange
-			self:UpdateState(btn)
-			break
-		end
+	if Utils.IsValueSecret(action) then
+		return
+	end
+	local btn = buttonsByActionID[action]
+	if btn then
+		btn._checksRange = checksRange
+		btn._inRange = inRange
+		self:ApplyIconColor(btn)
 	end
 end
 
@@ -738,7 +790,7 @@ function AB:UpdateRange()
 			-- without updating _outOfRange
 			if inRange ~= btn._inRange then
 				btn._inRange = inRange
-				self:UpdateState(btn)
+				self:ApplyIconColor(btn)
 			end
 		end
 	end
@@ -808,7 +860,9 @@ function AB:UpdateAction(btn)
 		btn.icon:Hide()
 		btn.cd:Hide()
 		btn.count:SetText("")
+		btn._countText = ""
 		btn.glow:Hide()
+		btn._isOverlayed = false
 		if btn.assistGlow then
 			btn.assistGlow:Hide()
 		end
@@ -841,6 +895,7 @@ local function HasSecretCooldownValues(cooldownInfo, chargeInfo, lossOfControlIn
 		or Utils.IsValueSecret(cooldownInfo.isEnabled)
 		or Utils.IsValueSecret(cooldownInfo.modRate)
 		or Utils.IsValueSecret(chargeInfo.currentCharges)
+		or Utils.IsValueSecret(chargeInfo.maxCharges)
 		or Utils.IsValueSecret(chargeInfo.cooldownStartTime)
 		or Utils.IsValueSecret(chargeInfo.cooldownDuration)
 		or Utils.IsValueSecret(chargeInfo.chargeModRate)
@@ -955,11 +1010,12 @@ function AB:UpdateCooldown(btn)
 
 	local hasSecretCooldownValues = HasSecretCooldownValues(cooldownInfo, chargeInfo, lossOfControlInfo)
 
-	-- Use Blizzard's ActionButton_ApplyCooldown if available (12.0+ helper)
-	-- Requires valid cooldown frames - create chargeCooldown on demand if needed
+	-- Use Blizzard's ActionButton_ApplyCooldown if available (12.0+ helper).
+	-- A second cooldown frame is only needed for actions that actually have charges.
 	if ActionButton_ApplyCooldown and not hasSecretCooldownValues then
-		-- Create chargeCooldown frame on demand (same pattern as LibActionButton)
-		if not btn.chargeCooldown then
+		local maxCharges = chargeInfo.maxCharges
+		local hasCharges = type(maxCharges) == "number" and maxCharges > 1
+		if hasCharges and not btn.chargeCooldown then
 			btn.chargeCooldown = CreateFrame("Cooldown", nil, btn, "CooldownFrameTemplate")
 			btn.chargeCooldown:SetHideCountdownNumbers(true)
 			btn.chargeCooldown:SetDrawSwipe(false)
@@ -1034,6 +1090,12 @@ function AB:UpdateState(btn)
 	if not btn.hasAction then
 		return
 	end
+	self:UpdateCount(btn)
+	self:UpdateUsability(btn)
+	self:UpdateProc(btn)
+end
+
+function AB:UpdateCount(btn)
 	local actionID = btn.actionID
 
 	-- 1) Count display
@@ -1041,9 +1103,15 @@ function AB:UpdateState(btn)
 		-- Midnight: native API returns display-ready text (handles secrets internally)
 		local ok, displayText = pcall(C_ActionBar.GetActionDisplayCount, actionID, 9999)
 		if ok then
-			btn.count:SetText(displayText)
+			if Utils.IsValueSecret(displayText) or btn._countText ~= displayText then
+				btn._countText = Utils.IsValueSecret(displayText) and nil or displayText
+				btn.count:SetText(displayText)
+			end
 		else
-			btn.count:SetText("")
+			if btn._countText ~= "" then
+				btn._countText = ""
+				btn.count:SetText("")
+			end
 		end
 	else
 		-- Pre-Midnight fallback
@@ -1058,46 +1126,73 @@ function AB:UpdateState(btn)
 			end
 			return nil
 		end)
-		if ok then
+		if not ok then
+			displayText = ""
+		end
+		if Utils.IsValueSecret(displayText) or btn._countText ~= displayText then
+			btn._countText = Utils.IsValueSecret(displayText) and nil or displayText
 			btn.count:SetText(displayText)
-		else
-			btn.count:SetText("")
 		end
 	end
-	btn.count:SetAlpha(1)
+end
 
-	-- 2) Usability coloring (grey = not usable, blue = no mana, white = ready)
-	local isUsable, noMana = IsUsableAction(actionID) -- @scan-ignore: midnight-normalized
+function AB:UpdateUsability(btn)
+	local isUsable, noMana = IsUsableAction(btn.actionID) -- @scan-ignore: midnight-normalized
 	-- Handle nil (wrapper unavailable) and secret values: default to usable
 	if isUsable == nil or Utils.IsValueSecret(isUsable) then
 		isUsable, noMana = true, false
 	elseif Utils.IsValueSecret(noMana) then
 		noMana = false
 	end
+	btn._isUsable = isUsable
+	btn._noMana = noMana
+	self:ApplyIconColor(btn)
+end
 
-	if not isUsable and not noMana then
-		btn.icon:SetDesaturated(true)
-		btn.icon:SetVertexColor(0.4, 0.4, 0.4)
-	elseif noMana then
-		btn.icon:SetDesaturated(false)
-		btn.icon:SetVertexColor(0.5, 0.5, 1.0)
-	else
-		btn.icon:SetDesaturated(false)
-		btn.icon:SetVertexColor(1, 1, 1)
+function AB:ApplyIconColor(btn)
+	local colorMode = "ready"
+	if btn._isUsable == false and btn._noMana == false then
+		colorMode = "unusable"
+	elseif btn._noMana == true then
+		colorMode = "mana"
 	end
 
-	-- 3) Range override (red tint when explicitly out of range)
-	-- Use stored push-event state (_inRange) from ACTION_RANGE_CHECK_UPDATE or range ticker
 	local inRange = btn._inRange
 	if inRange ~= nil and not Utils.IsValueSecret(inRange) and inRange == false then
-		btn.icon:SetVertexColor(0.8, 0.1, 0.1)
+		if colorMode == "unusable" then
+			colorMode = "unusableRange"
+		elseif colorMode == "mana" then
+			colorMode = "manaRange"
+		else
+			colorMode = "readyRange"
+		end
 	end
+	if btn._colorMode == colorMode then
+		return
+	end
+	btn._colorMode = colorMode
 
-	-- 4) Proc glow
+	btn.icon:SetDesaturated(colorMode == "unusable" or colorMode == "unusableRange")
+	if colorMode:find("Range", 1, true) then
+		btn.icon:SetVertexColor(0.8, 0.1, 0.1)
+	elseif colorMode == "unusable" then
+		btn.icon:SetVertexColor(0.4, 0.4, 0.4)
+	elseif colorMode == "mana" then
+		btn.icon:SetVertexColor(0.5, 0.5, 1.0)
+	else
+		btn.icon:SetVertexColor(1, 1, 1)
+	end
+end
+
+function AB:UpdateProc(btn)
 	local isOverlayed = false
 	if btn.spellID then
 		isOverlayed = Utils.IsSpellOverlayedSafe(btn.spellID)
 	end
+	if btn._isOverlayed == isOverlayed then
+		return
+	end
+	btn._isOverlayed = isOverlayed
 	if isOverlayed then
 		btn.glow:Show()
 	else

@@ -39,6 +39,14 @@ local function PromoteIfTruthy(current, value)
 	return current
 end
 
+local ICON_TEXCOORDS = {
+	combat = { 0.5, 1.0, 0, 0.49 },
+	resting = { 0, 0.5, 0, 0.49 },
+	roleTank = { 0, 0.3, 0.3, 0.65 },
+	roleHealer = { 0.3, 0.59375, 0, 0.3 },
+	roleDamage = { 0.3, 0.59375, 0.3, 0.65 },
+}
+
 function IdentitySafety.HasSecondaryPower(unit)
 	local _, rawPowerToken = UnitPowerType(unit)
 	local powerToken, isSafe = IdentitySafety.Get(rawPowerToken)
@@ -115,13 +123,13 @@ function IdentitySafety.GetStatusIconState(iconId, unit, showAllIcons)
 	if iconId == "combat" then
 		show = PromoteIfTruthy(show, UnitAffectingCombat(unit))
 		texture = "Interface\\CharacterFrame\\UI-StateIcon"
-		texCoord = { 0.5, 1.0, 0, 0.49 }
+		texCoord = ICON_TEXCOORDS.combat
 	elseif iconId == "resting" then
 		if unit == "player" then
 			show = PromoteIfTruthy(show, IsResting())
 		end
 		texture = "Interface\\CharacterFrame\\UI-StateIcon"
-		texCoord = { 0, 0.5, 0, 0.49 }
+		texCoord = ICON_TEXCOORDS.resting
 	elseif iconId == "pvp" then
 		show = PromoteIfTruthy(show, UnitIsPVP(unit))
 		local rawFaction = UnitFactionGroup(unit)
@@ -140,15 +148,15 @@ function IdentitySafety.GetStatusIconState(iconId, unit, showAllIcons)
 		texture = "Interface\\LFGFrame\\UI-LFG-ICON-PORTRAITROLES"
 		if roleAvailable and role == "TANK" then
 			show = true
-			texCoord = { 0, 0.3, 0.3, 0.65 }
+			texCoord = ICON_TEXCOORDS.roleTank
 		elseif roleAvailable and role == "HEALER" then
 			show = true
-			texCoord = { 0.3, 0.59375, 0, 0.3 }
+			texCoord = ICON_TEXCOORDS.roleHealer
 		elseif roleAvailable and role == "DAMAGER" then
 			show = true
-			texCoord = { 0.3, 0.59375, 0.3, 0.65 }
+			texCoord = ICON_TEXCOORDS.roleDamage
 		else
-			texCoord = { 0, 0.3, 0.3, 0.65 }
+			texCoord = ICON_TEXCOORDS.roleTank
 		end
 	elseif iconId == "guide" then
 		show = PromoteIfTruthy(show, UnitIsGroupAssistant(unit))
@@ -202,45 +210,12 @@ end
 
 -- Constants
 local FLAT_BAR_TEXTURE = "Interface\\Buttons\\WHITE8X8"
-local BACKDROP = {
-	bgFile = "Interface\\Buttons\\WHITE8X8",
-	edgeFile = "Interface\\Buttons\\WHITE8X8",
-	edgeSize = 1,
-	insets = { left = 0, right = 0, top = 0, bottom = 0 },
-}
-
 -- Helper to safely return a value or a default, avoiding boolean tests on secrets
 local function Pass(v, default)
 	if type(v) == "nil" then
 		return default or 0
 	end
 	return v
-end
-
--- Robust IsActive check that avoids crashing on secret values
-local function IsActive(val)
-	if type(val) == "nil" then
-		return false
-	end
-
-	-- In Midnight, secrets have type "number" but crash on comparison.
-	if Utils.IsValueSecret(val) then
-		return true -- Assume active if secret
-	end
-
-	-- If it's a normal number, check if > 0
-	if type(val) == "number" then
-		return val > 0
-	end
-
-	-- Fallback for other types
-	local ok, res = pcall(function()
-		return val > 0
-	end)
-	if not ok then
-		return true
-	end
-	return res
 end
 
 -- Format large numbers (1000 -> 1K) safely
@@ -324,6 +299,36 @@ local function CreateIcon(parent, name)
 	return tex
 end
 
+local function PositionIcon(tex, frame, frameConfig, iconConfig)
+	local size = iconConfig.size or 16
+	local pos = iconConfig.position or "TopLeft"
+	local x = iconConfig.offsetX or 0
+	local y = iconConfig.offsetY or 0
+	local margin = frameConfig.iconMargin or 2
+
+	tex:SetSize(size, size)
+	tex:ClearAllPoints()
+	if pos == "TopLeft" then
+		tex:SetPoint("TOPLEFT", frame, "TOPLEFT", margin + x, -margin + y)
+	elseif pos == "TopCenter" then
+		tex:SetPoint("TOP", frame, "TOP", x, -margin + y)
+	elseif pos == "TopRight" then
+		tex:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -margin + x, -margin + y)
+	elseif pos == "Left" then
+		tex:SetPoint("LEFT", frame, "LEFT", margin + x, y)
+	elseif pos == "Center" then
+		tex:SetPoint("CENTER", frame, "CENTER", x, y)
+	elseif pos == "Right" then
+		tex:SetPoint("RIGHT", frame, "RIGHT", -margin + x, y)
+	elseif pos == "BottomLeft" then
+		tex:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", margin + x, margin + y)
+	elseif pos == "BottomCenter" then
+		tex:SetPoint("BOTTOM", frame, "BOTTOM", x, margin + y)
+	elseif pos == "BottomRight" then
+		tex:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -margin + x, margin + y)
+	end
+end
+
 local function ApplyTextStyle(fontString, config, unit, frameFont)
 	if not fontString or not config then
 		return
@@ -362,7 +367,6 @@ function UnitFrames:OnInitialize()
 	self.db = ActionHud.db
 	self.frames = {}
 	self.framesByUnit = {}
-	self.healCalculator = Utils.CreateHealCalculator()
 end
 
 function UnitFrames:OnEnable()
@@ -376,14 +380,30 @@ end
 function UnitFrames:RegisterRuntimeEvents()
 	self:RegisterEvent("PLAYER_TARGET_CHANGED", "UpdateAll")
 	self:RegisterEvent("PLAYER_FOCUS_CHANGED", "UpdateAll")
+	for _, event in ipairs({
+		"GROUP_ROSTER_UPDATE",
+		"PARTY_LEADER_CHANGED",
+		"PLAYER_ROLES_ASSIGNED",
+		"PLAYER_FLAGS_CHANGED",
+		"PLAYER_UPDATE_RESTING",
+		"READY_CHECK",
+		"READY_CHECK_CONFIRM",
+		"READY_CHECK_FINISHED",
+	}) do
+		self:RegisterEvent(event, "UpdateStatusAll")
+	end
 
 	local router = ns.UnitEventRouter
 	router:Register(self, "UNIT_TARGET", "OnUnitTarget", "target")
+	for _, event in ipairs({ "UNIT_FLAGS", "UNIT_FACTION", "UNIT_PHASE" }) do
+		router:Register(self, event, "UpdateStatusEvent", "player", "target", "targettarget", "focus")
+	end
 	for _, event in ipairs({
 		"UNIT_HEALTH",
 		"UNIT_MAXHEALTH",
 		"UNIT_POWER_UPDATE",
 		"UNIT_MAXPOWER",
+		"UNIT_DISPLAYPOWER",
 		"UNIT_ABSORB_AMOUNT_CHANGED",
 		"UNIT_HEAL_PREDICTION",
 	}) do
@@ -799,6 +819,16 @@ function UnitFrames:UpdateLayout()
 				end
 			end
 
+			for iconId, tex in pairs(f.icons) do
+				local iconConfig = db.icons and db.icons[iconId]
+				if iconConfig and iconConfig.enabled then
+					PositionIcon(tex, f, db, iconConfig)
+				else
+					tex:Hide()
+					tex._shown = false
+				end
+			end
+
 			-- Force an immediate value update
 			self:UpdateFrameValues(f)
 		end
@@ -820,7 +850,32 @@ function UnitFrames:UpdateFrameEvent(event, unit)
 	end
 	local f = self.framesByUnit[unit]
 	if f then
-		self:UpdateFrameValues(f)
+		local updateKind = "health"
+		if event == "UNIT_POWER_UPDATE" then
+			updateKind = "power"
+		elseif event == "UNIT_MAXPOWER" or event == "UNIT_DISPLAYPOWER" then
+			updateKind = "powerLayout"
+		end
+		self:UpdateFrameValues(f, updateKind)
+	end
+end
+
+function UnitFrames:UpdateStatusEvent(event, unit)
+	if not self._runtimeActive then
+		return
+	end
+	local f = self.framesByUnit[unit]
+	if f then
+		self:UpdateFrameValues(f, "status")
+	end
+end
+
+function UnitFrames:UpdateStatusAll()
+	if not self._runtimeActive then
+		return
+	end
+	for _, f in pairs(self.frames) do
+		self:UpdateFrameValues(f, "status")
 	end
 end
 
@@ -835,7 +890,12 @@ function UnitFrames:OnUnitTarget(event, unit)
 	end
 end
 
-function UnitFrames:UpdateFrameValues(f)
+function UnitFrames:UpdateFrameValues(f, updateKind)
+	local updateAll = updateKind == nil
+	local updateHealth = updateAll or updateKind == "health"
+	local updatePower = updateAll or updateKind == "power" or updateKind == "powerLayout"
+	local updatePowerLayout = updateAll or updateKind == "powerLayout"
+	local updateStatus = updateAll or updateKind == "status"
 	local unit = f.unit
 	local unitExists, identityAvailable = IdentitySafety.IsTruthy(UnitExists(unit))
 	if not identityAvailable then
@@ -861,250 +921,244 @@ function UnitFrames:UpdateFrameValues(f)
 		f:Show()
 	end
 
-	-- 1. Health Bar (Native Passthrough)
-	local curH = UnitHealth(unit) -- @scan-ignore: midnight-friendly-unit
-	local maxH = UnitHealthMax(unit) -- @scan-ignore: midnight-friendly-unit
-	f.health:SetMinMaxValues(0, Pass(maxH, 1))
-	f.health:SetValue(Pass(curH, 0))
-
-	-- Health bar color: lower saturation (0.85) to match Resources module
-	local r, g, b = IdentitySafety.GetUnitColor(unit, "HEALTH", 0.85)
-	f.health:SetStatusBarColor(r, g, b)
+	local curH, maxH
+	if updateHealth then
+		curH = UnitHealth(unit) -- @scan-ignore: midnight-friendly-unit
+		maxH = UnitHealthMax(unit) -- @scan-ignore: midnight-friendly-unit
+		f.health:SetMinMaxValues(0, Pass(maxH, 1))
+		f.health:SetValue(Pass(curH, 0))
+	end
+	if updateStatus then
+		local r, g, b = IdentitySafety.GetUnitColor(unit, "HEALTH", 0.85)
+		f.health:SetStatusBarColor(r, g, b)
+	end
 
 	-- 2. Power Bar
-	local curP = UnitPower(unit) -- @scan-ignore: midnight-friendly-unit
-	local maxP = UnitPowerMax(unit) -- @scan-ignore: midnight-friendly-unit
-	f.power:SetMinMaxValues(0, Pass(maxP, 1))
-	f.power:SetValue(Pass(curP, 0))
+	local curP, maxP
+	if updatePower then
+		curP = UnitPower(unit) -- @scan-ignore: midnight-friendly-unit
+		maxP = UnitPowerMax(unit) -- @scan-ignore: midnight-friendly-unit
+		f.power:SetMinMaxValues(0, Pass(maxP, 1))
+		f.power:SetValue(Pass(curP, 0))
+	end
+	if updateStatus or updatePowerLayout then
+		local powerR, powerG, powerB = IdentitySafety.GetUnitColor(unit, "POWER", 0.85)
+		f.power:SetStatusBarColor(powerR, powerG, powerB)
+	end
 
-	-- Power bar color based on power type (using lower saturation 0.85 to match Resources)
-	local powerR, powerG, powerB = IdentitySafety.GetUnitColor(unit, "POWER", 0.85)
-	f.power:SetStatusBarColor(powerR, powerG, powerB)
+	-- Power visibility and anchors only change when max/display power changes.
+	if updatePowerLayout or f._showPower == nil then
+		local showPower = false
+		local hasPower = false
+		if db.powerBarEnabled then
+			if
+				Utils.IsValueSecret(curP)
+				or Utils.IsValueSecret(maxP)
+				or type(curP) ~= "number"
+				or type(maxP) ~= "number"
+			then
+				showPower = true
+				hasPower = true
+			else
+				showPower = maxP > 0
+				hasPower = maxP > 0
+			end
+		end
+		if f._showPower ~= showPower then
+			f._showPower = showPower
+			f.power:SetShown(showPower)
+		end
 
-	-- Visibility logic for Power + Dynamic Height Adjustment
-	local showPower = false
-	local hasPower = false
-	if db.powerBarEnabled then
+		local powerHeight = (db.powerBarEnabled and hasPower) and db.powerBarHeight or 0
+		local classHeight = 0
+		if f.unitId == "player" and db.classBarEnabled then
+			local hasSecondaryPower = IdentitySafety.HasSecondaryPower("player")
+			if hasSecondaryPower then
+				classHeight = db.classBarHeight or 0
+			end
+		end
+
+		local actualFrameHeight = db.height
+		if not hasPower and db.powerBarEnabled then
+			actualFrameHeight = actualFrameHeight - db.powerBarHeight
+		end
+		if actualFrameHeight < 1 then
+			actualFrameHeight = 1
+		end
+
+		local healthHeight = actualFrameHeight - powerHeight - classHeight
+		if healthHeight < 1 then
+			healthHeight = 1
+		end
+
 		if
-			Utils.IsValueSecret(curP)
-			or Utils.IsValueSecret(maxP)
-			or type(curP) ~= "number"
-			or type(maxP) ~= "number"
+			f._actualFrameHeight ~= actualFrameHeight
+			or f._healthHeight ~= healthHeight
+			or f._powerHeight ~= powerHeight
+			or f._classHeight ~= classHeight
 		then
-			-- If either is secret, we must show the bar (since we can't compare)
-			showPower = true
-			hasPower = true
-		else
-			showPower = maxP > 0
-			hasPower = maxP > 0
+			f._actualFrameHeight = actualFrameHeight
+			f._healthHeight = healthHeight
+			f._powerHeight = powerHeight
+			f._classHeight = classHeight
+			if not InCombatLockdown() then
+				f:SetHeight(actualFrameHeight)
+				local container = self.containers and self.containers[f.unitId]
+				if container then
+					container:SetHeight(actualFrameHeight)
+				end
+			end
+
+			f.health:ClearAllPoints()
+			f.health:SetPoint("TOPLEFT", f, "TOPLEFT")
+			f.health:SetPoint("TOPRIGHT", f, "TOPRIGHT")
+			f.health:SetHeight(healthHeight)
+
+			f.power:ClearAllPoints()
+			f.power:SetPoint("TOPLEFT", f.health, "BOTTOMLEFT")
+			f.power:SetPoint("TOPRIGHT", f.health, "BOTTOMRIGHT")
+			f.power:SetHeight(powerHeight)
+
+			f.class:ClearAllPoints()
+			f.class:SetPoint("TOPLEFT", f.power, "BOTTOMLEFT")
+			f.class:SetPoint("TOPRIGHT", f.power, "BOTTOMRIGHT")
+			f.class:SetHeight(classHeight)
 		end
-	end
-	f.power:SetShown(showPower)
 
-	-- Dynamic height adjustment: collapse power bar space when unit has no power
-	local powerHeight = (db.powerBarEnabled and hasPower) and db.powerBarHeight or 0
-	local classHeight = 0
-	if f.unitId == "player" and db.classBarEnabled then
-		local hasSecondaryPower = IdentitySafety.HasSecondaryPower("player")
-		if hasSecondaryPower then
-			classHeight = db.classBarHeight or 0
+		local showClass = false
+		if f.unitId == "player" and db.classBarEnabled then
+			showClass = IdentitySafety.HasSecondaryPower("player")
 		end
-	end
-
-	-- Calculate actual frame height based on visible bars
-	local actualFrameHeight = db.height
-	-- Subtract power bar height if no power
-	if not hasPower and db.powerBarEnabled then
-		actualFrameHeight = actualFrameHeight - db.powerBarHeight
-	end
-	if actualFrameHeight < 1 then
-		actualFrameHeight = 1
-	end
-
-	local healthHeight = actualFrameHeight - powerHeight - classHeight
-	if healthHeight < 1 then
-		healthHeight = 1
-	end
-
-	-- Resize the frame and container (only outside combat)
-	if not InCombatLockdown() then
-		f:SetHeight(actualFrameHeight)
-		-- Also resize the container if it exists
-		local container = self.containers and self.containers[f.unitId]
-		if container then
-			container:SetHeight(actualFrameHeight)
+		if f._showClass ~= showClass then
+			f._showClass = showClass
+			f.class:SetShown(showClass)
 		end
 	end
 
-	-- Apply dynamic heights and re-anchor
-	f.health:ClearAllPoints()
-	f.health:SetPoint("TOPLEFT", f, "TOPLEFT")
-	f.health:SetPoint("TOPRIGHT", f, "TOPRIGHT")
-	f.health:SetHeight(healthHeight)
-
-	f.power:ClearAllPoints()
-	f.power:SetPoint("TOPLEFT", f.health, "BOTTOMLEFT")
-	f.power:SetPoint("TOPRIGHT", f.health, "BOTTOMRIGHT")
-	f.power:SetHeight(powerHeight)
-
-	-- 3. Class Bar (Conditional)
-	local showClass = false
-	if f.unitId == "player" and db.classBarEnabled then
-		showClass = IdentitySafety.HasSecondaryPower("player")
-	end
-	f.class:SetShown(showClass)
-	if showClass then
-		local curC = UnitPower("player", nil, true) -- @scan-ignore: midnight-player-only
-		local maxC = UnitPowerMax("player", nil, true) -- @scan-ignore: midnight-player-only
-		f.class:SetMinMaxValues(0, Pass(maxC, 1))
-		f.class:SetValue(Pass(curC, 0))
+	-- Class resource values can change on ordinary power events without needing
+	-- to rebuild the surrounding unit-frame layout.
+	if updatePower and f._showClass then
+			local curC = UnitPower("player", nil, true) -- @scan-ignore: midnight-player-only
+			local maxC = UnitPowerMax("player", nil, true) -- @scan-ignore: midnight-player-only
+			f.class:SetMinMaxValues(0, Pass(maxC, 1))
+			f.class:SetValue(Pass(curC, 0))
 	end
 
 	-- 4. Heal Prediction & Absorbs
-	-- Get absorbs directly like DandersFrames does (StatusBar handles secrets natively)
-	local absorbs = UnitGetTotalAbsorbs and UnitGetTotalAbsorbs(unit) -- @scan-ignore: midnight-friendly-unit
+	if updateHealth then
+		-- Get absorbs directly like DandersFrames does (StatusBar handles secrets natively)
+		local absorbs = UnitGetTotalAbsorbs and UnitGetTotalAbsorbs(unit) -- @scan-ignore: midnight-friendly-unit
 
-	-- Show absorb bar if we have any absorb value (use pcall to handle secret comparison)
-	local showAbsorb = false
-	if absorbs ~= nil then
-		-- Safe comparison: if pcall fails (secret value), assume active and show bar
-		local ok, isZero = pcall(function()
-			return absorbs == 0
-		end)
-		if not ok or not isZero then
-			showAbsorb = true
+		-- Show absorb values without comparing restricted numbers.
+		local showAbsorb = false
+		if absorbs ~= nil then
+			showAbsorb = Utils.IsValueSecret(absorbs) or (type(absorbs) == "number" and absorbs ~= 0)
 		end
-	end
 
-	if showAbsorb then
-		f.health.absorb:SetMinMaxValues(0, Pass(maxH, 1))
-		f.health.absorb:SetValue(absorbs)
-		f.health.absorb:Show()
-	else
-		f.health.absorb:Hide()
-	end
-
-	-- Heal Prediction (only for incoming heals, not absorbs)
-	local incomingHeals = 0
-	if UnitGetIncomingHeals then
-		incomingHeals = UnitGetIncomingHeals(unit) -- @scan-ignore: midnight-friendly-unit
-	end
-
-	if type(incomingHeals) == "number" and not Utils.IsValueSecret(incomingHeals) and incomingHeals > 0 then
-		if type(curH) == "number" and not Utils.IsValueSecret(curH) and type(maxH) == "number" then
-			f.health.predict:SetMinMaxValues(0, Pass(maxH, 1))
-			f.health.predict:SetValue(curH + incomingHeals)
+		if showAbsorb then
+			f.health.absorb:SetMinMaxValues(0, Pass(maxH, 1))
+			f.health.absorb:SetValue(absorbs)
+			f.health.absorb:Show()
+		else
+			f.health.absorb:Hide()
 		end
-		f.health.predict:Show()
-	else
-		f.health.predict:Hide()
+
+		-- Heal Prediction (only for incoming heals, not absorbs)
+		local incomingHeals = 0
+		if UnitGetIncomingHeals then
+			incomingHeals = UnitGetIncomingHeals(unit) -- @scan-ignore: midnight-friendly-unit
+		end
+
+		if type(incomingHeals) == "number" and not Utils.IsValueSecret(incomingHeals) and incomingHeals > 0 then
+			if type(curH) == "number" and not Utils.IsValueSecret(curH) and type(maxH) == "number" then
+				f.health.predict:SetMinMaxValues(0, Pass(maxH, 1))
+				f.health.predict:SetValue(curH + incomingHeals)
+			end
+			f.health.predict:Show()
+		else
+			f.health.predict:Hide()
+		end
 	end
 
 	-- 5. Text Display (The "Gold Standard" Pattern)
 	-- Health Text
-	local displayH = UnitHealth(unit, true) -- @scan-ignore: midnight-friendly-unit
-	local displayMaxH = UnitHealthMax(unit, true) -- @scan-ignore: midnight-friendly-unit
-
-	if db.healthText.name.enabled then
+	if updateAll and db.healthText.name.enabled then
 		local rawName = GetUnitName(unit, true)
 		local name = IdentitySafety.Get(rawName)
-		pcall(function()
-			f.healthElements.name.fontString:SetText(name)
-		end)
+		local fontString = f.healthElements.name.fontString
+		pcall(fontString.SetText, fontString, name)
 	end
 
-	if db.healthText.level.enabled then
+	if updateAll and db.healthText.level.enabled then
 		local rawLevel = UnitLevel(unit)
 		local level = IdentitySafety.Get(rawLevel)
-		pcall(function()
-			f.healthElements.level.fontString:SetText(level)
-		end)
+		local fontString = f.healthElements.level.fontString
+		pcall(fontString.SetText, fontString, level)
 	end
 
-	if db.healthText.value.enabled then
+	if updateHealth and db.healthText.value.enabled then
+		local displayH = UnitHealth(unit, true) -- @scan-ignore: midnight-friendly-unit
+		local displayMaxH = UnitHealthMax(unit, true) -- @scan-ignore: midnight-friendly-unit
 		local hStr = FormatValue(displayH)
 		local mStr = FormatValue(displayMaxH)
-		pcall(function()
-			f.healthElements.value.fontString:SetFormattedText("%s/%s", hStr, mStr)
-		end)
+		local fontString = f.healthElements.value.fontString
+		pcall(fontString.SetFormattedText, fontString, "%s/%s", hStr, mStr)
 	end
 
 	-- Percent display is disabled due to Midnight secret value issues
 	-- Keeping values only for now
-	if f.healthElements.percent then
+	if updateAll and f.healthElements.percent then
 		f.healthElements.percent.fontString:SetText("")
 		f.healthElements.percent.fontString:Hide()
 	end
 
 	-- Power Text
-	local displayP = UnitPower(unit, nil, true) -- @scan-ignore: midnight-friendly-unit
-	local displayMaxP = UnitPowerMax(unit, nil, true) -- @scan-ignore: midnight-friendly-unit
-
-	if db.powerText.value.enabled and f.powerElements.value then
+	if updatePower and db.powerText.value.enabled and f.powerElements.value then
+		local displayP = UnitPower(unit, nil, true) -- @scan-ignore: midnight-friendly-unit
+		local displayMaxP = UnitPowerMax(unit, nil, true) -- @scan-ignore: midnight-friendly-unit
 		local pStr = FormatValue(displayP)
 		local pmStr = FormatValue(displayMaxP)
-		pcall(function()
-			f.powerElements.value.fontString:SetFormattedText("%s/%s", pStr, pmStr)
-		end)
+		local fontString = f.powerElements.value.fontString
+		pcall(fontString.SetFormattedText, fontString, "%s/%s", pStr, pmStr)
 	end
 
 	-- Percent display is disabled due to Midnight secret value issues
 	-- Keeping values only for now
-	if f.powerElements.percent then
+	if updateAll and f.powerElements.percent then
 		f.powerElements.percent.fontString:SetText("")
 		f.powerElements.percent.fontString:Hide()
 	end
 
 	-- 6. Status Icons
-	local showAllIcons = self.db.profile.ufShowAllIcons or false
-	for iconId, tex in pairs(f.icons) do
-		local config = db.icons and db.icons[iconId]
-		if config and config.enabled then
-			local show, texture, texCoord = IdentitySafety.GetStatusIconState(iconId, unit, showAllIcons)
-			if texCoord then
-				tex:SetTexCoord(unpack(texCoord))
-			end
-
-			if show then
-				tex:SetSize(config.size or 16, config.size or 16)
-				-- Apply texture (prioritize texture path over atlas)
-				if texture then
+	if updateStatus then
+		local showAllIcons = self.db.profile.ufShowAllIcons or false
+		for iconId, tex in pairs(f.icons) do
+			local config = db.icons and db.icons[iconId]
+			if config and config.enabled then
+				local show, texture, texCoord = IdentitySafety.GetStatusIconState(iconId, unit, showAllIcons)
+				if texCoord and tex._texCoord ~= texCoord then
+					tex:SetTexCoord(unpack(texCoord))
+					tex._texCoord = texCoord
+				end
+				if texture and tex._texture ~= texture then
 					tex:SetTexture(texture)
+					tex._texture = texture
 				end
-
-				-- Position based on config
-				tex:ClearAllPoints()
-				local pos = config.position or "TopLeft"
-				local xOff = config.offsetX or 0
-				local yOff = config.offsetY or 0
-				local margin = db.iconMargin or 2
-
-				if pos == "TopLeft" then
-					tex:SetPoint("TOPLEFT", f, "TOPLEFT", margin + xOff, -margin + yOff)
-				elseif pos == "TopCenter" then
-					tex:SetPoint("TOP", f, "TOP", xOff, -margin + yOff)
-				elseif pos == "TopRight" then
-					tex:SetPoint("TOPRIGHT", f, "TOPRIGHT", -margin + xOff, -margin + yOff)
-				elseif pos == "Left" then
-					tex:SetPoint("LEFT", f, "LEFT", margin + xOff, yOff)
-				elseif pos == "Center" then
-					tex:SetPoint("CENTER", f, "CENTER", xOff, yOff)
-				elseif pos == "Right" then
-					tex:SetPoint("RIGHT", f, "RIGHT", -margin + xOff, yOff)
-				elseif pos == "BottomLeft" then
-					tex:SetPoint("BOTTOMLEFT", f, "BOTTOMLEFT", margin + xOff, margin + yOff)
-				elseif pos == "BottomCenter" then
-					tex:SetPoint("BOTTOM", f, "BOTTOM", xOff, margin + yOff)
-				elseif pos == "BottomRight" then
-					tex:SetPoint("BOTTOMRIGHT", f, "BOTTOMRIGHT", -margin + xOff, margin + yOff)
+				if show then
+					if not tex._shown then
+						tex:Show()
+						tex._shown = true
+					end
+				elseif tex._shown ~= false then
+					tex:Hide()
+					tex._shown = false
 				end
-
-				tex:Show()
 			else
-				tex:Hide()
+				if tex._shown ~= false then
+					tex:Hide()
+					tex._shown = false
+				end
 			end
-		else
-			tex:Hide()
 		end
 	end
 end
