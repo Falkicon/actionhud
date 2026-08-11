@@ -361,28 +361,109 @@ end
 function UnitFrames:OnInitialize()
 	self.db = ActionHud.db
 	self.frames = {}
+	self.framesByUnit = {}
 	self.healCalculator = Utils.CreateHealCalculator()
 end
 
 function UnitFrames:OnEnable()
-	self:CreateFrames()
+	self:ApplyEnabledState()
+end
+
+function UnitFrames:OnDisable()
+	self:StopRuntime()
+end
+
+function UnitFrames:RegisterRuntimeEvents()
 	self:RegisterEvent("PLAYER_TARGET_CHANGED", "UpdateAll")
 	self:RegisterEvent("PLAYER_FOCUS_CHANGED", "UpdateAll")
-	self:RegisterEvent("UNIT_TARGET", "OnUnitTarget") -- For targettarget updates
-	self:RegisterEvent("UNIT_HEALTH", "UpdateFrameEvent")
-	self:RegisterEvent("UNIT_MAXHEALTH", "UpdateFrameEvent")
-	self:RegisterEvent("UNIT_POWER_UPDATE", "UpdateFrameEvent")
-	self:RegisterEvent("UNIT_MAXPOWER", "UpdateFrameEvent")
-	self:RegisterEvent("UNIT_ABSORB_AMOUNT_CHANGED", "UpdateFrameEvent")
-	self:RegisterEvent("UNIT_HEAL_PREDICTION", "UpdateFrameEvent")
-	self:UpdateAll()
 
-	-- Apply hide Blizzard frames setting
+	local router = ns.UnitEventRouter
+	router:Register(self, "UNIT_TARGET", "OnUnitTarget", "target")
+	for _, event in ipairs({
+		"UNIT_HEALTH",
+		"UNIT_MAXHEALTH",
+		"UNIT_POWER_UPDATE",
+		"UNIT_MAXPOWER",
+		"UNIT_ABSORB_AMOUNT_CHANGED",
+		"UNIT_HEAL_PREDICTION",
+	}) do
+		router:Register(self, event, "UpdateFrameEvent", "player", "target", "targettarget", "focus")
+	end
+end
+
+function UnitFrames:StartRuntime()
+	if self._runtimeActive then
+		self:UpdateLayout()
+		self:UpdateAll()
+		self:ApplyBlizzardFrameVisibility()
+		return
+	end
+
+	self._runtimeActive = true
+	if not next(self.frames) then
+		self:CreateFrames()
+	end
+	self:RegisterRuntimeEvents()
+	self:UpdateLayout()
+	self:UpdateAll()
 	self:ApplyBlizzardFrameVisibility()
 end
 
+function UnitFrames:HideFrames()
+	if InCombatLockdown() then
+		return
+	end
+	for frameId, f in pairs(self.frames) do
+		if frameId ~= "player" then
+			UnregisterUnitWatch(f)
+		end
+		local container = self.containers and self.containers[frameId]
+		if container then
+			if frameId ~= "player" then
+				UnregisterUnitWatch(container)
+			end
+			container:Hide()
+		end
+		f:Hide()
+	end
+end
+
+function UnitFrames:StopRuntime()
+	self._runtimeActive = false
+	self:UnregisterAllEvents()
+	if ns.UnitEventRouter then
+		ns.UnitEventRouter:UnregisterAll(self)
+	end
+	self:HideFrames()
+	self:ApplyBlizzardFrameVisibility()
+end
+
+function UnitFrames:ApplyPendingEnabledState()
+	self:UnregisterEvent("PLAYER_REGEN_ENABLED")
+	self._pendingEnabledState = nil
+	self:ApplyEnabledState()
+end
+
+function UnitFrames:ApplyEnabledState()
+	if InCombatLockdown() then
+		if not self._pendingEnabledState then
+			self._pendingEnabledState = true
+			self:RegisterEvent("PLAYER_REGEN_ENABLED", "ApplyPendingEnabledState")
+		end
+		return
+	end
+
+	self._pendingEnabledState = nil
+	self:UnregisterEvent("PLAYER_REGEN_ENABLED")
+	if self.db.profile.ufEnabled then
+		self:StartRuntime()
+	else
+		self:StopRuntime()
+	end
+end
+
 function UnitFrames:ApplyBlizzardFrameVisibility()
-	local hide = self.db.profile.ufHideBlizzard
+	local hide = self.db.profile.ufEnabled and self.db.profile.ufHideBlizzard
 	if hide then
 		if PlayerFrame then
 			PlayerFrame:SetAlpha(0)
@@ -557,6 +638,7 @@ function UnitFrames:CreateFrames()
 		}
 
 		self.frames[frameId] = f
+		self.framesByUnit[unit] = f
 	end
 	self:UpdateLayout()
 end
@@ -565,23 +647,7 @@ function UnitFrames:UpdateLayout()
 	local DraggableContainer = ns.DraggableContainer
 
 	if not self.db.profile.ufEnabled then
-		-- Can't modify secure frames during combat
-		if not InCombatLockdown() then
-			for frameId, f in pairs(self.frames) do
-				-- Unregister unit watch so it doesn't auto-show when unit exists (target/focus only)
-				if frameId ~= "player" then
-					UnregisterUnitWatch(f)
-				end
-				local container = self.containers and self.containers[frameId]
-				if container then
-					if frameId ~= "player" then
-						UnregisterUnitWatch(container)
-					end
-					container:Hide()
-				end
-				f:Hide()
-			end
-		end
+		self:HideFrames()
 		return
 	end
 
@@ -740,22 +806,27 @@ function UnitFrames:UpdateLayout()
 end
 
 function UnitFrames:UpdateAll()
+	if not self._runtimeActive then
+		return
+	end
 	for _, f in pairs(self.frames) do
 		self:UpdateFrameValues(f)
 	end
 end
 
 function UnitFrames:UpdateFrameEvent(event, unit)
-	for _, f in pairs(self.frames) do
-		if f.unit == unit then
-			self:UpdateFrameValues(f)
-		end
+	if not self._runtimeActive then
+		return
+	end
+	local f = self.framesByUnit[unit]
+	if f then
+		self:UpdateFrameValues(f)
 	end
 end
 
 -- When any unit's target changes, update targettarget frame
 function UnitFrames:OnUnitTarget(event, unit)
-	if unit == "target" then
+	if self._runtimeActive and unit == "target" then
 		-- Target's target changed, update the targettarget frame
 		local f = self.frames.targettarget
 		if f then

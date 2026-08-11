@@ -19,6 +19,7 @@ local IsActionInRange = Utils.IsActionInRangeSafe -- @scan-ignore: midnight-norm
 local math_floor = math.floor
 
 local buttons = {}
+local registeredRangeActions = {}
 local container = nil -- ActionBars container frame
 local layoutCache = {} -- Cache for Edit Mode settings to avoid frequent API calls
 
@@ -185,19 +186,22 @@ function AB:OnEnable()
 		end)
 	end
 
-	-- Range ticker: periodic out-of-range check (0.2s, standard for action bar addons)
-	if not AB.rangeTicker then
-		AB.rangeTicker = CreateFrame("Frame")
-		AB.rangeTicker.elapsed = 0
-		AB.rangeTicker:SetScript("OnUpdate", function(self, elapsed)
-			self.elapsed = self.elapsed + elapsed
-			if self.elapsed >= 0.2 then
-				self.elapsed = 0
-				AB:UpdateRange()
-			end
-		end)
+	-- Current clients push range changes for action slots that opt in. Keep the
+	-- polling fallback only for clients without that API.
+	if not (C_ActionBar and C_ActionBar.EnableActionRangeCheck) then
+		if not AB.rangeTicker then
+			AB.rangeTicker = CreateFrame("Frame")
+			AB.rangeTicker.elapsed = 0
+			AB.rangeTicker:SetScript("OnUpdate", function(self, elapsed)
+				self.elapsed = self.elapsed + elapsed
+				if self.elapsed >= 0.2 then
+					self.elapsed = 0
+					AB:UpdateRange()
+				end
+			end)
+		end
+		AB.rangeTicker:Show()
 	end
-	AB.rangeTicker:Show()
 
 	self:UpdateLayout()
 	self:RefreshAll()
@@ -596,6 +600,46 @@ function AB:OnDisable()
 	if AB.rangeTicker then
 		AB.rangeTicker:Hide()
 	end
+	self:ClearRangeRegistrations()
+end
+
+function AB:ClearRangeRegistrations()
+	if not (C_ActionBar and C_ActionBar.EnableActionRangeCheck) then
+		wipe(registeredRangeActions)
+		return
+	end
+	for actionID in pairs(registeredRangeActions) do
+		pcall(C_ActionBar.EnableActionRangeCheck, actionID, false)
+	end
+	wipe(registeredRangeActions)
+end
+
+function AB:RefreshRangeRegistrations()
+	if not (C_ActionBar and C_ActionBar.EnableActionRangeCheck) then
+		return
+	end
+
+	local desired = {}
+	for _, btn in ipairs(buttons) do
+		if btn.hasAction and btn:IsShown() then
+			desired[btn.actionID] = true
+		end
+	end
+
+	for actionID in pairs(registeredRangeActions) do
+		if not desired[actionID] then
+			pcall(C_ActionBar.EnableActionRangeCheck, actionID, false)
+			registeredRangeActions[actionID] = nil
+		end
+	end
+	for actionID in pairs(desired) do
+		if not registeredRangeActions[actionID] then
+			local ok = pcall(C_ActionBar.EnableActionRangeCheck, actionID, true)
+			if ok then
+				registeredRangeActions[actionID] = true
+			end
+		end
+	end
 end
 
 function AB:RefreshAll()
@@ -610,6 +654,7 @@ function AB:RefreshAll()
 			self:UpdateState(btn)
 		end
 	end
+	self:RefreshRangeRegistrations()
 end
 
 function AB:ACTIONBAR_SLOT_CHANGED(event, arg1)
@@ -625,6 +670,7 @@ function AB:ACTIONBAR_SLOT_CHANGED(event, arg1)
 			self:UpdateState(btn)
 		end
 	end
+	self:RefreshRangeRegistrations()
 end
 
 function AB:SPELL_UPDATE_COOLDOWN()

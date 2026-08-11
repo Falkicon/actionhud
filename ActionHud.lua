@@ -538,21 +538,23 @@ end
 function ActionHud:OnProfileChanged()
 	self:UpdateLockState()
 
+	for name, module in self:IterateModules() do
+		if module.ApplyEnabledState then
+			module:ApplyEnabledState()
+		elseif module.UpdateLayout then
+			module:UpdateLayout()
+		end
+		if module.RefreshAll then
+			module:RefreshAll()
+		end
+	end
+
 	local LM = self:GetModule("LayoutManager", true)
 	if LM then
 		if LM.MigrateOldSettings then
 			LM:MigrateOldSettings()
 		end
 		LM:TriggerLayoutUpdate()
-	else
-		for name, module in self:IterateModules() do
-			if module.UpdateLayout then
-				module:UpdateLayout()
-			end
-			if module.RefreshAll then
-				module:RefreshAll()
-			end
-		end
 	end
 end
 

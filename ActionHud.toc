@@ -15,6 +15,7 @@ Core\FenCoreCompat.lua
 Core\init.lua
 Core\DraggableContainer.lua
 Core\StackContainer.lua
+Core\UnitEventRouter.lua
 Utils.lua
 ActionHud.lua
 LayoutManager.lua

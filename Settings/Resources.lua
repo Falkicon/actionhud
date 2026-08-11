@@ -26,6 +26,10 @@ function ns.Settings.BuildResourcesOptions(self)
 				end,
 				set = function(info, val)
 					self.db.profile.resEnabled = val
+					local resources = ActionHud:GetModule("Resources", true)
+					if resources then
+						resources:ApplyEnabledState()
+					end
 					self:RefreshLayout()
 				end,
 			},

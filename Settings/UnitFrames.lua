@@ -697,7 +697,7 @@ function ns.Settings.BuildUnitFramesOptions(self)
 				end,
 				set = function(info, val)
 					self.db.profile.ufEnabled = val
-					ActionHud:GetModule("UnitFrames"):UpdateLayout()
+					ActionHud:GetModule("UnitFrames"):ApplyEnabledState()
 				end,
 			},
 			hideBlizzard = {
@@ -711,42 +711,7 @@ function ns.Settings.BuildUnitFramesOptions(self)
 				end,
 				set = function(info, val)
 					self.db.profile.ufHideBlizzard = val
-					-- Apply visibility immediately
-					if val then
-						if PlayerFrame then
-							PlayerFrame:SetAlpha(0)
-							PlayerFrame:EnableMouse(false)
-						end
-						if TargetFrame then
-							TargetFrame:SetAlpha(0)
-							TargetFrame:EnableMouse(false)
-						end
-						if FocusFrame then
-							FocusFrame:SetAlpha(0)
-							FocusFrame:EnableMouse(false)
-						end
-						if TargetFrameToT then
-							TargetFrameToT:SetAlpha(0)
-							TargetFrameToT:EnableMouse(false)
-						end
-					else
-						if PlayerFrame then
-							PlayerFrame:SetAlpha(1)
-							PlayerFrame:EnableMouse(true)
-						end
-						if TargetFrame then
-							TargetFrame:SetAlpha(1)
-							TargetFrame:EnableMouse(true)
-						end
-						if FocusFrame then
-							FocusFrame:SetAlpha(1)
-							FocusFrame:EnableMouse(true)
-						end
-						if TargetFrameToT then
-							TargetFrameToT:SetAlpha(1)
-							TargetFrameToT:EnableMouse(true)
-						end
-					end
+					ActionHud:GetModule("UnitFrames"):ApplyBlizzardFrameVisibility()
 				end,
 			},
 			player = GetFrameOptions("player", L["Player Frame"], 10),

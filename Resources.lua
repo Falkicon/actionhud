@@ -604,18 +604,38 @@ function Resources:OnEnable()
 		targetPower.type = "POWER"
 	end
 
+	self:ApplyEnabledState()
+end
+
+function Resources:RegisterRuntimeEvents()
 	self:RegisterEvent("PLAYER_TARGET_CHANGED", "OnEvent")
 	self:RegisterEvent("PLAYER_ENTERING_WORLD", "OnEvent")
 	self:RegisterEvent("PLAYER_REGEN_DISABLED", "UpdateCombatVisibility")
 	self:RegisterEvent("PLAYER_REGEN_ENABLED", "UpdateCombatVisibility")
-	self:RegisterEvent("UNIT_HEALTH", "OnEvent")
-	self:RegisterEvent("UNIT_HEAL_PREDICTION", "OnEvent")
-	self:RegisterEvent("UNIT_ABSORB_AMOUNT_CHANGED", "OnEvent")
-	self:RegisterEvent("UNIT_POWER_UPDATE", "OnEvent")
-	self:RegisterEvent("UNIT_DISPLAYPOWER", "OnEvent")
-	self:RegisterEvent("UNIT_MAXPOWER", "OnEvent")
+	for _, event in ipairs({
+		"UNIT_HEALTH",
+		"UNIT_HEAL_PREDICTION",
+		"UNIT_ABSORB_AMOUNT_CHANGED",
+		"UNIT_POWER_UPDATE",
+		"UNIT_DISPLAYPOWER",
+		"UNIT_MAXPOWER",
+	}) do
+		ns.UnitEventRouter:Register(self, event, "OnEvent", "player", "target")
+	end
 	self:RegisterEvent("UPDATE_SHAPESHIFT_FORM", "OnEvent")
 	self:RegisterEvent("RUNE_POWER_UPDATE", "OnEvent")
+end
+
+function Resources:StartRuntime()
+	if self._runtimeActive then
+		self:UpdateLayout()
+		self:UpdateCombatVisibility()
+		return
+	end
+
+	self._runtimeActive = true
+	self:UpdateLayout()
+	self:RegisterRuntimeEvents()
 
 	UpdateBarColor(playerHealth, "player")
 	UpdateBarColor(playerPower, "player")
@@ -623,8 +643,30 @@ function Resources:OnEnable()
 	UpdateBarValue(playerPower, "player")
 	UpdateClassPower()
 
-	self:UpdateLayout()
 	self:UpdateCombatVisibility()
+end
+
+function Resources:OnDisable()
+	self:StopRuntime()
+end
+
+function Resources:StopRuntime()
+	self._runtimeActive = false
+	self:UnregisterAllEvents()
+	if ns.UnitEventRouter then
+		ns.UnitEventRouter:UnregisterAll(self)
+	end
+	if container then
+		container:Hide()
+	end
+end
+
+function Resources:ApplyEnabledState()
+	if self.db.profile.resEnabled then
+		self:StartRuntime()
+	else
+		self:StopRuntime()
+	end
 end
 
 -- Show or hide resource bars based on combat state and resHideOutOfCombat setting
@@ -653,7 +695,7 @@ function Resources:UpdateCombatVisibility(event)
 end
 
 function Resources:OnEvent(event, unit)
-	if not RCFG.enabled then
+	if not self._runtimeActive or not RCFG.enabled then
 		return
 	end
 	-- addon:Log(string.format("Resources: %s (unit=%s)", event, tostring(unit)), "events") -- Disabled: too verbose
