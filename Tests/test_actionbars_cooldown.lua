@@ -341,13 +341,27 @@ do
 	}
 	CreateFrame = function()
 		createCount = createCount + 1
-		return NewCooldownFrame()
+		local frame = NewCooldownFrame()
+		frame.SetHideCountdownNumbers = function() end
+		frame.SetDrawSwipe = function() end
+		frame.SetAllPoints = function() end
+		frame.SetFrameLevel = function() end
+		return frame
 	end
 
-	local button = { hasAction = true, actionID = 42, cd = NewCooldownFrame() }
+	local button = {
+		hasAction = true,
+		actionID = 42,
+		cd = NewCooldownFrame(),
+		GetFrameLevel = function()
+			return 1
+		end,
+	}
 	ActionBars:UpdateCooldown(button)
-	AssertEqual(0, createCount, "non-charge actions should not allocate a second cooldown frame")
-	AssertEqual(nil, appliedChargeFrame, "non-charge actions should pass no charge cooldown frame")
+	AssertEqual(1, createCount, "Blizzard's helper requires a secondary cooldown frame for every action")
+	AssertEqual(button.chargeCooldown, appliedChargeFrame, "the required secondary cooldown frame must be passed")
+	ActionBars:UpdateCooldown(button)
+	AssertEqual(1, createCount, "the secondary cooldown frame should be reused after its first allocation")
 	ActionButton_ApplyCooldown = nil
 end
 

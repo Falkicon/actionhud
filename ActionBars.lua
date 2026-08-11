@@ -1010,12 +1010,11 @@ function AB:UpdateCooldown(btn)
 
 	local hasSecretCooldownValues = HasSecretCooldownValues(cooldownInfo, chargeInfo, lossOfControlInfo)
 
-	-- Use Blizzard's ActionButton_ApplyCooldown if available (12.0+ helper).
-	-- A second cooldown frame is only needed for actions that actually have charges.
+	-- Blizzard's helper unconditionally configures both cooldown frames, including
+	-- for actions whose charge info reports zero charges. Always provide the
+	-- secondary frame or ActionButton_ApplyCooldown aborts the entire refresh.
 	if ActionButton_ApplyCooldown and not hasSecretCooldownValues then
-		local maxCharges = chargeInfo.maxCharges
-		local hasCharges = type(maxCharges) == "number" and maxCharges > 1
-		if hasCharges and not btn.chargeCooldown then
+		if not btn.chargeCooldown then
 			btn.chargeCooldown = CreateFrame("Cooldown", nil, btn, "CooldownFrameTemplate")
 			btn.chargeCooldown:SetHideCountdownNumbers(true)
 			btn.chargeCooldown:SetDrawSwipe(false)
