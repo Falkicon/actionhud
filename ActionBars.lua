@@ -1094,6 +1094,23 @@ function AB:UpdateState(btn)
 	self:UpdateProc(btn)
 end
 
+local function ApplyCountText(btn, displayText)
+	local displayIsSecret = Utils.IsValueSecret(displayText)
+	local cachedIsSecret = Utils.IsValueSecret(btn._countText)
+	if not displayIsSecret and not cachedIsSecret and btn._countText == displayText then
+		return
+	end
+
+	-- Never retain a restricted value in addon-owned state. It can be passed
+	-- directly to FontString, but any later comparison against it is forbidden.
+	if displayIsSecret then
+		btn._countText = nil
+	else
+		btn._countText = displayText
+	end
+	btn.count:SetText(displayText)
+end
+
 function AB:UpdateCount(btn)
 	local actionID = btn.actionID
 
@@ -1102,15 +1119,9 @@ function AB:UpdateCount(btn)
 		-- Midnight: native API returns display-ready text (handles secrets internally)
 		local ok, displayText = pcall(C_ActionBar.GetActionDisplayCount, actionID, 9999)
 		if ok then
-			if Utils.IsValueSecret(displayText) or btn._countText ~= displayText then
-				btn._countText = Utils.IsValueSecret(displayText) and nil or displayText
-				btn.count:SetText(displayText)
-			end
+			ApplyCountText(btn, displayText)
 		else
-			if btn._countText ~= "" then
-				btn._countText = ""
-				btn.count:SetText("")
-			end
+			ApplyCountText(btn, "")
 		end
 	else
 		-- Pre-Midnight fallback
@@ -1128,10 +1139,7 @@ function AB:UpdateCount(btn)
 		if not ok then
 			displayText = ""
 		end
-		if Utils.IsValueSecret(displayText) or btn._countText ~= displayText then
-			btn._countText = Utils.IsValueSecret(displayText) and nil or displayText
-			btn.count:SetText(displayText)
-		end
+		ApplyCountText(btn, displayText)
 	end
 end
 

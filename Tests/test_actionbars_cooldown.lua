@@ -365,4 +365,30 @@ do
 	ActionButton_ApplyCooldown = nil
 end
 
+do
+	local restrictedText = SecretTiming("display count")
+	local displayText = restrictedText
+	C_ActionBar = {
+		GetActionDisplayCount = function()
+			return displayText
+		end,
+	}
+	local count = {}
+	function count:SetText(value)
+		self.text = value
+	end
+	local button = { actionID = 42, count = count }
+
+	ActionBars:UpdateCount(button)
+	AssertEqual(restrictedText, count.text, "restricted count text should pass directly to FontString")
+	AssertEqual(nil, button._countText, "restricted count text must not be retained in addon state")
+
+	-- Also recover safely if an older session has already contaminated the cache.
+	button._countText = restrictedText
+	displayText = ""
+	ActionBars:UpdateCount(button)
+	AssertEqual("", button._countText, "ordinary count text should replace a restricted cached value")
+	AssertEqual("", count.text, "ordinary count text should still reach FontString")
+end
+
 print("SUCCESS: ActionBars restricted cooldown compositor verified!")
