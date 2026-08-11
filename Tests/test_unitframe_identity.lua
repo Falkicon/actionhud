@@ -138,6 +138,10 @@ chunk("ActionHud", ns)
 
 local IdentitySafety = assert(ns.UnitFrameIdentitySafety)
 
+AbbreviateNumbers = function(value)
+	return "abbr:" .. tostring(value)
+end
+
 local function resetApiValues()
 	for key in pairs(apiValues) do
 		apiValues[key] = nil
@@ -163,6 +167,10 @@ local function assertNotContains(text, pattern, message)
 end
 
 print("Running unit-frame identity safety tests...")
+
+assertEqual(secretValue, IdentitySafety.FormatValue(secretValue), "restricted values must pass directly to FontString")
+assertEqual("abbr:1234", IdentitySafety.FormatValue(1234), "ordinary values must still be abbreviated")
+assertEqual("???", IdentitySafety.FormatValue(nil), "missing values must retain their placeholder")
 
 local filtered, available = IdentitySafety.Get(secretValue)
 assertEqual(nil, filtered, "restricted values must be filtered")

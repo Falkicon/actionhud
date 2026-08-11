@@ -18,6 +18,10 @@ local UnitPowerType = UnitPowerType
 local RAID_CLASS_COLORS = RAID_CLASS_COLORS
 local PowerBarColor = PowerBarColor
 
+local function GetSecondsFormatterFactory()
+	return C_StringUtil and C_StringUtil.CreateSecondsFormatter or CreateSecondsFormatter
+end
+
 --------------------------------------------------------------------------------
 -- Environment & Capability
 --------------------------------------------------------------------------------
@@ -33,7 +37,7 @@ if not F then
 	-- Fallback detection if FenUI is missing
 	function Utils.DetectCapabilities()
 		local Cap = Utils.Cap
-		Cap.HasSecondsFormatter = (type(CreateSecondsFormatter) == "function")
+		Cap.HasSecondsFormatter = (type(GetSecondsFormatterFactory()) == "function")
 		Cap.HasHealCalculator = (type(CreateUnitHealPredictionCalculator) ~= "nil")
 		if not Utils.IS_MIDNIGHT then
 			Cap.IsAuraLegacy = true
@@ -61,18 +65,21 @@ end
 --------------------------------------------------------------------------------
 
 function Utils.FormatTime(seconds)
-	return F and F:FormatDuration(seconds, true)
-		or (function()
-			if seconds == nil then
-				return ""
-			end
-			if seconds > 3600 then
-				return string.format("%dh", math.ceil(seconds / 3600))
-			elseif seconds > 60 then
-				return string.format("%dm", math.ceil(seconds / 60))
-			end
-			return string.format("%.1f", seconds)
-		end)()
+	if F and F.FormatDuration then
+		return F:FormatDuration(seconds, true)
+	end
+	if seconds == nil then
+		return ""
+	end
+	if Utils.IsValueSecret(seconds) then
+		return seconds
+	end
+	if seconds > 3600 then
+		return string.format("%dh", math.ceil(seconds / 3600))
+	elseif seconds > 60 then
+		return string.format("%dm", math.ceil(seconds / 60))
+	end
+	return string.format("%.1f", seconds)
 end
 
 -- 12.0.1: Use SecondsFormatter for native secret-safe duration text
@@ -83,9 +90,10 @@ function Utils.FormatDurationSafe(seconds)
 			return result
 		end
 	end
-	if Utils.Cap.HasSecondsFormatter and type(CreateSecondsFormatter) == "function" then
+	local createFormatter = GetSecondsFormatterFactory()
+	if Utils.Cap.HasSecondsFormatter and type(createFormatter) == "function" then
 		if not Utils.secondsFormatter then
-			local ok, formatter = pcall(CreateSecondsFormatter)
+			local ok, formatter = pcall(createFormatter)
 			if ok then
 				Utils.secondsFormatter = formatter
 			end
@@ -188,7 +196,9 @@ function Utils.MayHaveSecretValues()
 		return true
 	end
 	-- Raids: during boss encounters
-	if IsEncounterInProgress and IsEncounterInProgress() then
+	local isEncounterInProgress = C_InstanceEncounter and C_InstanceEncounter.IsEncounterInProgress
+		or IsEncounterInProgress
+	if isEncounterInProgress and isEncounterInProgress() then
 		return true
 	end
 	-- PvP: entire match
@@ -316,10 +326,34 @@ function Utils.GetInventoryItemCooldownSafe(unit, slot)
 	if not unit or not slot then
 		return 0, 0, false
 	end
+	if C_Item and C_Item.GetItemCooldown and GetInventoryItemID then
+		local itemID = GetInventoryItemID(unit, slot)
+		if itemID and itemID > 0 then
+			local ok, start, duration, enabled = pcall(C_Item.GetItemCooldown, itemID)
+			if ok then
+				if type(start) == "table" then
+					return start.startTime or 0, start.duration or 0, start.isEnabled
+				end
+				if start == nil then
+					start = 0
+				end
+				if duration == nil then
+					duration = 0
+				end
+				return start, duration, enabled
+			end
+		end
+	end
 	if GetInventoryItemCooldown then
 		local ok, start, duration, enabled = pcall(GetInventoryItemCooldown, unit, slot)
 		if ok then
-			return start or 0, duration or 0, enabled
+			if start == nil then
+				start = 0
+			end
+			if duration == nil then
+				duration = 0
+			end
+			return start, duration, enabled
 		end
 	end
 	return 0, 0, false
@@ -331,23 +365,27 @@ end
 function Utils.GetActionDisplayCountSafe(a)
 	-- Try FenUI first
 	if F and F.GetActionDisplayCountSafe then
-		local count = F:GetActionDisplayCountSafe(a)
-		-- Check for secret value before comparing
-		if count and not Utils.IsValueSecret(count) and count > 0 then
-			return count
-		end
+		return F:GetActionDisplayCountSafe(a)
 	end
 	-- Built-in fallback using legacy GetActionCount (works for items)
 	if GetActionCount then
 		local ok, count = pcall(GetActionCount, a)
-		if ok and count and not Utils.IsValueSecret(count) and type(count) == "number" then
-			return count
+		if ok then
+			if Utils.IsValueSecret(count) then
+				return count
+			end
+			if type(count) == "number" then
+				return count
+			end
 		end
 	end
 	-- Midnight: Try C_ActionBar.GetActionDisplayCount directly
 	if C_ActionBar and C_ActionBar.GetActionDisplayCount then
 		local ok, count = pcall(C_ActionBar.GetActionDisplayCount, a)
-		if ok and count and not Utils.IsValueSecret(count) then
+		if ok then
+			if Utils.IsValueSecret(count) then
+				return count
+			end
 			if type(count) == "table" then
 				local val = count.count or count.displayCount
 				if val and not Utils.IsValueSecret(val) then

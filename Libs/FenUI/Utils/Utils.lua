@@ -33,7 +33,8 @@ function Utils:DetectCapabilities()
 
 	local Cap = self.Cap or {}
 	self.Cap = Cap
-	Cap.HasSecondsFormatter = type(_G.CreateSecondsFormatter) == "function"
+	Cap.HasSecondsFormatter = (_G.C_StringUtil and type(_G.C_StringUtil.CreateSecondsFormatter) == "function")
+		or type(_G.CreateSecondsFormatter) == "function"
 	Cap.HasHealCalculator = type(_G.CreateUnitHealPredictionCalculator) == "function"
 	if not self.IS_MIDNIGHT then
 		Cap.IsAuraLegacy = true

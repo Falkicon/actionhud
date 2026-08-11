@@ -745,7 +745,7 @@ function AB:UpdateAction(btn)
 	if actionType == "spell" then
 		btn.spellID = id
 	elseif actionType == "macro" then
-		btn.spellID = GetMacroSpell(actionID)
+		btn.spellID = GetMacroSpell(id)
 	else
 		btn.spellID = nil
 	end
@@ -994,7 +994,11 @@ function AB:UpdateState(btn)
 	if C_ActionBar and C_ActionBar.GetActionDisplayCount then
 		-- Midnight: native API returns display-ready text (handles secrets internally)
 		local ok, displayText = pcall(C_ActionBar.GetActionDisplayCount, actionID, 9999)
-		btn.count:SetText(ok and displayText or "")
+		if ok then
+			btn.count:SetText(displayText)
+		else
+			btn.count:SetText("")
+		end
 	else
 		-- Pre-Midnight fallback
 		local ok, displayText = pcall(function()
@@ -1008,7 +1012,11 @@ function AB:UpdateState(btn)
 			end
 			return nil
 		end)
-		btn.count:SetText(ok and displayText or "")
+		if ok then
+			btn.count:SetText(displayText)
+		else
+			btn.count:SetText("")
+		end
 	end
 	btn.count:SetAlpha(1)
 

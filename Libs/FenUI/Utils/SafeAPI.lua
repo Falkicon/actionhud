@@ -104,7 +104,7 @@ function Utils:GetActionDisplayCountSafe(actionID)
 	end
 	if _G.C_ActionBar and _G.C_ActionBar.GetActionDisplayCount then
 		local ok, count = pcall(_G.C_ActionBar.GetActionDisplayCount, actionID)
-		if ok and count then
+		if ok then
 			if type(count) == "table" then
 				return count.count or count.displayCount or 0
 			end
@@ -297,9 +297,20 @@ function Utils:GetInventoryItemCooldownSafe(unit, slot)
 	if _G.C_Item and _G.C_Item.GetItemCooldown then
 		local itemID = _G.GetInventoryItemID(unit, slot)
 		if itemID and itemID > 0 then
-			local ok, info = pcall(_G.C_Item.GetItemCooldown, itemID)
-			if ok and info and type(info) == "table" then
-				return info.startTime or 0, info.duration or 0, info.isEnabled
+			local ok, start, duration, enabled = pcall(_G.C_Item.GetItemCooldown, itemID)
+			if ok then
+				-- Some older clients returned a cooldown info table. Current clients
+				-- return startTimeSeconds, durationSeconds, enableCooldownTimer.
+				if type(start) == "table" then
+					return start.startTime or 0, start.duration or 0, start.isEnabled
+				end
+				if start == nil then
+					start = 0
+				end
+				if duration == nil then
+					duration = 0
+				end
+				return start, duration, enabled
 			end
 		end
 	end

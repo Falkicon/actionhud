@@ -42,15 +42,18 @@ wipe = function(target)
 end
 
 local formatterCreations = 0
-CreateSecondsFormatter = function()
-	formatterCreations = formatterCreations + 1
-	return {
-		SetMinimumComponents = function() end,
-		Format = function(_, seconds)
-			return "native:" .. tostring(seconds)
-		end,
-	}
-end
+C_StringUtil = {
+	CreateSecondsFormatter = function()
+		formatterCreations = formatterCreations + 1
+		return {
+			SetMinimumComponents = function() end,
+			Format = function(_, seconds)
+				return "native:" .. tostring(seconds)
+			end,
+		}
+	end,
+}
+CreateSecondsFormatter = nil -- Current clients expose this through C_StringUtil.
 SecondsFormatter = nil -- The old capability check incorrectly depended on this global.
 
 local secretValues = {}
@@ -109,6 +112,17 @@ C_ActionBar = {
 		return false
 	end,
 }
+C_Item = {
+	GetItemCooldown = function(itemID)
+		assertEqual(24680, itemID, "C_Item.GetItemCooldown received the wrong item ID")
+		return 200, 45, true
+	end,
+}
+GetInventoryItemID = function(unit, slot)
+	assertEqual("player", unit, "GetInventoryItemID received the wrong unit")
+	assertEqual(13, slot, "GetInventoryItemID received the wrong slot")
+	return 24680
+end
 
 -- Removed globals stay absent so any accidental legacy call fails the assertions.
 GetActionCooldown = nil
@@ -119,6 +133,7 @@ GetActionTexture = nil
 GetActionCount = nil
 IsUsableAction = nil
 IsActionInRange = nil
+GetInventoryItemCooldown = nil
 
 print("Loading ActionHud Utils.lua...")
 local ns = {}
@@ -144,6 +159,11 @@ local usable, noMana = Utils.IsUsableActionSafe(1)
 assertEqual(false, usable, "C_ActionBar.IsUsableAction false result was lost")
 assertEqual(false, noMana, "C_ActionBar.IsUsableAction mana result failed")
 assertEqual(false, Utils.IsActionInRangeSafe(1), "C_ActionBar.IsActionInRange false result was lost")
+
+local itemStart, itemDuration, itemEnabled = Utils.GetInventoryItemCooldownSafe("player", 13)
+assertEqual(200, itemStart, "C_Item.GetItemCooldown start time failed")
+assertEqual(45, itemDuration, "C_Item.GetItemCooldown duration failed")
+assertEqual(true, itemEnabled, "C_Item.GetItemCooldown enabled flag failed")
 
 local startTime, duration, enabled, modRate = Utils.GetActionCooldownSafe(1)
 assertEqual(100, startTime, "C_ActionBar.GetActionCooldown start time failed")

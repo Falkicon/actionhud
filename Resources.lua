@@ -174,13 +174,6 @@ local function CanShowClassPower()
 	local maxIsSecret = Utils.IsValueSecret(max)
 	local curIsSecret = Utils.IsValueSecret(cur)
 
-	-- If it's a known safe power type, ignore the secret flag for VISUAL purposes
-	local isSafeType = Utils.IsPowerTypeSafe(pType)
-	if isSafeType then
-		curIsSecret = false
-		maxIsSecret = false
-	end
-
 	-- Safe tonumber that handles secret values
 	local function SafeNum(v)
 		if v == nil then
@@ -244,11 +237,6 @@ local function UpdateClassPower()
 	-- Get fractional power (3.4 shards, 5.2 essence, etc)
 	local curFractional = GetClassPowerFractional("player", pType)
 	local curIsSecret = Utils.IsValueSecret(curFractional)
-
-	-- If it's a known safe power type, ignore the secret flag
-	if Utils.IsPowerTypeSafe(pType) then
-		curIsSecret = false
-	end
 
 	-- Force max to be numeric for the loop (safely)
 	if Utils.IsValueSecret(max) then

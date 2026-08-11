@@ -244,21 +244,33 @@ local function IsActive(val)
 end
 
 -- Format large numbers (1000 -> 1K) safely
-local function FormatValue(val)
+function IdentitySafety.FormatValue(val)
 	if type(val) == "nil" then
 		return "???"
+	end
+	if Utils.IsValueSecret(val) then
+		return val
 	end
 
 	-- If it's a number, we can use AbbreviateNumbers
 	if type(val) == "number" then
 		local ok, res = pcall(AbbreviateNumbers, val)
-		return ok and res or tostring(val)
+		if ok then
+			return res
+		end
+		local stringifyOk, text = pcall(tostring, val)
+		if stringifyOk then
+			return text
+		end
+		return "???"
 	end
 
 	-- If it's a secret value, AbbreviateNumbers might crash.
 	-- We return it as-is for %s formatting later.
 	return val
 end
+
+local FormatValue = IdentitySafety.FormatValue
 
 -- Create a single status bar with overlays
 local function CreateUnitBar(parent, name)
@@ -904,7 +916,7 @@ function UnitFrames:UpdateFrameValues(f)
 	-- Heal Prediction (only for incoming heals, not absorbs)
 	local incomingHeals = 0
 	if UnitGetIncomingHeals then
-		incomingHeals = UnitGetIncomingHeals(unit) or 0 -- @scan-ignore: midnight-friendly-unit
+		incomingHeals = UnitGetIncomingHeals(unit) -- @scan-ignore: midnight-friendly-unit
 	end
 
 	if type(incomingHeals) == "number" and not Utils.IsValueSecret(incomingHeals) and incomingHeals > 0 then
