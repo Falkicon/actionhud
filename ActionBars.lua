@@ -8,8 +8,8 @@ local Utils = ns.Utils
 local ipairs = ipairs
 local GetTime = GetTime
 local GetActionBarPage = Utils.GetActionBarPageSafe -- @scan-ignore: midnight-normalized
-local GetBonusBarOffset = GetBonusBarOffset
-local GetActionInfo = GetActionInfo
+local GetBonusBarOffset = Utils.GetBonusBarOffsetSafe -- @scan-ignore: midnight-normalized
+local GetActionInfo = Utils.GetActionInfoSafe -- @scan-ignore: midnight-normalized
 local GetActionTexture = Utils.GetActionTextureSafe -- @scan-ignore: midnight-normalized
 local GetActionCooldown = Utils.GetActionCooldownSafe -- @scan-ignore: midnight-normalized
 local GetActionCount = Utils.GetActionDisplayCountSafe -- @scan-ignore: midnight-normalized
@@ -708,7 +708,7 @@ function AB:UpdateAction(btn)
 	-- Paging logic
 	if slot >= 1 and slot <= 12 then
 		local page = GetActionBarPage() -- @scan-ignore: midnight-normalized
-		local offset = GetBonusBarOffset()
+		local offset = GetBonusBarOffset() -- @scan-ignore: midnight-normalized
 
 		-- Use SafeCompare for Midnight compatibility
 		if Utils.SafeCompare(offset, 0, ">") and Utils.SafeCompare(page, 1, "==") then
@@ -739,10 +739,10 @@ function AB:UpdateAction(btn)
 	-- doesn't apply a red tint from the previous spell
 	btn._inRange = nil
 
-	local type, id = GetActionInfo(actionID)
-	if type == "spell" then
+	local actionType, id = GetActionInfo(actionID) -- @scan-ignore: midnight-normalized
+	if actionType == "spell" then
 		btn.spellID = id
-	elseif type == "macro" then
+	elseif actionType == "macro" then
 		btn.spellID = GetMacroSpell(actionID)
 	else
 		btn.spellID = nil

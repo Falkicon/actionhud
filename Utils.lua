@@ -33,7 +33,7 @@ if not F then
 	-- Fallback detection if FenUI is missing
 	function Utils.DetectCapabilities()
 		local Cap = Utils.Cap
-		Cap.HasSecondsFormatter = (type(SecondsFormatter) ~= "nil")
+		Cap.HasSecondsFormatter = (type(CreateSecondsFormatter) == "function")
 		Cap.HasHealCalculator = (type(CreateUnitHealPredictionCalculator) ~= "nil")
 		if not Utils.IS_MIDNIGHT then
 			Cap.IsAuraLegacy = true
@@ -77,10 +77,24 @@ end
 
 -- 12.0.1: Use SecondsFormatter for native secret-safe duration text
 function Utils.FormatDurationSafe(seconds)
-	if Utils.Cap.HasSecondsFormatter and SecondsFormatter then
-		local ok, result = pcall(SecondsFormatter.Format, SecondsFormatter, seconds)
+	if F and F.FormatDuration then
+		local ok, result = pcall(F.FormatDuration, F, seconds, true)
 		if ok then
 			return result
+		end
+	end
+	if Utils.Cap.HasSecondsFormatter and type(CreateSecondsFormatter) == "function" then
+		if not Utils.secondsFormatter then
+			local ok, formatter = pcall(CreateSecondsFormatter)
+			if ok then
+				Utils.secondsFormatter = formatter
+			end
+		end
+		if Utils.secondsFormatter then
+			local ok, result = pcall(Utils.secondsFormatter.Format, Utils.secondsFormatter, seconds)
+			if ok then
+				return result
+			end
 		end
 	end
 	return Utils.FormatTime(seconds)
@@ -245,7 +259,31 @@ function Utils.GetSpellCooldownSafe(s)
 	return F and F:GetSpellCooldownSafe(s)
 end
 function Utils.GetActionCooldownSafe(a)
-	return F and F:GetActionCooldownSafe(a)
+	if F and F.GetActionCooldownSafe then
+		return F:GetActionCooldownSafe(a)
+	end
+	if C_ActionBar and C_ActionBar.GetActionCooldown then
+		local ok, info = pcall(C_ActionBar.GetActionCooldown, a)
+		if ok and info then
+			local startTime = info.startTime
+			local duration = info.duration
+			local modRate = info.modRate
+			if startTime == nil then
+				startTime = 0
+			end
+			if duration == nil then
+				duration = 0
+			end
+			if modRate == nil then
+				modRate = 1
+			end
+			return startTime, duration, info.isEnabled, modRate
+		end
+	end
+	if GetActionCooldown then
+		return GetActionCooldown(a)
+	end
+	return 0, 0, false, 1
 end
 function Utils.GetSpellChargesSafe(s)
 	return F and F:GetSpellChargesSafe(s)
@@ -323,16 +361,112 @@ function Utils.GetActionDisplayCountSafe(a)
 	return 0
 end
 function Utils.GetActionBarPageSafe()
-	return F and F:GetActionBarPageSafe() or 1
+	if F and F.GetActionBarPageSafe then
+		return F:GetActionBarPageSafe()
+	end
+	if C_ActionBar and C_ActionBar.GetActionBarPage then
+		local ok, page = pcall(C_ActionBar.GetActionBarPage)
+		if ok and page ~= nil then
+			if type(page) == "table" then
+				return page.page or page.currentPage or 1
+			end
+			return page
+		end
+	end
+	return GetActionBarPage and GetActionBarPage() or 1
+end
+function Utils.GetBonusBarOffsetSafe()
+	if F and F.GetBonusBarOffsetSafe then
+		return F:GetBonusBarOffsetSafe()
+	end
+	if C_ActionBar and C_ActionBar.GetBonusBarOffset then
+		local ok, offset = pcall(C_ActionBar.GetBonusBarOffset)
+		if ok and offset ~= nil then
+			if type(offset) == "table" then
+				return offset.offset or offset.bonusBarOffset or 0
+			end
+			return offset
+		end
+	end
+	return GetBonusBarOffset and GetBonusBarOffset() or 0
+end
+function Utils.GetActionInfoSafe(a)
+	if F and F.GetActionInfoSafe then
+		return F:GetActionInfoSafe(a)
+	end
+	if C_ActionBar and C_ActionBar.GetActionInfo then
+		local ok, actionType, id, subType = pcall(C_ActionBar.GetActionInfo, a)
+		if ok then
+			if type(actionType) == "table" then
+				return actionType.type or actionType.actionType,
+					actionType.id or actionType.actionID,
+					actionType.subType
+			end
+			return actionType, id, subType
+		end
+	end
+	if GetActionInfo then
+		return GetActionInfo(a)
+	end
+	return nil
 end
 function Utils.GetActionTextureSafe(a)
-	return F and F:GetActionTextureSafe(a)
+	if F and F.GetActionTextureSafe then
+		return F:GetActionTextureSafe(a)
+	end
+	if C_ActionBar and C_ActionBar.GetActionTexture then
+		local ok, texture = pcall(C_ActionBar.GetActionTexture, a)
+		if ok and type(texture) == "table" then
+			return texture.texture or texture.icon
+		end
+		return ok and texture or nil
+	end
+	return GetActionTexture and GetActionTexture(a) or nil
 end
 function Utils.IsUsableActionSafe(a)
-	return F and F:IsUsableActionSafe(a)
+	if F and F.IsUsableActionSafe then
+		return F:IsUsableActionSafe(a)
+	end
+	if C_ActionBar and C_ActionBar.IsUsableAction then
+		local ok, isUsable, noMana = pcall(C_ActionBar.IsUsableAction, a)
+		if ok then
+			if type(isUsable) == "table" then
+				local info = isUsable
+				local usable = info.isUsable
+				if usable == nil then
+					usable = info.usable
+				end
+				local insufficientPower = info.notEnoughMana
+				if insufficientPower == nil then
+					insufficientPower = info.noMana
+				end
+				return usable, insufficientPower
+			end
+			return isUsable, noMana
+		end
+	end
+	if IsUsableAction then
+		return IsUsableAction(a)
+	end
+	return false, false
 end
 function Utils.IsActionInRangeSafe(a)
-	return F and F:IsActionInRangeSafe(a)
+	if F and F.IsActionInRangeSafe then
+		return F:IsActionInRangeSafe(a)
+	end
+	if C_ActionBar and C_ActionBar.IsActionInRange then
+		local ok, inRange = pcall(C_ActionBar.IsActionInRange, a)
+		if ok then
+			if type(inRange) == "table" then
+				if inRange.inRange ~= nil then
+					return inRange.inRange
+				end
+				return inRange.isInRange
+			end
+			return inRange
+		end
+	end
+	return IsActionInRange and IsActionInRange(a) or nil
 end
 function Utils.GetSpecializationSafe()
 	return F and F:GetSpecializationSafe()

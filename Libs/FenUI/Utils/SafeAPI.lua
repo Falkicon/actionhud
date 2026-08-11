@@ -47,7 +47,7 @@ function Utils:GetActionCooldownSafe(actionID)
 		return 0, 0, false, 1
 	end
 
-	if self.IS_MIDNIGHT and _G.C_ActionBar and _G.C_ActionBar.GetActionCooldown then
+	if _G.C_ActionBar and _G.C_ActionBar.GetActionCooldown then
 		local ok, info = pcall(_G.C_ActionBar.GetActionCooldown, actionID)
 		if ok and info then
 			-- Preserve secret values - don't use "or 0" which breaks secrets
@@ -102,7 +102,7 @@ function Utils:GetActionDisplayCountSafe(actionID)
 	if not actionID then
 		return 0
 	end
-	if self.IS_MIDNIGHT and _G.C_ActionBar and _G.C_ActionBar.GetActionDisplayCount then
+	if _G.C_ActionBar and _G.C_ActionBar.GetActionDisplayCount then
 		local ok, count = pcall(_G.C_ActionBar.GetActionDisplayCount, actionID)
 		if ok and count then
 			if type(count) == "table" then
@@ -123,7 +123,7 @@ end
 
 --- Safe wrapper for C_ActionBar.GetActionBarPage.
 function Utils:GetActionBarPageSafe()
-	if self.IS_MIDNIGHT and _G.C_ActionBar and _G.C_ActionBar.GetActionBarPage then
+	if _G.C_ActionBar and _G.C_ActionBar.GetActionBarPage then
 		local ok, page = pcall(_G.C_ActionBar.GetActionBarPage)
 		if ok and page then
 			if type(page) == "table" then
@@ -135,12 +135,47 @@ function Utils:GetActionBarPageSafe()
 	return _G.GetActionBarPage and _G.GetActionBarPage() or 1
 end
 
+--- Safe wrapper for C_ActionBar.GetBonusBarOffset.
+function Utils:GetBonusBarOffsetSafe()
+	if _G.C_ActionBar and _G.C_ActionBar.GetBonusBarOffset then
+		local ok, offset = pcall(_G.C_ActionBar.GetBonusBarOffset)
+		if ok and offset ~= nil then
+			if type(offset) == "table" then
+				return offset.offset or offset.bonusBarOffset or 0
+			end
+			return offset
+		end
+	end
+	return _G.GetBonusBarOffset and _G.GetBonusBarOffset() or 0
+end
+
+--- Safe wrapper for C_ActionBar.GetActionInfo.
+function Utils:GetActionInfoSafe(actionID)
+	if not actionID then
+		return nil
+	end
+	if _G.C_ActionBar and _G.C_ActionBar.GetActionInfo then
+		local ok, actionType, id, subType = pcall(_G.C_ActionBar.GetActionInfo, actionID)
+		if ok then
+			if type(actionType) == "table" then
+				local info = actionType
+				return info.type or info.actionType, info.id or info.actionID, info.subType
+			end
+			return actionType, id, subType
+		end
+	end
+	if _G.GetActionInfo then
+		return _G.GetActionInfo(actionID)
+	end
+	return nil
+end
+
 --- Safe wrapper for C_ActionBar.GetActionTexture.
 function Utils:GetActionTextureSafe(actionID)
 	if not actionID then
 		return nil
 	end
-	if self.IS_MIDNIGHT and _G.C_ActionBar and _G.C_ActionBar.GetActionTexture then
+	if _G.C_ActionBar and _G.C_ActionBar.GetActionTexture then
 		local ok, texture = pcall(_G.C_ActionBar.GetActionTexture, actionID)
 		if ok and texture then
 			if type(texture) == "table" then
@@ -157,11 +192,20 @@ function Utils:IsUsableActionSafe(actionID)
 	if not actionID then
 		return false, false
 	end
-	if self.IS_MIDNIGHT and _G.C_ActionBar and _G.C_ActionBar.IsUsableAction then
+	if _G.C_ActionBar and _G.C_ActionBar.IsUsableAction then
 		local ok, isUsable, noMana = pcall(_G.C_ActionBar.IsUsableAction, actionID)
 		if ok then
 			if type(isUsable) == "table" then
-				return isUsable.isUsable or isUsable.usable, isUsable.notEnoughMana or isUsable.noMana
+				local info = isUsable
+				local usable = info.isUsable
+				if usable == nil then
+					usable = info.usable
+				end
+				local insufficientPower = info.notEnoughMana
+				if insufficientPower == nil then
+					insufficientPower = info.noMana
+				end
+				return usable, insufficientPower
 			end
 			return isUsable, noMana
 		end
@@ -177,11 +221,14 @@ function Utils:IsActionInRangeSafe(actionID)
 	if not actionID then
 		return nil
 	end
-	if self.IS_MIDNIGHT and _G.C_ActionBar and _G.C_ActionBar.IsActionInRange then
+	if _G.C_ActionBar and _G.C_ActionBar.IsActionInRange then
 		local ok, inRange = pcall(_G.C_ActionBar.IsActionInRange, actionID)
 		if ok and inRange ~= nil then
 			if type(inRange) == "table" then
-				return inRange.inRange or inRange.isInRange
+				if inRange.inRange ~= nil then
+					return inRange.inRange
+				end
+				return inRange.isInRange
 			end
 			return inRange
 		end
