@@ -159,6 +159,8 @@ function AB:OnEnable()
 	self:RegisterEvent("ACTIONBAR_PAGE_CHANGED", "RefreshAll")
 	self:RegisterEvent("UPDATE_BONUS_ACTIONBAR", "RefreshAll")
 	self:RegisterEvent("SPELL_UPDATE_COOLDOWN")
+	self:RegisterEvent("LOSS_OF_CONTROL_ADDED", "SPELL_UPDATE_COOLDOWN")
+	self:RegisterEvent("LOSS_OF_CONTROL_UPDATE", "SPELL_UPDATE_COOLDOWN")
 	self:RegisterEvent("SPELL_ACTIVATION_OVERLAY_GLOW_SHOW", "UpdateStateAll")
 	self:RegisterEvent("SPELL_ACTIVATION_OVERLAY_GLOW_HIDE", "UpdateStateAll")
 	self:RegisterEvent("ACTIONBAR_UPDATE_STATE", "UpdateStateAll")
@@ -769,20 +771,76 @@ function AB:UpdateAction(btn)
 	end
 end
 
--- Default cooldown info structures (same pattern as LibActionButton)
-local defaultCooldownInfo = { startTime = 0, duration = 0, isEnabled = false, modRate = 1 }
-local defaultChargeInfo =
-	{ currentCharges = 0, maxCharges = 0, cooldownStartTime = 0, cooldownDuration = 0, chargeModRate = 1 }
-local defaultLossOfControlInfo = { startTime = 0, duration = 0, modRate = 1 }
+-- Default cooldown info structures (same pattern as Blizzard's ActionButton)
+local defaultCooldownInfo = { startTime = 0, duration = 0, isEnabled = false, isActive = false, modRate = 1 }
+local defaultChargeInfo = {
+	currentCharges = 0,
+	maxCharges = 0,
+	cooldownStartTime = 0,
+	cooldownDuration = 0,
+	chargeModRate = 1,
+	isActive = false,
+}
+local defaultLossOfControlInfo = {
+	startTime = 0,
+	duration = 0,
+	modRate = 1,
+	isActive = false,
+	shouldReplaceNormalCooldown = false,
+}
 
 local function HasSecretCooldownValues(cooldownInfo, chargeInfo, lossOfControlInfo)
 	return Utils.IsValueSecret(cooldownInfo.startTime)
 		or Utils.IsValueSecret(cooldownInfo.duration)
 		or Utils.IsValueSecret(cooldownInfo.isEnabled)
+		or Utils.IsValueSecret(cooldownInfo.modRate)
+		or Utils.IsValueSecret(chargeInfo.currentCharges)
 		or Utils.IsValueSecret(chargeInfo.cooldownStartTime)
 		or Utils.IsValueSecret(chargeInfo.cooldownDuration)
+		or Utils.IsValueSecret(chargeInfo.chargeModRate)
 		or Utils.IsValueSecret(lossOfControlInfo.startTime)
 		or Utils.IsValueSecret(lossOfControlInfo.duration)
+		or Utils.IsValueSecret(lossOfControlInfo.modRate)
+end
+
+-- Blizzard exposes these booleans as non-secret specifically so addons can
+-- reproduce ActionButton's cooldown selection without inspecting timing data.
+local function SelectRestrictedCooldownType(cooldownInfo, chargeInfo, lossOfControlInfo)
+	if lossOfControlInfo.isActive and lossOfControlInfo.shouldReplaceNormalCooldown then
+		return "lossOfControl"
+	end
+	if cooldownInfo.isActive then
+		return "normal"
+	end
+	if chargeInfo.isActive then
+		return "charge"
+	end
+	return nil
+end
+
+local function GetRestrictedCooldownDuration(actionID, cooldownType)
+	if not C_ActionBar then
+		return nil
+	end
+
+	local getter
+	if cooldownType == "lossOfControl" then
+		getter = C_ActionBar.GetActionLossOfControlCooldownDuration
+	elseif cooldownType == "normal" then
+		getter = C_ActionBar.GetActionCooldownDuration
+	elseif cooldownType == "charge" then
+		getter = C_ActionBar.GetActionChargeDuration
+	end
+
+	if not getter then
+		return nil
+	end
+
+	local ok, durationObject = pcall(getter, actionID)
+	if ok then
+		return durationObject
+	end
+	return nil
 end
 
 local function ClearCooldownDisplay(cooldownFrame)
@@ -835,9 +893,15 @@ function AB:UpdateCooldown(btn)
 		end
 	end
 
-	-- Loss of control info
-	if C_ActionBar and C_ActionBar.GetActionLossOfControlCooldown then
-		local ok, start, dur = pcall(C_ActionBar.GetActionLossOfControlCooldown, btn.actionID)
+	-- Loss of control info (12.0.1+ structured API)
+	if C_ActionBar and C_ActionBar.GetActionLossOfControlCooldownInfo then
+		local ok, info = pcall(C_ActionBar.GetActionLossOfControlCooldownInfo, btn.actionID)
+		if ok and info then
+			lossOfControlInfo = info
+		end
+	elseif C_ActionBar and C_ActionBar.GetActionLossOfControlCooldown then -- @scan-ignore: midnight
+		-- Pre-12.0.1 compatibility for unrestricted clients.
+		local ok, start, dur = pcall(C_ActionBar.GetActionLossOfControlCooldown, btn.actionID) -- @scan-ignore: midnight
 		if ok then
 			lossOfControlInfo = { startTime = start or 0, duration = dur or 0, modRate = cooldownInfo.modRate or 1 }
 		end
@@ -861,25 +925,11 @@ function AB:UpdateCooldown(btn)
 	end
 
 	if hasSecretCooldownValues then
-		local appliedDurationObject = false
-
-		if C_ActionBar and C_ActionBar.GetActionCooldownDuration then
-			local ok, durationObject = pcall(C_ActionBar.GetActionCooldownDuration, btn.actionID)
-			if ok and durationObject then
-				appliedDurationObject = TryApplyDurationObjectCooldown(btn.cd, durationObject, true)
-			end
-		end
-
-		if not appliedDurationObject and C_ActionBar and C_ActionBar.GetActionChargeDuration then
-			local ok, durationObject = pcall(C_ActionBar.GetActionChargeDuration, btn.actionID)
-			if ok and durationObject then
-				appliedDurationObject = TryApplyDurationObjectCooldown(btn.cd, durationObject, true)
-			end
-		end
-
+		local cooldownType = SelectRestrictedCooldownType(cooldownInfo, chargeInfo, lossOfControlInfo)
+		local durationObject = GetRestrictedCooldownDuration(btn.actionID, cooldownType)
 		ClearCooldownDisplay(btn.chargeCooldown)
 
-		if appliedDurationObject then
+		if durationObject and TryApplyDurationObjectCooldown(btn.cd, durationObject, true) then
 			return
 		end
 
