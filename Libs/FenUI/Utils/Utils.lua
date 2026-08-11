@@ -53,6 +53,37 @@ end
 
 Utils:DetectCapabilities()
 
+function Utils:IsValueSecret(value)
+	if _G.issecretvalue then
+		return _G.issecretvalue(value) == true
+	end
+	local ok = pcall(function()
+		return value == value
+	end)
+	return not ok
+end
+
+function Utils:SafeCompare(a, b, operator)
+	local ok, result = pcall(function()
+		if operator == ">" then
+			return a > b
+		elseif operator == "<" then
+			return a < b
+		elseif operator == ">=" then
+			return a >= b
+		elseif operator == "<=" then
+			return a <= b
+		elseif operator == "~=" then
+			return a ~= b
+		end
+		return a == b
+	end)
+	if ok then
+		return result
+	end
+	return false
+end
+
 --- Returns the utils module
 ---@return table
 function FenUI:GetUtils()

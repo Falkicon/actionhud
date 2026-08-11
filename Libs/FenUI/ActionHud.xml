@@ -1,0 +1,7 @@
+<Ui xmlns="http://www.blizzard.com/wow/ui/">
+    <Script file="ActionHud.lua"/>
+    <Script file="Utils\Utils.lua"/>
+    <Script file="Utils\Formatting.lua"/>
+    <Script file="Utils\SafeAPI.lua"/>
+    <Script file="Utils\UI.lua"/>
+</Ui>

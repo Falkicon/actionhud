@@ -8,6 +8,13 @@ ignore:
   - AGENTS.md
   - CONTRIBUTING.md
   - CHANGELOG.md
+  - Libs/FenCore
+  - Libs/FenUI/Core
+  - Libs/FenUI/FenUI.xml
+  - Libs/FenUI/Settings
+  - Libs/FenUI/Utils/Colors.lua
+  - Libs/FenUI/Validation
+  - Libs/FenUI/Widgets
 
 externals:
   Libs/LibStub: https://repos.curseforge.com/wow/libstub/trunk

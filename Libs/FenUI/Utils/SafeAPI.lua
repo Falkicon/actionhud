@@ -371,8 +371,17 @@ function Utils:SetCooldownSafe(cdFrame, startOrDuration, duration)
 			end
 		end
 	end
-	local start = duration and startOrDuration or 0
-	local dur = duration or startOrDuration or 0
+	local start
+	local dur
+	if duration == nil then
+		start = 0
+		dur = startOrDuration
+	else
+		start = startOrDuration
+		dur = duration
+	end
+	if start == nil then start = 0 end
+	if dur == nil then dur = 0 end
 	-- Secret values should be passed through - SetCooldown handles them natively
 	-- Only convert to number if NOT secret (secrets must pass through unchanged)
 	if not self:IsValueSecret(start) then

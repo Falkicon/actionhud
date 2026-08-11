@@ -2,6 +2,10 @@
 -- Tools panel, in-game tests, performance profiling
 
 local addonName, ns = ...
+local MechanicLib = LibStub("MechanicLib-1.0", true)
+if not MechanicLib then
+	return
+end
 local L = LibStub("AceLocale-3.0"):GetLocale("ActionHud")
 
 ---@class ActionHudMechanic
@@ -278,11 +282,6 @@ end
 -- =============================================================================
 
 local function RegisterWithMechanic()
-	local MechanicLib = LibStub("MechanicLib-1.0", true)
-	if not MechanicLib then
-		return
-	end
-
 	-- Get addon via AceAddon (not global - it's local in Core.lua)
 	local addon = LibStub("AceAddon-3.0"):GetAddon("ActionHud", true)
 

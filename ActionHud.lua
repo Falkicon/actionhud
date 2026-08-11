@@ -621,11 +621,11 @@ function ActionHud:UpdateLayoutOutline(frame, labelText, moduleId)
 	local p = self.db.profile
 	-- Show outlines when layout is unlocked for positioning
 	if p.layoutUnlocked then
-		-- Get module color from StackContainer registry
-		local StackContainer = ns.StackContainer
+		-- Use the shared draggable-container metadata for layout outlines.
+		local DraggableContainer = ns.DraggableContainer
 		local color = { r = 0.5, g = 0.5, b = 0.5 }
-		if StackContainer and StackContainer.MODULE_COLORS and moduleId then
-			color = StackContainer.MODULE_COLORS[moduleId] or color
+		if DraggableContainer and DraggableContainer.MODULE_COLORS and moduleId then
+			color = DraggableContainer.MODULE_COLORS[moduleId] or color
 		end
 
 		-- Check if we need to recreate (old BackdropTemplate style or missing bg texture)

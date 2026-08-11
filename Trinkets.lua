@@ -24,7 +24,6 @@ function Trinkets:OnEnable()
 	self:RegisterEvent("PLAYER_EQUIPMENT_CHANGED", "UpdateTrinkets")
 	self:RegisterEvent("PLAYER_ENTERING_WORLD", "UpdateTrinkets")
 	self:RegisterEvent("SPELL_UPDATE_COOLDOWN", "UpdateCooldowns")
-	self:RegisterEvent("PLAYER_REGEN_DISABLED", "OnCombatStart")
 	self:RegisterEvent("PLAYER_REGEN_ENABLED", "OnCombatEnd")
 
 	-- Ensure we update on load
@@ -177,8 +176,6 @@ function Trinkets:UpdateCooldowns()
 		end
 	end
 end
-
-function Trinkets:OnCombatStart() end
 
 function Trinkets:OnCombatEnd()
 	self:UpdateCooldowns()

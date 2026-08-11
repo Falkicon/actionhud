@@ -10,6 +10,7 @@ ns.DraggableContainer = DraggableContainer
 
 -- Module colors for drag overlays
 local MODULE_COLORS = {
+	actionbars = { r = 1, g = 0.5, b = 0 }, -- Orange
 	resources = { r = 0, g = 1, b = 0 }, -- Green
 	cooldowns = { r = 0, g = 0.5, b = 1 }, -- Blue (legacy)
 	essentialCooldowns = { r = 0, g = 0.5, b = 1 }, -- Blue
@@ -18,11 +19,13 @@ local MODULE_COLORS = {
 	buffs = { r = 0, g = 1, b = 1 }, -- Cyan
 	ufPlayer = { r = 0, g = 0.8, b = 0.3 }, -- Green
 	ufTarget = { r = 1, g = 0.2, b = 0.2 }, -- Red
+	ufTargettarget = { r = 0.9, g = 0.35, b = 0.35 }, -- Light Red
 	ufFocus = { r = 1, g = 0.6, b = 0 }, -- Orange
 }
 
 -- Module display labels
 local MODULE_LABELS = {
+	actionbars = L["Action Bars"],
 	resources = L["Resource Bars"],
 	cooldowns = L["Cooldowns"],
 	essentialCooldowns = L["Essential Cooldowns"],
@@ -31,8 +34,12 @@ local MODULE_LABELS = {
 	buffs = L["Tracked Buffs"],
 	ufPlayer = L["Player Frame"],
 	ufTarget = L["Target Frame"],
+	ufTargettarget = L["Target of Target"],
 	ufFocus = L["Focus Frame"],
 }
+
+DraggableContainer.MODULE_COLORS = MODULE_COLORS
+DraggableContainer.MODULE_LABELS = MODULE_LABELS
 
 -- Active containers registry
 local activeContainers = {}

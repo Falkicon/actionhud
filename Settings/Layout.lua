@@ -67,8 +67,8 @@ local function BuildLayoutArgs()
 		if moduleId == "resources" then
 			isEnabled = ActionHud.db.profile.resEnabled
 		elseif moduleId == "cooldowns" then
-			isEnabled = ActionHud.db.profile.cdEnabled
-				and LibStub("AceAddon-3.0"):GetAddon("ActionHud"):GetModule("Cooldowns"):IsEnabled()
+			local cooldowns = ActionHud:GetModule("Cooldowns", true)
+			isEnabled = ActionHud.db.profile.cdEnabled and cooldowns and cooldowns:IsEnabled()
 		elseif m and m.IsEnabled then
 			isEnabled = m:IsEnabled()
 		end

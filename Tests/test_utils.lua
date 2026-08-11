@@ -190,4 +190,14 @@ assertEqual(true, Utils.IsValueSecret(secretValue), "Secret value not identified
 assertEqual(true, Utils.SafeCompare(10, 5, ">"), "SafeCompare numeric comparison failed")
 assertEqual(false, Utils.SafeCompare(secretValue, 10, ">"), "SafeCompare secret fallback failed")
 
+local cooldownFrame = {
+	SetCooldown = function(self, start, duration)
+		self.start = start
+		self.duration = duration
+	end,
+}
+FenUtils:SetCooldownSafe(cooldownFrame, secretValue, secretValue)
+assertEqual(secretValue, cooldownFrame.start, "Restricted cooldown start was not passed through")
+assertEqual(secretValue, cooldownFrame.duration, "Restricted cooldown duration was not passed through")
+
 print("SUCCESS: Utils module verified!")
