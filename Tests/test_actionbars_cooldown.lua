@@ -391,4 +391,30 @@ do
 	AssertEqual("", count.text, "ordinary count text should still reach FontString")
 end
 
+do
+	local icon = {}
+	function icon:SetDesaturated(value)
+		self.desaturated = value
+	end
+	function icon:SetVertexColor(red, green, blue)
+		self.color = { red, green, blue }
+	end
+
+	local button = {
+		icon = icon,
+		_isUsable = true,
+		_noMana = false,
+		_inRange = false,
+		_checksRange = false,
+	}
+	ActionBars:ApplyIconColor(button)
+	AssertEqual("ready", button._colorMode, "an invalid range result must not tint the icon")
+	AssertEqual(1, icon.color[1], "an invalid range result should retain the ready color")
+
+	button._checksRange = true
+	ActionBars:ApplyIconColor(button)
+	AssertEqual("readyRange", button._colorMode, "a valid out-of-range result should tint the icon")
+	AssertEqual(0.8, icon.color[1], "a valid out-of-range result should use the range color")
+end
+
 print("SUCCESS: ActionBars restricted cooldown compositor verified!")

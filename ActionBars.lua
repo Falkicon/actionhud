@@ -1173,7 +1173,9 @@ function AB:ApplyIconColor(btn)
 	end
 
 	local inRange = btn._inRange
-	if inRange ~= nil and not Utils.IsValueSecret(inRange) and inRange == false then
+	local checksRange = btn._checksRange
+	local hasValidRangeResult = not Utils.IsValueSecret(checksRange) and checksRange ~= false
+	if hasValidRangeResult and inRange ~= nil and not Utils.IsValueSecret(inRange) and inRange == false then
 		if colorMode == "unusable" then
 			colorMode = "unusableRange"
 		elseif colorMode == "mana" then

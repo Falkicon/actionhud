@@ -1,4 +1,9 @@
 # Changelog
+## [2.13.6] - 2026-08-17
+
+### Fixed
+- Ignore invalid range results when Blizzard reports that an action is not currently range-checkable, preventing the top action bar from being tinted red without a valid target
+
 ## [2.13.5] - 2026-08-10
 
 ### Fixed
