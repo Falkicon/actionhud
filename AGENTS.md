@@ -95,9 +95,12 @@ Each stackable module implements:
 
 | Function | Triggers | Purpose |
 |----------|----------|---------|
-| `UpdateAction` | `ACTIONBAR_SLOT_CHANGED` | Updates icon texture, spell ID, charge count |
+| `UpdateAction` | `ACTIONBAR_SLOT_CHANGED` | Resolves the paged action ID, then delegates to `UpdateIcon` |
+| `UpdateIcon` | `SPELL_UPDATE_ICON` | Re-reads spell ID and texture for the current slot; returns `true` when the icon changed so spell overrides (Slam → Heroic Strike) also refresh cooldown/state |
 | `UpdateCooldown` | `SPELL_UPDATE_COOLDOWN` | Sets cooldown sweep, handles GCD vs real CD |
 | `UpdateState` | `ACTIONBAR_UPDATE_STATE`, `SPELL_ACTIVATION_OVERLAY_*` | Usability, range, proc glows |
+
+> **Spell overrides:** never cache an action's spell ID across events. A proc that overrides a slot (Slam → Heroic Strike) changes the backing spell without changing the slot, so `ACTIONBAR_SLOT_CHANGED` does not fire. `UpdateIcon` and `UpdateProc` both re-read it via `ResolveSpellID`, mirroring Blizzard's `ActionButton.lua:UpdateSpellAlert`, which re-reads `GetActionInfo` on every evaluation.
 | `RefreshAll` | `PLAYER_ENTERING_WORLD`, `ACTIONBAR_PAGE_CHANGED` | Full recalculation of all slots |
 
 ### Cooldown Spark Logic (`SetDrawEdge`)

@@ -161,6 +161,7 @@ function AB:OnEnable()
 	self:RegisterEvent("ACTIONBAR_SLOT_CHANGED")
 	self:RegisterEvent("ACTIONBAR_PAGE_CHANGED", "RefreshAll")
 	self:RegisterEvent("UPDATE_BONUS_ACTIONBAR", "RefreshAll")
+	self:RegisterEvent("SPELL_UPDATE_ICON")
 	self:RegisterEvent("SPELL_UPDATE_COOLDOWN")
 	self:RegisterEvent("LOSS_OF_CONTROL_ADDED", "SPELL_UPDATE_COOLDOWN")
 	self:RegisterEvent("LOSS_OF_CONTROL_UPDATE", "SPELL_UPDATE_COOLDOWN")
@@ -693,6 +694,27 @@ function AB:ACTIONBAR_SLOT_CHANGED(event, arg1)
 	self:RefreshRangeRegistrations()
 end
 
+-- A spell override (Slam -> Heroic Strike, and similar proc swaps) replaces the
+-- action's spell in place, so ACTIONBAR_SLOT_CHANGED never fires and the button
+-- keeps the old texture until some unrelated event forces a full refresh.
+-- SPELL_UPDATE_ICON is the event Blizzard fires for those swaps.
+function AB:SPELL_UPDATE_ICON()
+	local perfStart = ns.RecordPerformance and debugprofilestop()
+	for _, btn in ipairs(buttons) do
+		if btn:IsShown() and self:UpdateIcon(btn) then
+			-- The slot now points at a different spell: cooldown, charges, and
+			-- range all belong to the new one.
+			btn._inRange = nil
+			btn._checksRange = nil
+			self:UpdateCooldown(btn)
+			self:UpdateState(btn)
+		end
+	end
+	if perfStart then
+		ns.RecordPerformance("ActionBarsUpdate", perfStart)
+	end
+end
+
 function AB:SPELL_UPDATE_COOLDOWN()
 	local perfStart = ns.RecordPerformance and debugprofilestop()
 	-- Only update buttons with actions (skip empty slots to reduce overhead)
@@ -732,20 +754,15 @@ function AB:UpdateChargesAll()
 	end
 end
 
-function AB:OnSpellActivationOverlay(event, spellID)
-	if spellID == nil then
-		for _, btn in ipairs(buttons) do
-			if btn.hasAction then
-				self:UpdateProc(btn)
-			end
-		end
-		return
-	end
-	if Utils.IsValueSecret(spellID) then
-		return
-	end
+-- Blizzard re-reads each button's action on these events rather than matching
+-- the payload against a cached spell (see ActionButton.lua:UpdateSpellAlert).
+-- Matching on a cached ID silently skips buttons whose spell was swapped by an
+-- override, which both misses the new glow and strands the old one. UpdateProc
+-- re-resolves the slot and early-outs when nothing changed, so refreshing every
+-- button here is cheap and cannot go stale.
+function AB:OnSpellActivationOverlay()
 	for _, btn in ipairs(buttons) do
-		if btn.hasAction and btn.spellID == spellID then
+		if btn.hasAction then
 			self:UpdateProc(btn)
 		end
 	end
@@ -804,6 +821,39 @@ function AB:UpdateRange()
 	end
 end
 
+-- Reads the spell currently backing an action slot. A spell override swaps this
+-- out from under a slot without changing the slot itself, so it must be re-read
+-- rather than cached across events.
+local function ResolveSpellID(actionID)
+	local actionType, id = GetActionInfo(actionID) -- @scan-ignore: midnight-normalized
+	if actionType == "spell" then
+		return id
+	elseif actionType == "macro" then
+		return GetMacroSpell(id)
+	end
+	return nil
+end
+
+-- Applies the action texture and reports whether the displayed icon changed.
+-- Secret textures are passed straight to the Texture object and never retained,
+-- since comparing a restricted value later is forbidden.
+local function ApplyIconTexture(btn, texture)
+	local textureIsSecret = Utils.IsValueSecret(texture)
+	local cachedIsSecret = Utils.IsValueSecret(btn._texture)
+	local changed = textureIsSecret or cachedIsSecret or btn._texture ~= texture
+
+	if textureIsSecret then
+		btn._texture = nil
+	else
+		btn._texture = texture
+	end
+
+	if changed then
+		btn.icon:SetTexture(texture)
+	end
+	return changed
+end
+
 -- Specific Update Functions
 function AB:UpdateAction(btn)
 	local slot = btn.baseSlot
@@ -847,36 +897,53 @@ function AB:UpdateAction(btn)
 	-- doesn't apply a red tint from the previous spell
 	btn._inRange = nil
 
-	local actionType, id = GetActionInfo(actionID) -- @scan-ignore: midnight-normalized
-	if actionType == "spell" then
-		btn.spellID = id
-	elseif actionType == "macro" then
-		btn.spellID = GetMacroSpell(id)
-	else
-		btn.spellID = nil
+	self:UpdateIcon(btn)
+end
+
+-- Resolves the spell and texture currently backing btn.actionID. Returns true
+-- when the displayed icon changed, so callers can refresh dependent visuals.
+function AB:UpdateIcon(btn)
+	local actionID = btn.actionID
+	if not actionID then
+		return false
 	end
+
+	local previousSpellID = btn.spellID
+	local spellID = ResolveSpellID(actionID)
+	btn.spellID = spellID
+
+	-- A restricted spell ID can never be compared, so treat it as always
+	-- changed: re-running the dependent updates is safe, missing them is not.
+	local spellChanged = Utils.IsValueSecret(spellID)
+		or Utils.IsValueSecret(previousSpellID)
+		or spellID ~= previousSpellID
 
 	local texture = GetActionTexture(actionID) -- @scan-ignore: midnight-normalized
 	if texture then
+		-- The spell can change while the texture stays identical, and dependent
+		-- visuals (cooldown, charges, glow) follow the spell, not the artwork.
+		local changed = ApplyIconTexture(btn, texture) or spellChanged
 		btn.hasAction = true
-		btn.icon:SetTexture(texture)
 		btn.icon:Show()
 		btn:SetAlpha(1)
 		Utils.ApplyIconCrop(btn.icon, ActionHud.db.profile.iconWidth, ActionHud.db.profile.iconHeight)
-	else
-		btn.hasAction = false
-		btn.icon:Hide()
-		btn.cd:Hide()
-		btn.count:SetText("")
-		btn._countText = ""
-		btn.glow:Hide()
-		btn._isOverlayed = false
-		if btn.assistGlow then
-			btn.assistGlow:Hide()
-		end
-		btn.icon:SetColorTexture(0, 0, 0, ActionHud.db.profile.opacity)
-		btn.icon:Show()
+		return changed
 	end
+
+	btn.hasAction = false
+	btn.icon:Hide()
+	btn.cd:Hide()
+	btn.count:SetText("")
+	btn._countText = ""
+	btn.glow:Hide()
+	btn._isOverlayed = false
+	if btn.assistGlow then
+		btn.assistGlow:Hide()
+	end
+	btn.icon:SetColorTexture(0, 0, 0, ActionHud.db.profile.opacity)
+	btn._texture = nil
+	btn.icon:Show()
+	return false
 end
 
 -- Default cooldown info structures (same pattern as Blizzard's ActionButton)
@@ -1202,6 +1269,13 @@ function AB:ApplyIconColor(btn)
 end
 
 function AB:UpdateProc(btn)
+	-- Re-resolve rather than trusting btn.spellID: a proc that overrides the
+	-- slot's spell fires its glow event without any guarantee that the icon
+	-- refresh has landed first.
+	if btn.actionID then
+		btn.spellID = ResolveSpellID(btn.actionID)
+	end
+
 	local isOverlayed = false
 	if btn.spellID then
 		isOverlayed = Utils.IsSpellOverlayedSafe(btn.spellID)

@@ -1,4 +1,10 @@
 # Changelog
+## [2.13.7] - 2026-08-17
+
+### Fixed
+- Refresh action bar icons on `SPELL_UPDATE_ICON` so proc-driven spell overrides (Slam → Heroic Strike and similar) swap the displayed icon immediately instead of waiting for an unrelated refresh
+- Re-resolve an action's spell when evaluating proc glows instead of matching against a cached spell ID, so an overridden slot no longer misses its glow or strands the previous one
+
 ## [2.13.6] - 2026-08-17
 
 ### Fixed
