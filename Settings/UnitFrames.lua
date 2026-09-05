@@ -401,8 +401,9 @@ function ns.Settings.BuildUnitFramesOptions(self)
 							type = "execute",
 							order = 4,
 							func = function()
-								self.db.profile.ufConfig[frameId].xOffset = frameId == "player" and -100 or 100
-								self.db.profile.ufConfig[frameId].yOffset = frameId == "focus" and -150 or -300
+								local defaultConfig = self.db.defaults.profile.ufConfig[frameId]
+								self.db.profile.ufConfig[frameId].xOffset = defaultConfig.xOffset
+								self.db.profile.ufConfig[frameId].yOffset = defaultConfig.yOffset
 								ActionHud:GetModule("UnitFrames"):UpdateLayout()
 							end,
 						},
@@ -683,12 +684,12 @@ function ns.Settings.BuildUnitFramesOptions(self)
 				name = "|cffffcc00"
 					.. L["Custom Unit Frames"]
 					.. "|r\n"
-					.. L["Custom frames for Player and Target with advanced support for Midnight's 'Secret Values'."]
+					.. L["Custom frames for Player, Target, Target of Target, and Focus with support for Midnight's secret values."]
 					.. "\n",
 			},
 			enable = {
 				name = L["Enable Custom Unit Frames"],
-				desc = L["Enable ActionHud custom player and target unit frames. Compatible with Midnight 12.0 secret values."],
+				desc = L["Enable ActionHud custom Player, Target, Target of Target, and Focus frames."],
 				type = "toggle",
 				order = 1,
 				width = 1.5,
@@ -702,7 +703,7 @@ function ns.Settings.BuildUnitFramesOptions(self)
 			},
 			hideBlizzard = {
 				name = L["Hide Blizzard Frames"],
-				desc = L["Hide the default Blizzard Player, Target, and Focus frames when custom frames are enabled."],
+				desc = L["Hide the default Blizzard Player, Target, Target of Target, and Focus frames when custom frames are enabled."],
 				type = "toggle",
 				order = 2,
 				width = 1.5,

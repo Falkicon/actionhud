@@ -9,9 +9,7 @@ local Environment = FenCore and FenCore.Environment
 local F = FenUI and FenUI.Utils
 
 -- Local upvalues for performance
-local GetTime = GetTime
 local pcall = pcall
-local wipe = wipe
 local UnitClass = UnitClass
 local UnitIsPlayer = UnitIsPlayer
 local UnitPowerType = UnitPowerType
@@ -649,7 +647,7 @@ function Utils.GetUnitColor(unit, barType, mult)
 		end
 		return 0, 0.8 * mult, 0
 	elseif barType == "POWER" or barType == "MANA" then
-		local pType, pToken, altR, altG, altB = UnitPowerType(unit)
+		local _, pToken, altR, altG, altB = UnitPowerType(unit)
 		local info
 		if not Utils.IsValueSecret(pToken) then
 			info = PowerBarColor[pToken]
@@ -680,7 +678,7 @@ function Utils.GetTotemDataForSpellID(spellID)
 	end
 
 	for slot = 1, MAX_TOTEMS or 4 do
-		local haveTotem, totemName, startTime, duration, icon = GetTotemInfo(slot)
+		local haveTotem, _, startTime, duration, icon = GetTotemInfo(slot)
 		if haveTotem and duration and duration > 0 then
 			if icon == spellTexture then
 				totemDataCache.expirationTime = startTime + duration

@@ -53,9 +53,14 @@ local MODULE_REGISTRY = {
 local DEFAULT_STACK = { "resources", "actionBars" }
 local DEFAULT_GAPS = { 4, 0 }
 
--- Cache of module heights (updated by modules when they render)
+-- Complete measurement snapshot owned by the layout pass.
 local moduleHeights = {}
+local moduleWidths = {}
 local pendingLayoutUpdate = false
+local layoutScheduled = false
+local layoutGeneration = 0
+local layoutRunning = false
+local layoutPhase
 
 function LayoutManager:OnInitialize()
 	-- Nothing needed here - we use addon.db directly
@@ -65,13 +70,40 @@ function LayoutManager:OnEnable()
 	-- Ensure layout data exists
 	self:EnsureLayoutData()
 	self:RegisterEvent("PLAYER_REGEN_ENABLED", "OnPlayerRegenEnabled")
+	self:RequestLayout("enable")
+end
+
+function LayoutManager:OnDisable()
+	layoutGeneration = layoutGeneration + 1
+	layoutScheduled = false
+	pendingLayoutUpdate = false
+	self:UnregisterAllEvents()
 end
 
 function LayoutManager:OnPlayerRegenEnabled()
-	if pendingLayoutUpdate then
-		pendingLayoutUpdate = false
-		self:TriggerLayoutUpdate()
-	end
+	if pendingLayoutUpdate then self:RequestLayout("combat ended") end
+end
+
+-- One generation-bound callback owns every module's layout work. Requests made
+-- during reconciliation are already represented by the pass about to run.
+function LayoutManager:RequestLayout()
+	if not self:IsEnabled() then return end
+	if layoutPhase == "reconcile" then return end
+	pendingLayoutUpdate = true
+	if InCombatLockdown() or layoutScheduled or layoutRunning then return end
+	layoutScheduled = true
+	local generation = layoutGeneration
+	C_Timer.After(0, function()
+		if generation ~= layoutGeneration then return end
+		layoutScheduled = false
+		if not self:IsEnabled() or not pendingLayoutUpdate then return end
+		if InCombatLockdown() then return end
+		self:RunLayoutPass()
+	end)
+end
+
+function LayoutManager:TriggerLayoutUpdate()
+	self:RequestLayout("legacy request")
 end
 
 -- Get profile safely (addon.db may not be set during very early calls)
@@ -102,7 +134,7 @@ function LayoutManager:EnsureLayoutData()
 	end
 
 	-- Add any missing registered modules (including trinkets when enabled)
-	for moduleId, info in pairs(MODULE_REGISTRY) do
+	for moduleId in pairs(MODULE_REGISTRY) do
 		if not hasModule[moduleId] then
 			-- Add the module to the stack array so it can be positioned
 			table.insert(p.layout.stack, moduleId)
@@ -231,13 +263,16 @@ function LayoutManager:GetModuleProfileKey(moduleId)
 	return info and info.profileKey
 end
 
--- Set height for a module (called by modules during their UpdateLayout)
+-- Internal measurement storage; runtime modules must not publish measurements.
 function LayoutManager:SetModuleHeight(moduleId, height)
 	moduleHeights[moduleId] = height or 0
 end
 
 -- Get height for a module
 function LayoutManager:GetModuleHeight(moduleId)
+	if not self:IsModuleInStack(moduleId) then
+		return 0
+	end
 	return moduleHeights[moduleId] or 0
 end
 
@@ -355,69 +390,60 @@ function LayoutManager:ResetToDefault()
 	self:TriggerLayoutUpdate()
 end
 
--- Trigger layout update for all modules
-function LayoutManager:TriggerLayoutUpdate()
-	if InCombatLockdown() then
-		pendingLayoutUpdate = true
-		addon:Log("Layout update deferred until combat ends", "layout")
-		return
-	end
-	local perfStart = ns.RecordPerformance and debugprofilestop()
-
+-- Prepare content before measuring, then position from a complete size snapshot.
+-- Modules never write these measurements or recursively trigger this pass.
+function LayoutManager:RunLayoutPass()
+	if layoutRunning or not self:IsEnabled() then return end
+	if InCombatLockdown() then pendingLayoutUpdate = true; return end
+	layoutRunning = true
 	pendingLayoutUpdate = false
+	local perfStart = ns.RecordPerformance and debugprofilestop()
+	local participants = {}
+	for _, id in ipairs(self:GetStack()) do
+		local info = MODULE_REGISTRY[id]
+		local module = info and addon:GetModule(info.moduleName, true)
+		if module then participants[#participants + 1] = { id = id, module = module } end
+	end
+	local unitFrames = addon:GetModule("UnitFrames", true)
+	if unitFrames then participants[#participants + 1] = { module = unitFrames } end
 
-	local activeStack = self:GetActiveStack()
-	local gaps = self:GetGaps()
-
-	addon:Log("=== Layout Update Triggered ===", "layout")
-	addon:Log(string.format("Active stack: %s", table.concat(activeStack, " -> ")), "layout")
-
-	-- First pass: let stack modules calculate their heights
-	for i, moduleId in ipairs(activeStack) do
-		local moduleName = self:GetAceModuleName(moduleId)
-		local m = addon:GetModule(moduleName, true)
-		if m and m.CalculateHeight then
-			local height = m:CalculateHeight()
-			self:SetModuleHeight(moduleId, height)
-			addon:Log(string.format("[%d] %s: height=%d", i, moduleId, height), "layout")
+	local ok, failure = pcall(function()
+		layoutPhase = "reconcile"
+		for _, entry in ipairs(participants) do
+			local module = entry.module
+			if module._pendingEnabledState and module.ApplyEnabledState then module:ApplyEnabledState() end
 		end
-	end
-
-	-- Update main container size
-	self:UpdateContainerSize()
-
-	local main = _G["ActionHudFrame"]
-	if main then
-		addon:Log(string.format("Container size: %dx%d", main:GetWidth(), main:GetHeight()), "layout")
-	end
-
-	-- Second pass: position stack modules
-	addon:Log("--- Positioning stack modules ---", "layout")
-	for i, moduleId in ipairs(activeStack) do
-		local moduleName = self:GetAceModuleName(moduleId)
-		local yOffset = self:GetModulePosition(moduleId)
-		addon:Log(string.format("[%d] %s: yOffset=%d", i, moduleId, yOffset), "layout")
-
-		local m = addon:GetModule(moduleName, true)
-		if m and m.ApplyLayoutPosition then
-			m:ApplyLayoutPosition()
+		layoutPhase = "prepare"
+		for _, entry in ipairs(participants) do
+			local module = entry.module
+			if module:IsEnabled() and module._runtimeActive and module.PrepareLayout then module:PrepareLayout() end
 		end
-	end
-
-	-- Notify independent modules (not in stack) to update their position
-	for moduleId, info in pairs(MODULE_REGISTRY) do
-		if not self:IsModuleInStack(moduleId) then
-			local m = addon:GetModule(info.moduleName, true)
-			if m and m.UpdateLayout then
-				m:UpdateLayout()
+		layoutPhase = "measure"
+		moduleHeights, moduleWidths = {}, {}
+		for _, entry in ipairs(participants) do
+			local module, id = entry.module, entry.id
+			if id and self:IsModuleInStack(id) and module:IsEnabled() and module._runtimeActive then
+				moduleHeights[id] = module.CalculateHeight and module:CalculateHeight() or 0
+				moduleWidths[id] = module.GetLayoutWidth and module:GetLayoutWidth() or 0
 			end
 		end
-	end
-
-	addon:Log("=== Layout Update Complete ===", "layout")
-	if perfStart then
-		ns.RecordPerformance("LayoutRecalc", perfStart)
-	end
+		self:UpdateContainerSize()
+		layoutPhase = "position"
+		for _, entry in ipairs(participants) do
+			local module = entry.module
+			if module:IsEnabled() and module._runtimeActive and module.ApplyLayoutPosition then module:ApplyLayoutPosition() end
+		end
+		layoutPhase = "render"
+		for _, entry in ipairs(participants) do
+			local module = entry.module
+			if module:IsEnabled() and module._runtimeActive and module.RenderLayout then module:RenderLayout() end
+		end
+	end)
+	layoutPhase = nil
+	layoutRunning = false
+	if not ok then error(failure, 0) end
+	if perfStart then ns.RecordPerformance("LayoutRecalc", perfStart) end
+	if pendingLayoutUpdate then self:RequestLayout("changed during pass") end
 end
 
 -- Update the main HUD container size
@@ -432,7 +458,6 @@ function LayoutManager:UpdateContainerSize()
 		return
 	end
 
-	local activeStack = self:GetActiveStack()
 	local totalHeight = self:GetStackHeight()
 
 	-- Width is determined by the widest visible module in stack
@@ -454,28 +479,13 @@ function LayoutManager:UpdateContainerSize()
 end
 
 -- Get the maximum width of visible modules in stack
--- Note: This does NOT depend on heights to avoid circular dependency during layout
+-- Heights are populated in the first layout pass so hidden modules cannot widen the HUD.
 function LayoutManager:GetMaxWidth()
-	local activeStack = self:GetActiveStack()
 	local maxWidth = 0
-
-	for _, id in ipairs(activeStack) do
-		local moduleName = self:GetAceModuleName(id)
-		local m = addon:GetModule(moduleName, true)
-		if m and m:IsEnabled() and m.GetLayoutWidth then
-			local w = m:GetLayoutWidth()
-			if w and w > maxWidth then
-				maxWidth = w
-			end
-		end
+	for _, id in ipairs(self:GetActiveStack()) do
+		if self:GetModuleHeight(id) > 0 then maxWidth = math.max(maxWidth, moduleWidths[id] or 0) end
 	end
-
-	-- Fallback to default width if nothing reported
-	if maxWidth <= 0 then
-		maxWidth = 120 -- Default HUD width
-	end
-
-	return maxWidth
+	return maxWidth > 0 and maxWidth or 120
 end
 
 -- Get the main container frame

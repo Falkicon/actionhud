@@ -1,72 +1,63 @@
 # ActionHud Development Status
 
-**Last Updated:** 2026-01-05
+**Last updated:** 2026-09-05
 
-## Current State Summary
+This page describes the current development worktree. [ActionHud.toc](ActionHud.toc) declares Retail 12.1 (`120100`) and version 2.13.7; subsequent changes are listed under [Unreleased](CHANGELOG.md#unreleased). The recent review and architecture changes have passed offline checks and still need in-game combat validation.
 
-### Working Modules
-| Module | Status | Notes |
-|--------|--------|-------|
-| ActionBars | Working | Core functionality |
-| Resources | Working | Health/Power/Class bars |
-| Cooldowns | Working | Essential/Utility cooldowns |
-| TrackedBuffs | Working | Style-only approach (hooks BuffIconCooldownViewer) |
-| Trinkets | Working | Dedicated trinket tracking |
-| UnitFrames | Working | Player/Target/Focus frames |
-| LayoutManager | Working | Vertical stacking system |
+## Active Runtime
 
-### Disabled Modules
-| Module | Status | Reason |
-|--------|--------|--------|
-| TrackedDefensives | **DISABLED** | Hooks cause taint, APIs blocked in 12.0 |
-| DefensiveTracker | **DISABLED** | Test module - retained for future API testing |
+| Component | Implemented behavior |
+| --- | --- |
+| ActionHud core | Initialization, profiles, slash commands, settings access, root positioning, and Addon Compartment entry |
+| ActionBars | Edit Mode mirroring of Bars 1 and 2, page changes, cooldowns, counts, usability, range, and proc/assist feedback |
+| Resources | Player/target health and power, plus player class resources |
+| UnitFrames | Optional custom secure frames for Player, Target, Target of Target, and Focus |
+| Trinkets | Equipped on-use trinket display and cooldowns |
+| LayoutManager | Queued lifecycle reconciliation, stack measurement, positioning, and rendering with combat deferral |
+| Performance | Optional call counts and total/average/peak timings through `/ah perf` and Mechanic integration |
 
----
+Custom unit frames are disabled by default. They support value text, while percentage text remains disabled. Runtime source responsibilities and load order are mapped in [README.md](README.md#development) and [Runtime lifecycle and layout](docs/runtime-layout.md).
 
-## WoW 12.0 (Midnight) API Findings
+## Recent Improvements
 
-### Secret Value Protection on Auras
+- Fixed disabled modules reappearing, event/hook cleanup, duplicate action-slot updates, restricted-value prediction guards, and stale geometry/position state.
+- Centralized layout scheduling and established desired, active, and pending module state.
+- Extracted shared defaults and split UnitFrames into identity, lifecycle, layout, and rendering files.
+- Added a full-TOC integration host, repository validators, standalone lint configuration, and CI checks.
+- Added opt-in profiling and lazy debug-log formatting. No in-game speedup is claimed without measurements.
 
-Exhaustive testing confirmed **NO API approach works** for tracking secret-valued buffs in combat:
+See the [quality review](docs/quality-review.md) for individual findings and [Performance profiling](docs/performance.md) for measurement guidance.
 
-| API | Result in Combat |
-|-----|------------------|
-| `GetPlayerAuraBySpellID` | Returns `nil` for secret buffs |
-| `GetAuraSlots` | **Blocked** (pcall fails) |
-| `GetBuffDataByIndex` | **Blocked** (pcall fails) |
-| `UNIT_AURA addedAuras` | Fields (`isHelpful`, `spellId`) are SECRET |
-| Hooks on CooldownViewer | Causes taint propagation |
+## Offline Verification
 
-**Documentation:** See `docs/aura-api-testing.md` for full test matrix.
+The implementation pass on 2026-09-05 completed:
 
-### What Still Works
+- All 14 standalone Lua suites and seven Python validator tests passed with `lupa==2.8`.
+- First-party Lua compilation and TOC/XML, localization, and package checks passed.
+- Luacheck 1.2.0 reported zero warnings/errors across 22 active first-party Lua files.
+- Git whitespace checks passed.
 
-- **Style-only hooks** on Blizzard frames (TrackedBuffs uses this)
-- **Blizzard's CooldownViewer** displays tracked buffs correctly
-- **EditMode positioning** for Tracked Buffs frames
+These are results for the development worktree, not certification of live-client behavior. The host does not model native taint, secret values, or rendering. Repeat the commands in [CONTRIBUTING.md](CONTRIBUTING.md#local-checks) after runtime changes.
 
----
+## Pending Validation and Follow-Up
 
-## Pending/Waiting
+- Install the worktree for testing and verify stance/form changes, spell overrides, duplicate slots, range feedback, and charge cooldowns in-game.
+- Exercise profile changes, module toggles, stack inclusion, scaled dragging, and combat-interrupted dragging.
+- Verify secure unit-frame geometry, restricted health/heal prediction, and maximum-health updates in instanced combat.
+- Collect comparable performance recordings before claiming performance gains.
+- Align legacy in-game debug help and position diagnostics with the implemented slash commands and current profile keys. The top-level command documentation reflects `SlashHandler`; legacy `debug`, `record`, and `clear` subcommands are not implemented.
 
-### Waiting for Blizzard
-- API changes that would allow addon access to aura data in combat
-- Official guidance on addon patterns for tracked buff display
-- Possible new safe APIs in future patches
+The [in-game checklist](docs/quality-review.md#required-in-game-validation) provides the detailed scenarios. Merging the development changes does not complete live-client validation; reload the development build before testing.
 
-### Future Considerations
-- Monitor Blizzard API changes each patch
-- TrackedDefensives could be restored if APIs become accessible
-- Consider style-only approach for ExternalDefensivesFrame (if viable)
+## Dormant Modules
 
----
+| Source | State |
+| --- | --- |
+| Essential/Utility Cooldown Manager | Retained experiment while native cooldown-viewer APIs are under review |
+| TrackedBuffs | Retained aura/icon styling experiment |
+| TrackedDefensives | Retained experiment affected by aura API restrictions |
+| DefensiveTracker | Retained test/reference implementation |
 
-## Key Files Reference
+All of `Cooldowns/` and its corresponding settings files are excluded from the active TOC and release package. Legacy core experiments are also excluded. Their presence in source or profile defaults does not make them active features.
 
-| File | Purpose |
-|------|---------|
-| `Cooldowns/TrackedBuffs.lua` | Working style-only buff icon styling |
-| `Cooldowns/TrackedDefensives.lua` | Disabled stub module |
-| `Cooldowns/DefensiveTracker.lua` | Disabled test harness (keep for future API testing) |
-| `Cooldowns/SkinningReset.lua` | Centralized decoration stripping |
-| `docs/aura-api-testing.md` | Exhaustive API test documentation |
+[Aura API testing](docs/aura-api-testing.md) and [Skinning patterns](docs/skinning-patterns.md) preserve the historical WoW 12.0 research. Revalidate against the target build before using those findings to re-enable modules; update the TOC, package exclusions, and tests together.

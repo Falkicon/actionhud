@@ -4,6 +4,13 @@ if not L then
 end
 
 -- Core messages
+L["Performance recording started."] = true
+L["Performance recording stopped. Results retained."] = true
+L["Performance counters reset."] = true
+L["No performance samples. Use /ah perf on to start."] = true
+L["%s: %d calls, %.3f ms total, %.3f ms average, %.3f ms peak"] = true
+L["%d calls; %.3f ms total; %.3f ms peak"] = true
+L["Usage: /ah perf on, off, reset, or report"] = true
 L["ActionHud: Navigate to Gameplay Enhancements."] = true
 L["Slash Commands:"] = true
 L["/ah: Open settings."] = true
@@ -76,6 +83,7 @@ L["A minimalist HUD mirroring Action Bars 1 & 2 in a 6x4 grid."] = true
 L["Required Setup:"] = true
 L["Click the button below to open WoW's Gameplay Enhancements settings."] = true
 L["Enable these options:"] = true
+L["Enable this option:"] = true
 L["Assisted Highlight"] = true
 L["(rotation glows)"] = true
 L["Enable Cooldown Manager"] = true
@@ -270,10 +278,13 @@ L["Target of Target"] = true
 -- Settings UI - Custom Unit Frames
 L["Custom Unit Frames"] = true
 L["Custom frames for Player and Target with advanced support for Midnight's 'Secret Values'."] = true
+L["Custom frames for Player, Target, Target of Target, and Focus with support for Midnight's secret values."] = true
 L["Enable Custom Unit Frames"] = true
 L["Enable ActionHud custom player and target unit frames. Compatible with Midnight 12.0 secret values."] = true
+L["Enable ActionHud custom Player, Target, Target of Target, and Focus frames."] = true
 L["Hide Blizzard Frames"] = true
 L["Hide the default Blizzard Player, Target, and Focus frames when custom frames are enabled."] = true
+L["Hide the default Blizzard Player, Target, Target of Target, and Focus frames when custom frames are enabled."] = true
 L["Bar Width"] = true
 L["Height"] = true
 L["X Offset"] = true
@@ -421,6 +432,20 @@ L["These frames are styled by ActionHud but positioned via Blizzard's EditMode:"
 
 -- Settings UI - Profiles
 L["Profiles"] = true
+
+-- Mechanic quick actions
+L["ActionHud Tools"] = true
+L["Quick actions for HUD management."] = true
+L["Settings"] = true
+L["HUD:"] = true
+L["Toggle Lock"] = true
+L["Locked"] = true
+L["Unlocked"] = true
+L["Modules:"] = true
+L["Debug:"] = true
+L["ON"] = true
+L["OFF"] = true
+L["Use /ah or /actionhud for more options."] = true
 
 -- Cooldown Manager
 L["CooldownManager Enabled"] = true

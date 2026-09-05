@@ -417,4 +417,14 @@ do
 	AssertEqual(0.8, icon.color[1], "a valid out-of-range result should use the range color")
 end
 
+do
+	local button = { hasAction = false, cd = NewCooldownFrame(), chargeCooldown = NewCooldownFrame() }
+	button.cd:Show()
+	button.chargeCooldown:Show()
+	ActionBars:UpdateCooldown(button)
+	AssertEqual(false, button.cd.shown, "empty slots must hide their primary cooldown")
+	AssertEqual(false, button.chargeCooldown.shown, "empty slots must hide their charge cooldown")
+	AssertEqual(1, button.chargeCooldown.clearCount, "empty slots must clear stale charge timing")
+end
+
 print("SUCCESS: ActionBars restricted cooldown compositor verified!")

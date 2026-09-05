@@ -13,6 +13,8 @@ desktop.ini
 *.old
 *.tmp
 *.log
+*.pyc
+__pycache__/
 _test_/
 tmp/
 

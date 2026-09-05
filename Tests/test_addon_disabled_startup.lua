@@ -1,0 +1,17 @@
+local host = assert(loadfile("Tests/support/wow.lua"))()
+local boot = assert(loadfile("Tests/support/load_addon.lua"))()
+local addon = boot(host, { profiles = { Default = {
+	actionBarsEnabled = false, resEnabled = false, trinketsEnabled = false, ufEnabled = false,
+} } })
+local ab, uf = addon:GetModule("ActionBars"), addon:GetModule("UnitFrames")
+assert(not ab._runtimeActive and not uf._runtimeActive)
+assert(not ab:GetContainer() and not next(uf.frames), "saved disabled features must not create their runtime frames")
+local settings = LibStub("AceConfigRegistry-3.0"):GetOptionsTable("ActionHud_AB")("dialog", "AceConfigDialog-3.0")
+settings.args.enable.set(nil, true)
+host:Flush()
+assert(ab._runtimeActive and ab:GetContainer():IsShown(), "real settings must enable a feature disabled at startup")
+settings.args.enable.set(nil, false)
+host:Flush()
+assert(not ab._runtimeActive and not ab:GetContainer():IsShown())
+assert(addon.db.profile.actionBarsEnabled == false)
+print("SUCCESS: real saved disabled startup and settings enable/disable")

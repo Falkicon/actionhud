@@ -66,6 +66,10 @@ local function BuildLayoutArgs()
 		local isEnabled = false
 		if moduleId == "resources" then
 			isEnabled = ActionHud.db.profile.resEnabled
+		elseif moduleId == "actionBars" then
+			isEnabled = ActionHud.db.profile.actionBarsEnabled ~= false
+		elseif moduleId == "trinkets" then
+			isEnabled = ActionHud.db.profile.trinketsEnabled
 		elseif moduleId == "cooldowns" then
 			local cooldowns = ActionHud:GetModule("Cooldowns", true)
 			isEnabled = ActionHud.db.profile.cdEnabled and cooldowns and cooldowns:IsEnabled()
@@ -84,6 +88,8 @@ local function BuildLayoutArgs()
 		local stackIdx = modInfo.stackIdx
 		local moduleName = LM:GetModuleName(moduleId)
 		local orderBase = baseOrder + (i * 10)
+		local upDistance = i > 1 and (stackIdx - activeModules[i - 1].stackIdx) or 0
+		local downDistance = i < #activeModules and (activeModules[i + 1].stackIdx - stackIdx) or 0
 
 		-- Module row header with position number
 		args["mod_" .. i .. "_header"] = {
@@ -105,8 +111,10 @@ local function BuildLayoutArgs()
 				return i == 1
 			end,
 			func = function()
-				LM:MoveModule(moduleId, "up")
-				LibStub("AceConfigRegistry-3.0"):NotifyChange("ActionHud")
+				for _ = 1, upDistance do
+					LM:MoveModule(moduleId, "up")
+				end
+				LibStub("AceConfigRegistry-3.0"):NotifyChange("ActionHud_Layout")
 			end,
 		}
 
@@ -121,8 +129,10 @@ local function BuildLayoutArgs()
 				return i == #activeModules
 			end,
 			func = function()
-				LM:MoveModule(moduleId, "down")
-				LibStub("AceConfigRegistry-3.0"):NotifyChange("ActionHud")
+				for _ = 1, downDistance do
+					LM:MoveModule(moduleId, "down")
+				end
+				LibStub("AceConfigRegistry-3.0"):NotifyChange("ActionHud_Layout")
 			end,
 		}
 
@@ -165,7 +175,7 @@ local function BuildLayoutArgs()
 		width = "double",
 		func = function()
 			LM:ResetToDefault()
-			LibStub("AceConfigRegistry-3.0"):NotifyChange("ActionHud")
+			LibStub("AceConfigRegistry-3.0"):NotifyChange("ActionHud_Layout")
 		end,
 	}
 

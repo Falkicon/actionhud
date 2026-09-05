@@ -9,9 +9,7 @@ local UnitHealth = UnitHealth -- @scan-ignore: midnight-upvalue
 local UnitHealthMax = UnitHealthMax
 local UnitPower = UnitPower -- @scan-ignore: midnight-upvalue
 local UnitPowerMax = UnitPowerMax
-local UnitPowerType = UnitPowerType
 local UnitExists = UnitExists
-local UnitIsPlayer = UnitIsPlayer
 
 local main
 local container
@@ -527,8 +525,10 @@ local function UpdateBarValue(bar, unit)
 				if
 					not Utils.IsValueSecret(cur)
 					and not Utils.IsValueSecret(incomingHeals)
+					and not Utils.IsValueSecret(max)
 					and type(cur) == "number"
 					and type(incomingHeals) == "number"
+					and type(max) == "number"
 				then
 					bar.predict:SetValue(math.min(max, cur + incomingHeals))
 				else
@@ -551,7 +551,7 @@ local function UpdateBarValue(bar, unit)
 			SafeSetMinMax(bar.absorb, 0, max)
 
 			-- Prefer secret value for pass-through, or max of numbers
-			local absorbValue = 0
+			local absorbValue
 			if Utils.IsValueSecret(calcAbsorb) then
 				absorbValue = calcAbsorb
 			elseif Utils.IsValueSecret(unitAbsorb) then
@@ -597,7 +597,7 @@ function Resources:OnInitialize()
 	self.db = addon.db
 end
 
-function Resources:OnEnable()
+function Resources:CreateFrames()
 	main = _G["ActionHudFrame"]
 	if not main then
 		return
@@ -647,6 +647,9 @@ function Resources:OnEnable()
 		targetPower.type = "POWER"
 	end
 
+end
+
+function Resources:OnEnable()
 	self:ApplyEnabledState()
 end
 
@@ -657,6 +660,7 @@ function Resources:RegisterRuntimeEvents()
 	self:RegisterEvent("PLAYER_REGEN_ENABLED", "UpdateCombatVisibility")
 	for _, event in ipairs({
 		"UNIT_HEALTH",
+		"UNIT_MAXHEALTH",
 		"UNIT_HEAL_PREDICTION",
 		"UNIT_ABSORB_AMOUNT_CHANGED",
 		"UNIT_POWER_UPDATE",
@@ -670,31 +674,22 @@ function Resources:RegisterRuntimeEvents()
 end
 
 function Resources:StartRuntime()
-	if self._runtimeActive then
-		self:UpdateLayout()
-		self:UpdateCombatVisibility()
-		return
-	end
-
+	if self._runtimeActive then self:UpdateLayout(); return end
+	self:CreateFrames()
+	if not container then return end
 	self._runtimeActive = true
-	self:UpdateLayout()
 	self:RegisterRuntimeEvents()
-
-	UpdateBarColor(playerHealth, "player")
-	UpdateBarColor(playerPower, "player")
-	UpdateBarValue(playerHealth, "player")
-	UpdateBarValue(playerPower, "player")
-	UpdateClassPower()
-
-	self:UpdateCombatVisibility()
+	self:UpdateLayout()
 end
 
 function Resources:OnDisable()
+	self._pendingEnabledState = nil
 	self:StopRuntime()
 end
 
 function Resources:StopRuntime()
 	self._runtimeActive = false
+	RCFG.enabled = false
 	self:UnregisterAllEvents()
 	if ns.UnitEventRouter then
 		ns.UnitEventRouter:UnregisterAll(self)
@@ -702,14 +697,18 @@ function Resources:StopRuntime()
 	if container then
 		container:Hide()
 	end
+	self:UpdateLayout()
 end
 
 function Resources:ApplyEnabledState()
-	if self.db.profile.resEnabled then
-		self:StartRuntime()
-	else
-		self:StopRuntime()
+	self._desiredEnabled = self.db.profile.resEnabled == true
+	if InCombatLockdown() then
+		self._pendingEnabledState = true
+		self:UpdateLayout()
+		return
 	end
+	self._pendingEnabledState = nil
+	if self:IsEnabled() and self._desiredEnabled then self:StartRuntime() else self:StopRuntime() end
 end
 
 -- Show or hide resource bars based on combat state and resHideOutOfCombat setting
@@ -753,7 +752,7 @@ function Resources:OnEvent(event, unit)
 		UpdateBarColor(targetPower, "target")
 		UpdateBarValue(targetHealth, "target")
 		UpdateBarValue(targetPower, "target")
-	elseif event == "UNIT_HEALTH" or event == "UNIT_HEAL_PREDICTION" or event == "UNIT_ABSORB_AMOUNT_CHANGED" then
+	elseif event == "UNIT_HEALTH" or event == "UNIT_MAXHEALTH" or event == "UNIT_HEAL_PREDICTION" or event == "UNIT_ABSORB_AMOUNT_CHANGED" then
 		if unit == "player" then
 			UpdateBarValue(playerHealth, "player")
 		end
@@ -823,7 +822,6 @@ function Resources:CalculateHeight()
 
 	if db.resClassEnabled and CanShowClassPower() then
 		totalHeight = totalHeight + (visibleBars > 0 and spacing or 0) + classHeight
-		visibleBars = visibleBars + 1
 	end
 
 	return totalHeight
@@ -832,8 +830,11 @@ end
 -- Get the width of this module for LayoutManager
 function Resources:GetLayoutWidth()
 	local p = addon.db.profile
-	local cols = 6
-	return cols * (p.iconWidth or 20)
+	if p.resBarWidth and p.resBarWidth > 0 then
+		return p.resBarWidth
+	end
+	local AB = addon:GetModule("ActionBars", true)
+	return AB and AB.GetLayoutWidth and AB:GetLayoutWidth() or 120
 end
 
 -- Apply position from LayoutManager
@@ -841,7 +842,7 @@ function Resources:ApplyLayoutPosition()
 	if not container then
 		return
 	end
-	if not RCFG.enabled then
+	if not RCFG.enabled or self:CalculateHeight() <= 0 then
 		container:Hide()
 		return
 	end
@@ -858,11 +859,7 @@ function Resources:ApplyLayoutPosition()
 
 	if inStack then
 		-- Stack mode: use ActionBars width for tight fit, anchor based on alignment
-		local AB = addon:GetModule("ActionBars", true)
-		local containerWidth = 120
-		if AB and AB.GetLayoutWidth then
-			containerWidth = AB:GetLayoutWidth()
-		end
+		local containerWidth = self:GetLayoutWidth()
 		local containerHeight = self:CalculateHeight()
 		if containerWidth > 0 and containerHeight > 0 then
 			container:SetSize(containerWidth, containerHeight)
@@ -898,10 +895,10 @@ function Resources:ApplyLayoutPosition()
 	container:Show()
 	UpdateClassPower()
 
-	addon:Log(string.format("Resources positioned: inStack=%s", tostring(inStack)), "layout")
+	addon:Logf("layout", "Resources positioned: inStack=%s", inStack and "true" or "false")
 end
 
-function Resources:UpdateLayout()
+function Resources:PrepareLayout()
 	if not container or not addon then
 		return
 	end
@@ -911,7 +908,7 @@ function Resources:UpdateLayout()
 	-- Debug Container Visual
 	addon:UpdateLayoutOutline(container, "Resource Bars", "resources")
 
-	RCFG.enabled = db.resEnabled == true
+	RCFG.enabled = self._runtimeActive == true and db.resEnabled == true
 	RCFG.healthEnabled = db.resHealthEnabled ~= false
 	RCFG.powerEnabled = db.resPowerEnabled ~= false
 	RCFG.classEnabled = db.resClassEnabled ~= false
@@ -926,10 +923,6 @@ function Resources:UpdateLayout()
 
 	if not RCFG.enabled then
 		container:Hide()
-		local LM = addon:GetModule("LayoutManager", true)
-		if LM then
-			LM:SetModuleHeight("resources", 0)
-		end
 		return
 	end
 
@@ -941,10 +934,6 @@ function Resources:UpdateLayout()
 
 	if totalHeight <= 0 then
 		container:Hide()
-		local LM = addon:GetModule("LayoutManager", true)
-		if LM then
-			LM:SetModuleHeight("resources", 0)
-		end
 		return
 	end
 
@@ -958,35 +947,9 @@ function Resources:UpdateLayout()
 	end
 
 	-- Get width: use fixed width if set, otherwise HUD width when in stack
-	local LM = addon:GetModule("LayoutManager", true)
-	local inStack = LM and LM:IsModuleInStack("resources")
-	local db = addon.db.profile
-	local hudWidth
-
-	-- Priority: fixed width > ActionBars width > default
-	-- Resources should match ActionBars width, not the widest module in the HUD
-	if db.resBarWidth and db.resBarWidth > 0 then
-		hudWidth = db.resBarWidth
-	else
-		-- Use ActionBars width (whether in stack or independent mode)
-		local AB = addon:GetModule("ActionBars", true)
-		hudWidth = 120
-		if AB and AB.GetLayoutWidth then
-			hudWidth = AB:GetLayoutWidth()
-		end
-	end
+	local hudWidth = self:GetLayoutWidth()
 
 	container:SetSize(hudWidth, totalHeight)
-
-	-- Report height to LayoutManager - only when in stack
-	if LM then
-		if inStack then
-			LM:SetModuleHeight("resources", totalHeight)
-		else
-			-- Release height reservation when not in stack
-			LM:SetModuleHeight("resources", 0)
-		end
-	end
 
 	local useSplit = false
 	if RCFG.showTarget and UnitExistsSafe("target") then
@@ -1069,7 +1032,6 @@ function Resources:UpdateLayout()
 				targetPower:SetPoint("TOP", targetGroup, "TOP", 0, 0)
 			end
 			FillWidth(targetPower, targetGroup)
-			lastTargetBar = targetPower
 		else
 			targetPower:Hide()
 		end
@@ -1088,7 +1050,6 @@ function Resources:UpdateLayout()
 			playerClassBar:SetPoint("TOP", playerGroup, "TOP", 0, 0)
 		end
 		FillWidth(playerClassBar, playerGroup)
-		UpdateClassPower()
 	else
 		playerClassBar:Hide()
 	end
@@ -1096,4 +1057,22 @@ end
 
 function Resources:GetContainer()
 	return container
+end
+
+function Resources:UpdateLayout()
+	local manager = addon:GetModule("LayoutManager", true)
+	if manager then manager:RequestLayout("resources") end
+end
+
+function Resources:RenderLayout()
+	UpdateBarColor(playerHealth, "player")
+	UpdateBarColor(playerPower, "player")
+	UpdateBarValue(playerHealth, "player")
+	UpdateBarValue(playerPower, "player")
+	UpdateBarColor(targetHealth, "target")
+	UpdateBarColor(targetPower, "target")
+	UpdateBarValue(targetHealth, "target")
+	UpdateBarValue(targetPower, "target")
+	UpdateClassPower()
+	self:UpdateCombatVisibility()
 end

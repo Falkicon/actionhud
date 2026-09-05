@@ -1,4 +1,32 @@
 # Changelog
+
+## [Unreleased]
+
+These changes are in development and still require in-game combat validation. The addon manifest remains at 2.13.7.
+
+### Added
+
+- Opt-in `/ah perf on`, `off`, `reset`, and `report` commands with call counts and total, average, and peak timings; profiling also works without Mechanic.
+- Full-TOC integration tests using the embedded libraries, plus automated localization, manifest, package, and Luacheck checks.
+
+### Changed
+
+- Centralized layout requests into one queued LayoutManager pass with shared lifecycle reconciliation and combat deferral.
+- Moved profile defaults into `Core/Defaults.lua` and separated UnitFrames identity, lifecycle, layout, and rendering responsibilities.
+- Avoid eager debug-log formatting when logging is disabled.
+- Exclude dormant cooldown-viewer modules, associated settings, legacy core experiments, and development tooling from release packages.
+- Updated setup, architecture, commands, contributor instructions, and development status documentation.
+
+### Fixed
+
+- Disabled modules reappearing during layout, inconsistent enablement persistence, and incomplete runtime event cleanup.
+- Repeated action-bar hooks and stale callbacks across disable/re-enable cycles.
+- Range, usability, and assist updates missing duplicate mirrored action slots; stale cooldown displays on empty slots.
+- Restricted maximum-health values reaching prediction arithmetic and stale unit-frame prediction displays.
+- Secure layout changes during combat and cached frame heights preventing a deferred resize.
+- Stack measurements, independent resource anchoring, scaled drag offsets, profile position restoration, and combat-interrupted dragging.
+- Settings position resets, layout reordering across hidden modules, and Mechanic settings/lifecycle tool actions.
+
 ## [2.13.7] - 2026-08-17
 
 ### Fixed

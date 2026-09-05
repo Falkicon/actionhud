@@ -29,21 +29,37 @@ local function CreateToolButton(parent, x, y, width, text, onClick)
 	return btn
 end
 
+local function ToggleModule(moduleName, profileKey, label)
+	local addon = LibStub("AceAddon-3.0"):GetAddon("ActionHud", true)
+	local profile = GetProfile()
+	local module = addon and addon:GetModule(moduleName, true)
+	if not profile or not module or not module.ApplyEnabledState then
+		return
+	end
+	profile[profileKey] = not profile[profileKey]
+	module:ApplyEnabledState()
+	local layout = addon:GetModule("LayoutManager", true)
+	if layout then
+		layout:TriggerLayoutUpdate()
+	end
+	print("|cff00ff00ActionHud:|r " .. label .. " " .. (profile[profileKey] and L["ON"] or L["OFF"]))
+end
+
 function ActionHudMechanic:CreateToolsPanel(container)
 	local title = container:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
 	title:SetPoint("TOPLEFT", 10, -10)
-	title:SetText("ActionHud Tools")
+	title:SetText(L["ActionHud Tools"])
 
 	local desc = container:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
 	desc:SetPoint("TOPLEFT", 10, -35)
-	desc:SetText("Quick actions for HUD management.")
+	desc:SetText(L["Quick actions for HUD management."])
 
 	-- Row 1: Lock/Unlock & Settings
 	local row1Label = container:CreateFontString(nil, "OVERLAY", "GameFontNormal")
 	row1Label:SetPoint("TOPLEFT", 10, -65)
-	row1Label:SetText("HUD:")
+	row1Label:SetText(L["HUD:"])
 
-	CreateToolButton(container, 80, -60, 80, "Lock", function()
+	CreateToolButton(container, 80, -60, 80, L["Toggle Lock"], function()
 		local profile = GetProfile()
 		local addon = LibStub("AceAddon-3.0"):GetAddon("ActionHud", true)
 		if profile then
@@ -51,67 +67,36 @@ function ActionHudMechanic:CreateToolsPanel(container)
 			if addon and addon.UpdateLockState then
 				addon:UpdateLockState()
 			end
-			print("|cff00ff00ActionHud:|r " .. (profile.locked and "Locked" or "Unlocked"))
+			print("|cff00ff00ActionHud:|r " .. (profile.locked and L["Locked"] or L["Unlocked"]))
 		end
 	end)
 
-	CreateToolButton(container, 165, -60, 80, "Settings", function()
-		-- Use InterfaceOptionsFrame_OpenToCategory for compatibility
-		if InterfaceOptionsFrame_OpenToCategory then
-			InterfaceOptionsFrame_OpenToCategory("ActionHud")
-			InterfaceOptionsFrame_OpenToCategory("ActionHud") -- Called twice for WoW quirk
-		elseif SettingsPanel and SettingsPanel.Open then
-			SettingsPanel:Open()
+	CreateToolButton(container, 165, -60, 80, L["Settings"], function()
+		local addon = LibStub("AceAddon-3.0"):GetAddon("ActionHud", true)
+		if addon then
+			addon:OpenSettings()
 		end
 	end)
 
 	-- Row 2: Module Toggles
 	local row2Label = container:CreateFontString(nil, "OVERLAY", "GameFontNormal")
 	row2Label:SetPoint("TOPLEFT", 10, -100)
-	row2Label:SetText("Modules:")
+	row2Label:SetText(L["Modules:"])
 
-	CreateToolButton(container, 80, -95, 70, "Resources", function()
-		local profile = GetProfile()
-		local addon = LibStub("AceAddon-3.0"):GetAddon("ActionHud", true)
-		if profile then
-			profile.resEnabled = not profile.resEnabled
-			if addon and addon.RefreshLayout then
-				addon:RefreshLayout()
-			end
-			print("|cff00ff00ActionHud:|r Resources " .. (profile.resEnabled and "ON" or "OFF"))
-		end
+	CreateToolButton(container, 80, -95, 70, L["Resources"], function()
+		ToggleModule("Resources", "resEnabled", L["Resources"])
 	end)
 
-	CreateToolButton(container, 155, -95, 70, "Cooldowns", function()
-		local profile = GetProfile()
-		local addon = LibStub("AceAddon-3.0"):GetAddon("ActionHud", true)
-		if profile then
-			profile.cdEnabled = not profile.cdEnabled
-			if addon and addon.RefreshLayout then
-				addon:RefreshLayout()
-			end
-			print("|cff00ff00ActionHud:|r Cooldowns " .. (profile.cdEnabled and "ON" or "OFF"))
-		end
-	end)
-
-	CreateToolButton(container, 230, -95, 60, "Trinkets", function()
-		local profile = GetProfile()
-		local addon = LibStub("AceAddon-3.0"):GetAddon("ActionHud", true)
-		if profile then
-			profile.trinketsEnabled = not profile.trinketsEnabled
-			if addon and addon.RefreshLayout then
-				addon:RefreshLayout()
-			end
-			print("|cff00ff00ActionHud:|r Trinkets " .. (profile.trinketsEnabled and "ON" or "OFF"))
-		end
+	CreateToolButton(container, 155, -95, 70, L["Trinkets"], function()
+		ToggleModule("Trinkets", "trinketsEnabled", L["Trinkets"])
 	end)
 
 	-- Row 3: Debug
 	local row3Label = container:CreateFontString(nil, "OVERLAY", "GameFontNormal")
 	row3Label:SetPoint("TOPLEFT", 10, -135)
-	row3Label:SetText("Debug:")
+	row3Label:SetText(L["Debug:"])
 
-	CreateToolButton(container, 80, -130, 80, "Record", function()
+	CreateToolButton(container, 80, -130, 80, L["Record"], function()
 		local addon = LibStub("AceAddon-3.0"):GetAddon("ActionHud", true)
 		if addon then
 			if addon.IsDebugRecording and addon:IsDebugRecording() then
@@ -122,7 +107,7 @@ function ActionHudMechanic:CreateToolsPanel(container)
 		end
 	end)
 
-	CreateToolButton(container, 165, -130, 80, "Clear", function()
+	CreateToolButton(container, 165, -130, 80, L["Clear"], function()
 		local addon = LibStub("AceAddon-3.0"):GetAddon("ActionHud", true)
 		if addon and addon.ClearDebugBuffer then
 			addon:ClearDebugBuffer()
@@ -132,7 +117,7 @@ function ActionHudMechanic:CreateToolsPanel(container)
 	-- Footer
 	local footer = container:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
 	footer:SetPoint("BOTTOM", 0, 10)
-	footer:SetText("Use /ah or /actionhud for more options.")
+	footer:SetText(L["Use /ah or /actionhud for more options."])
 end
 
 -- =============================================================================
@@ -261,26 +246,20 @@ end
 -- Performance Profiling
 -- =============================================================================
 
-local perfMetrics = {}
-
 function ActionHudMechanic:RecordPerfMetric(name, duration)
-	perfMetrics[name] = duration
-end
-
-function ns.RecordPerformance(name, startedAt)
-	if type(startedAt) ~= "number" then
-		return
-	end
-	ActionHudMechanic:RecordPerfMetric(name, debugprofilestop() - startedAt)
+	ns.Performance:Record(name, duration)
 end
 
 function ActionHudMechanic:GetPerformanceSubMetrics()
-	return {
-		{ name = "Resources Update", ms = perfMetrics.ResourcesUpdate or 0, description = "Health/power bars" },
-		{ name = "ActionBars Update", ms = perfMetrics.ActionBarsUpdate or 0, description = "Action bar refresh" },
-		{ name = "Cooldowns Update", ms = perfMetrics.CooldownsUpdate or 0, description = "Cooldown tracking" },
-		{ name = "Layout Recalc", ms = perfMetrics.LayoutRecalc or 0, description = "Module stacking" },
-	}
+	local rows = {}
+	for _, metric in ipairs(ns.Performance:GetMetrics()) do
+		rows[#rows + 1] = {
+			name = metric.name, ms = metric.averageMs,
+			description = string.format(L["%d calls; %.3f ms total; %.3f ms peak"],
+				metric.calls, metric.totalMs, metric.peakMs),
+		}
+	end
+	return rows
 end
 
 -- =============================================================================
@@ -288,9 +267,6 @@ end
 -- =============================================================================
 
 local function RegisterWithMechanic()
-	-- Get addon via AceAddon (not global - it's local in Core.lua)
-	local addon = LibStub("AceAddon-3.0"):GetAddon("ActionHud", true)
-
 	MechanicLib:Register(addonName, {
 		version = C_AddOns.GetAddOnMetadata(addonName, "Version"),
 

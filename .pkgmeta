@@ -3,11 +3,25 @@ package-as: ActionHud
 ignore:
   - .github
   - .gitignore
+  - .luacheckrc
   - .cursor
   - DevMarker.lua
   - AGENTS.md
   - CONTRIBUTING.md
   - CHANGELOG.md
+  - STATUS.md
+  - docs
+  - Tests
+  - _test_
+  - requirements-dev.txt
+  - Cooldowns
+  - Settings/EssentialCooldowns.lua
+  - Settings/UtilityCooldowns.lua
+  - Settings/Tracked.lua
+  - Core/FenCoreCompat.lua
+  - Core/init.lua
+  - Core/StackContainer.lua
+  - Core/utils_spec.lua
   - Libs/FenCore
   - Libs/FenUI/Core
   - Libs/FenUI/FenUI.xml

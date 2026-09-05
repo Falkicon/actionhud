@@ -19,10 +19,9 @@ local ns = {
 	},
 }
 
-local actionHud = {}
-function actionHud:NewModule()
-	return {}
-end
+local actionHud = { unitFrames = {} }
+function actionHud:NewModule() return self.unitFrames end
+function actionHud:GetModule() return self.unitFrames end
 
 LibStub = function(name)
 	if name == "AceAddon-3.0" then
@@ -118,23 +117,23 @@ PowerBarColor = {
 	MANA = { r = 0, g = 0, b = 1 },
 }
 
-local function readUnitFrames()
-	local path = "UnitFrames/UnitFrames.lua"
+local sources = {}
+for _, fileName in ipairs({ "Identity.lua", "UnitFrames.lua", "Layout.lua", "Rendering.lua" }) do
+	local path = "UnitFrames/" .. fileName
 	local file = io.open(path, "r")
 	if not file then
-		path = "../UnitFrames/UnitFrames.lua"
+		path = "../" .. path
 		file = assert(io.open(path, "r"))
 	end
-	local source = file:read("*a")
+	local fileSource = file:read("*a")
 	file:close()
-	return path, source
+	sources[#sources + 1] = fileSource
+	local loadChunk = loadstring or load
+	local chunk, loadError = loadChunk(fileSource, path)
+	assert(chunk, loadError)
+	chunk("ActionHud", ns)
 end
-
-local path, source = readUnitFrames()
-local loadChunk = loadstring or load
-local chunk, loadError = loadChunk(source, path)
-assert(chunk, loadError)
-chunk("ActionHud", ns)
+local source = table.concat(sources, "\n")
 
 local IdentitySafety = assert(ns.UnitFrameIdentitySafety)
 

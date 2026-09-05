@@ -1,0 +1,11 @@
+local host = assert(loadfile("Tests/support/wow.lua"))()
+host.combat = true
+local boot = assert(loadfile("Tests/support/load_addon.lua"))()
+local addon = boot(host, { profiles = { Default = { ufEnabled = true } } })
+local uf, ab = addon:GetModule("UnitFrames"), addon:GetModule("ActionBars")
+assert(not next(uf.frames) and not ab:GetContainer(), "combat startup must defer runtime frame creation")
+assert(uf._pendingEnabledState and ab._pendingEnabledState)
+host:SetCombat(false)
+assert(uf._runtimeActive and uf.frames.player:IsShown())
+assert(ab._runtimeActive and ab:GetContainer():IsShown())
+print("SUCCESS: real combat startup defers and resumes feature lifecycles")

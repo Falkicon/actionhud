@@ -1,13 +1,13 @@
 # ActionHud
 
-A lightweight, high-performance action bar HUD for World of Warcraft Retail. Displays a compact grid of your primary action bars, synchronized with Blizzard's native Edit Mode settings.
+A compact action bar HUD for World of Warcraft Retail. It mirrors your primary action bars and combines cooldown feedback, resource bars, optional custom unit frames, and equipped trinkets.
 
-![WoW Version](https://img.shields.io/badge/WoW-12.1%2B-blue)
+![WoW Version](https://img.shields.io/badge/WoW-12.1-blue)
 ![Interface](https://img.shields.io/badge/Interface-120100-green)
 [![GitHub](https://img.shields.io/badge/GitHub-Falkicon%2FActionHud-181717?logo=github)](https://github.com/Falkicon/ActionHud)
 [![Sponsor](https://img.shields.io/badge/Sponsor-pink?logo=githubsponsors)](https://github.com/sponsors/Falkicon)
 
-> **Midnight Compatibility**: ActionHud targets WoW 12.1 and uses protected-value passthrough patterns, defensive API wrappers, and graceful degradation in restricted combat contexts.
+ActionHud targets WoW Retail 12.1, as declared in [ActionHud.toc](ActionHud.toc). It uses guarded API wrappers and protected-value passthrough where supported. See [development status](STATUS.md) for validation coverage and remaining in-game checks.
 
 ### Complete Your UI for Midnight
 
@@ -20,119 +20,91 @@ Check out these complementary addons to round out your interface:
 
 ## Features
 
-- **Action Bar Mirroring** – Dynamically synchronizes with Blizzard's **Action Bar 1** and **Action Bar 2** layout (rows/columns) from Edit Mode.
-- **Stance/Form Support** – Automatically updates for Druid forms, Rogue stealth, and other bar swaps.
-- **Visual Feedback**:
-  - **Yellow Glow** – Proc tracking via Spell Activation Overlay.
-  - **Blue Glow** – WoW 11.x Assisted Combat rotation recommendations.
-  - **Cooldowns** – Clear countdown numbers with configurable font size.
-  - **Charges** – Stack counts for charge-based abilities.
-  - **Usability** – Desaturates unusable skills; tints out-of-range abilities red.
-- **Resource Bars**:
-  - **Health, Power & Class** – Compact bars for Player and Target.
-  - **Dynamic Stacking** – Individual visibility toggles; HUD height automatically adjusts when bars are hidden.
-- **Unit Frame Reskin** – Minimalist styling for Player, Target, and Focus frames:
-  - Hide portraits and borders for a cleaner look.
-  - Flat, solid bar textures with adjustable heights.
-- **Layout Manager** – Unified system to reorder HUD modules and set custom spacing.
-- **Visualization Tools** – Toggle layout outlines to see component bounds and position empty modules easily.
-- **Profiles** – Support for character-specific settings and profile sharing.
-- **Integration** – Minimap button, Addon Compartment, and DataBroker (LDB) support.
+- **Action bar mirroring** — Follows the button count and row layout of Blizzard's **Action Bar 1** and **Action Bar 2** in Edit Mode, including stance/form page changes.
+- **Action feedback** — Cooldown sweeps and countdowns, display counts, yellow proc glows, blue Assisted Combat highlights, and usability/range tinting.
+- **Resource bars** — Player and target health/power, plus player class resources. Individual bars can be toggled and sized independently.
+- **Custom unit frames** — Optional secure frames for Player, Target, Target of Target, and Focus. Configure dimensions, backgrounds, borders, text, and status icons; optionally hide the corresponding Blizzard frames.
+- **Trinket bar** — Tracks equipped on-use trinkets and their cooldowns.
+- **Layout** — Reorder stack modules, adjust gaps, or position modules independently with draggable overlays.
+- **Profiles** — Create, switch, copy, delete, and reset settings profiles through AceDB.
+- **Addon Compartment** — Opens ActionHud settings from the compartment menu.
 
-> **⚠️ Temporarily Disabled**: The **Cooldown Manager** module is disabled while Blizzard's interface APIs stabilize in WoW 12.0 (Midnight). It will be revisited once the APIs are more reliable.
+The HUD action icons are display-only; use your normal action bindings or Blizzard action buttons to cast abilities. Blue rotation highlights require Blizzard's **Assisted Highlight** option, accessible through the **Open Gameplay Enhancements** button in ActionHud's general settings.
+
+**Dormant features:** Essential/Utility Cooldown Manager, TrackedBuffs, TrackedDefensives, and DefensiveTracker remain as research source. Their runtime and settings files are excluded from the active TOC and release package. See [STATUS.md](STATUS.md).
 
 ## Installation
 
-1. Download or clone this repository.
-2. Place the `ActionHud` folder in your WoW addons directory:
-   ```
-   World of Warcraft\_retail_\Interface\AddOns\
-   ```
-3. Restart WoW or type `/reload` if already running.
+1. Download the addon from [CurseForge](https://www.curseforge.com/wow/addons/actionhud), or use a repository checkout with its embedded libraries present.
+2. Place the `ActionHud` folder in `World of Warcraft\_retail_\Interface\AddOns\`. `ActionHud.toc` should be directly inside that folder.
+3. Restart WoW if it was running when the addon was first installed. Use `/reload` when updating an already detected installation.
 
-## How to Use
+Ace3 and the required support libraries are embedded. FenCore and !Mechanic are optional.
 
-ActionHud synchronizes with your Blizzard Action Bars.
+## Setup
 
-### Step 1: Configure Your Action Bars
+1. Configure **Action Bar 1** and **Action Bar 2** in Blizzard's Edit Mode. Place the abilities you want to monitor on those bars.
+2. Open `/ah` outside combat. In **Action Bars**, use **Top Bar Priority** to choose which mirrored bar appears first, then adjust icon dimensions and visibility.
+3. In **Layout**, enable **Unlock Module Positions**. Drag the HUD stack or the overlays for independently positioned modules. Disable the toggle when finished.
+4. Use the Layout arrows and **Gap After** controls to arrange stack modules. The **Action Bars**, **Resource Bars**, and **Trinket Bar** settings control each module's stack inclusion; custom unit frames are positioned independently.
 
-1. Open **Edit Mode** (`Esc` → `Edit Mode`).
-2. Select **Action Bar 1** and **Action Bar 2**.
-3. Configure them as you like (e.g., 6x2 grids).
-4. ActionHud will automatically mirror the number of buttons and row layout from these bars.
+Layout and secure-frame changes requested during combat wait until combat ends.
 
-### Step 2: Place Your Abilities
+## Settings
 
-- Put the abilities you want on the HUD in **Action Bar 1** and **Action Bar 2**.
-- ActionHud will automatically display whatever is on these bars.
-- Use the **Top Bar Priority** setting in ActionHud to choose which bar appears first in the stack.
+| Section | Controls |
+| --- | --- |
+| General | Prerequisites, access to Gameplay Enhancements, and help |
+| Layout | Unlock positions, reorder the stack, and adjust gaps |
+| Action Bars | Enablement, icon sizing, glows, display counts, priority, and alignment |
+| Resource Bars | Health/power/class bar visibility, dimensions, prediction, and positioning |
+| Unit Frames | Master and per-unit toggles, dimensions, text, status icons, and Blizzard-frame visibility |
+| Trinket Bar | Equipped trinket display, sizing, stack inclusion, and positioning |
+| Profiles | Create, switch, copy, delete, and reset profiles |
 
-### Step 3: Position the HUD
-
-1. Open ActionHud settings (`Esc` → `Options` → `AddOns` → `ActionHud`).
-2. Uncheck **Lock Frame** (a green overlay appears).
-3. **Tip**: Enable **Show Layout Outlines** in the **Layout** tab to see the bounds of all active modules.
-4. Drag the HUD to your preferred screen position.
-5. Re-check **Lock Frame** to lock it in place.
-
-> **Tip**: You can hide the default Action Bars 1 and 2 in Edit Mode once you've confirmed ActionHud is showing everything correctly.
-
-## Prerequisites
-
-To get the most out of ActionHud, enable this native WoW feature in **Gameplay** → **Gameplay Enhancements**:
-
-- **Assisted Highlight** – Required to see the blue glow recommendations on the HUD.
+Custom unit frames support value text; percentage text is currently disabled because of protected-value restrictions.
 
 ## Slash Commands
 
-| Command | Description |
-|---------|-------------|
-| `/ah` or `/actionhud` | Opens the configuration dialog |
-| `/ah reset` | Resets profile to defaults |
+All commands also accept `/actionhud` in place of `/ah`.
 
-## Configuration
+| Command | Behavior |
+| --- | --- |
+| `/ah` | Open settings outside combat |
+| `/ah reset` | Reset the current profile to defaults |
+| `/ah perf on` | Clear old samples and start optional performance recording |
+| `/ah perf off` | Stop recording and retain results |
+| `/ah perf` or `/ah perf report` | Report call counts and total, average, and peak times |
+| `/ah perf reset` | Clear samples without changing recording state |
 
-Open the settings panel via slash command or `Esc` → `Options` → `AddOns` → `ActionHud`.
+Profiling is off by default and works without Mechanic. See [Performance profiling](docs/performance.md) for how to compare runs and interpret overlapping timings.
 
-### Settings Sections
+## Development
 
-- **General** – Lock frame, Minimap icon, and prerequisites info.
-- **Action Bars** – Icon dimensions, opacity, mirroring priority, and alignment.
-- **Resource Bars** – Individual toggles for Health/Power/Class bars and sizing.
-- **Unit Frames** – Reskin options for Player, Target, and Focus frames.
-- **Trinkets** – Configure the dedicated Trinket tracking module.
-- **Layout** – Reorder modules, set gaps, and toggle visualization outlines.
-- **Help & Slash Commands** – Built-in command reference and troubleshooting tools.
-- **Profiles** – Create, Copy, Delete, or Reset profiles for different characters.
+From the addon root, with Python available:
 
+```powershell
+python -m pip install --requirement requirements-dev.txt
+python Tests/run.py
+```
 
+The runner checks manifests, packaging, and localization; compiles first-party Lua with Lua 5.1; and runs Python validator tests plus Lua regression and full-TOC integration suites. CI also runs Luacheck 1.2.0. See [CONTRIBUTING.md](CONTRIBUTING.md) for setup, lint commands, and required in-game validation.
 
-## Requirements
+| Source | Responsibility |
+| --- | --- |
+| [ActionHud.toc](ActionHud.toc), [embeds.xml](embeds.xml), [.pkgmeta](.pkgmeta) | Load order, embedded dependencies, and release packaging |
+| [ActionHud.lua](ActionHud.lua) | Initialization, profiles, root frame, settings access, and slash commands |
+| [Core/Defaults.lua](Core/Defaults.lua) | Shared profile defaults |
+| [Core/Performance.lua](Core/Performance.lua) | Optional aggregate timing counters |
+| [Core/DraggableContainer.lua](Core/DraggableContainer.lua), [Core/UnitEventRouter.lua](Core/UnitEventRouter.lua) | Shared drag behavior and unit-scoped events |
+| [Utils.lua](Utils.lua) | API wrappers, restricted-value guards, fonts, and library fallbacks |
+| [LayoutManager.lua](LayoutManager.lua) | Queued layout, lifecycle reconciliation, measurements, and positioning |
+| [ActionBars.lua](ActionBars.lua), [Resources.lua](Resources.lua), [Trinkets.lua](Trinkets.lua) | HUD modules |
+| [UnitFrames/](UnitFrames/) | Custom unit-frame identity, lifecycle, layout, and rendering |
+| [Settings/](Settings/), [Locales/enUS.lua](Locales/enUS.lua) | AceConfig options and UI strings |
+| [Mechanic.lua](Mechanic.lua) | Optional Mechanic tools, logging settings, and performance integration |
 
-- World of Warcraft Retail 12.1+
-- Action Bars 1 and 2 configured as described above
-
-## Files
-
-| File | Purpose |
-|------|---------|
-| `ActionHud.toc` | Addon manifest |
-| `ActionHud.lua` | Addon initialization, slash commands |
-| `Utils.lua` | Shared utility functions (safe API wrappers) |
-| `LayoutManager.lua` | Centralized module positioning and stack management |
-| `ActionBars.lua` | Action bar grid (6×4 button frames) |
-| `Resources.lua` | Health, Power, and Class Resource bars |
-| `UnitFrames/` | Unit frame styling for Player, Target, Focus |
-| `Settings/` | AceConfig settings modules |
-
-## Technical Notes
-
-- **Event-Driven** – Action state, usability, cooldown, and range updates use Blizzard events, including opt-in push range checks.
-- **Static Frames** – Action buttons are created once when the module starts; optional secure unit frames are created only when enabled and outside combat.
-- **Scoped Unit Events** – Health and power events subscribe only to the player, target, focus, and target-of-target units that ActionHud displays.
-- **API Resilience** – All critical APIs wrapped with `pcall` for stability across patches
-- **Midnight Ready** – Passthrough patterns for secret values; graceful degradation when data is restricted
-- **Ace3 Framework** – Uses AceAddon, AceDB, AceConfig for robust infrastructure
+Read [Runtime lifecycle and layout](docs/runtime-layout.md) before changing module lifecycle or geometry. The [quality review](docs/quality-review.md) records the recent fixes and their verification limits.
 
 ## Credits
 

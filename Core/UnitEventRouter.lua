@@ -23,10 +23,10 @@ local function Dispatch(state, event, ...)
 end
 
 local function ApplyRegistrations(state, generation)
-	state.scheduled = false
 	if generation ~= state.generation then
 		return
 	end
+	state.scheduled = false
 
 	if not state.frame then
 		state.frame = CreateFrame("Frame")

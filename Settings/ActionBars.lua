@@ -17,14 +17,11 @@ function ns.Settings.BuildActionBarsOptions(self)
 				order = 1,
 				desc = L["Enable the main Action Bar Grid."],
 				get = function(info)
-					return ActionHud:GetModule("ActionBars"):IsEnabled()
+					return self.db.profile.actionBarsEnabled ~= false
 				end,
 				set = function(info, val)
-					if val then
-						ActionHud:GetModule("ActionBars"):Enable()
-					else
-						ActionHud:GetModule("ActionBars"):Disable()
-					end
+					self.db.profile.actionBarsEnabled = val
+					ActionHud:GetModule("ActionBars"):ApplyEnabledState()
 					self:RefreshLayout()
 				end,
 			},
@@ -59,6 +56,44 @@ function ns.Settings.BuildActionBarsOptions(self)
 					if LM then
 						LM:TriggerLayoutUpdate()
 					end
+				end,
+			},
+			positionNote = {
+				name = L["Position is controlled by Layout tab when in HUD Stack."],
+				type = "description",
+				order = 1.6,
+				hidden = function()
+					return not self.db.profile.actionBarsIncludeInStack
+				end,
+			},
+			dragNote = {
+				name = L["Use the 'Unlock Module Positions' toggle in the Layout tab to drag this module to a new position."],
+				type = "description",
+				order = 1.7,
+				hidden = function()
+					return self.db.profile.actionBarsIncludeInStack
+				end,
+			},
+			resetPosition = {
+				name = L["Reset Position"],
+				desc = L["Reset this module to its default position."],
+				type = "execute",
+				order = 1.8,
+				hidden = function()
+					return self.db.profile.actionBarsIncludeInStack
+				end,
+				func = function()
+					local defaults = self.db.defaults.profile
+					self.db.profile.actionBarsXOffset = defaults.actionBarsXOffset
+					self.db.profile.actionBarsYOffset = defaults.actionBarsYOffset
+					local DraggableContainer = ns.DraggableContainer
+					if DraggableContainer then
+						local container = DraggableContainer:GetContainer("actionBars")
+						if container then
+							DraggableContainer:UpdatePosition(container)
+						end
+					end
+					ActionHud:GetModule("ActionBars"):UpdateLayout()
 				end,
 			},
 			dimensionsGroup = {
