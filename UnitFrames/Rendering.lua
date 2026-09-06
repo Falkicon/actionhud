@@ -198,10 +198,21 @@ function UnitFrames:UpdateFrameValues(f, updateKind)
 	-- Class resource values can change on ordinary power events without needing
 	-- to rebuild the surrounding unit-frame layout.
 	if updatePower and f._showClass then
-			local curC = UnitPower("player", nil, true) -- @scan-ignore: midnight-player-only
-			local maxC = UnitPowerMax("player", nil, true) -- @scan-ignore: midnight-player-only
+		local powerType = Utils.GetPlayerClassPowerTypeSafe()
+		if powerType ~= nil then
+			-- Both values use the same native units, including fractional shards.
+			local curC = UnitPower("player", powerType, true) -- @scan-ignore: midnight-player-only
+			local maxC = UnitPowerMax("player", powerType, true) -- @scan-ignore: midnight-player-only
 			f.class:SetMinMaxValues(0, Pass(maxC, 1))
 			f.class:SetValue(Pass(curC, 0))
+			local color = PowerBarColor[powerType]
+			if color then
+				f.class:SetStatusBarColor(color.r, color.g, color.b)
+			end
+		else
+			f.class:SetMinMaxValues(0, 1)
+			f.class:SetValue(0)
+		end
 	end
 
 	-- 4. Heal Prediction & Absorbs

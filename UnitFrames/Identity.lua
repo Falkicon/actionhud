@@ -41,15 +41,11 @@ local ICON_TEXCOORDS = {
 }
 
 function IdentitySafety.HasSecondaryPower(unit)
-	local _, rawPowerToken = UnitPowerType(unit)
-	local powerToken, isSafe = IdentitySafety.Get(rawPowerToken)
-	if not isSafe then
-		return false, false
-	end
-	if powerToken == nil then
+	if unit ~= "player" then
 		return false, true
 	end
-	return powerToken ~= "MANA" and powerToken ~= "RAGE" and powerToken ~= "FOCUS" and powerToken ~= "ENERGY", true
+	local powerType, available = Utils.GetPlayerClassPowerTypeSafe()
+	return powerType ~= nil, available
 end
 
 function IdentitySafety.GetUnitColor(unit, barType, mult)

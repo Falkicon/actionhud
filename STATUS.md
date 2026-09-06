@@ -33,7 +33,7 @@ See the [quality review](docs/quality-review.md) for individual findings and [Pe
 
 The implementation pass on 2026-09-05 completed:
 
-- All 17 standalone Lua suites and seven Python validator tests passed with `lupa==2.8`.
+- All 20 standalone Lua suites and seven Python validator tests passed with `lupa==2.8`.
 - First-party Lua compilation and TOC/XML, localization, and package checks passed.
 - Luacheck 1.2.0 reported zero warnings/errors across 22 active first-party Lua files.
 - Git whitespace checks passed.

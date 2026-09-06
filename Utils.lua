@@ -532,6 +532,46 @@ function Utils.GetSpecializationSafe()
 	return F and F:GetSpecializationSafe()
 end
 
+-- Resolve the player's secondary resource from public class/spec/form identity.
+-- Current power is deliberately not used to decide whether the resource exists.
+function Utils.GetPlayerClassPowerTypeSafe()
+	local _, class = UnitClass("player")
+	if Utils.IsValueSecret(class) or type(class) ~= "string" then return nil, false end
+	local powers = Enum.PowerType
+	local pType
+	if class == "ROGUE" then
+		pType = powers.ComboPoints
+	elseif class == "DRUID" then
+		local activePower = UnitPowerType("player")
+		if Utils.IsValueSecret(activePower) or type(activePower) ~= "number" then return nil, false end
+		if activePower ~= powers.Energy then return nil, true end
+		pType = powers.ComboPoints
+	elseif class == "PALADIN" then
+		pType = powers.HolyPower
+	elseif class == "WARLOCK" then
+		pType = powers.SoulShards
+	elseif class == "EVOKER" then
+		pType = powers.Essence
+	elseif class == "DEATHKNIGHT" then
+		pType = powers.Runes
+	elseif class == "MAGE" or class == "MONK" then
+		local spec = Utils.GetSpecializationSafe()
+		if Utils.IsValueSecret(spec) or type(spec) ~= "number" then return nil, false end
+		if class == "MAGE" and spec == 1 then
+			pType = powers.ArcaneCharges
+		elseif class == "MONK" and spec == 3 then
+			pType = powers.Chi
+		end
+	end
+	if not pType then return nil, true end
+	if type(UnitHasPowerType) == "function" then
+		local ok, hasPower = pcall(UnitHasPowerType, "player", pType)
+		if not ok or Utils.IsValueSecret(hasPower) or type(hasPower) ~= "boolean" then return nil, false end
+		if not hasPower then return nil, true end
+	end
+	return pType, true
+end
+
 --------------------------------------------------------------------------------
 -- UI Utilities
 --------------------------------------------------------------------------------

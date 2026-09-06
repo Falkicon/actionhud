@@ -238,7 +238,7 @@ UnitGroupRolesAssigned = function() return "DAMAGER" end
 UnitPhaseReason, GetReadyCheckStatus = noop, noop
 RAID_CLASS_COLORS = { WARRIOR = { r = 0.8, g = 0.6, b = 0.4 } }
 PowerBarColor = { RAGE = { r = 1, g = 0, b = 0 } }
-Enum = { PowerType = { ComboPoints = 4, Chi = 12, HolyPower = 9, SoulShards = 7,
+Enum = { PowerType = { Mana = 0, Rage = 1, Focus = 2, Energy = 3, ComboPoints = 4, Chi = 12, HolyPower = 9, SoulShards = 7,
 	ArcaneCharges = 16, Essence = 19, Runes = 5 }, SummonStatus = { Pending = 1, Accepted = 2, Declined = 3 } }
 C_AddOns = { GetAddOnMetadata = function() return "test" end, IsAddOnLoaded = function() return false end }
 C_Item = { GetItemIconByID = function() return 456 end, GetItemSpell = GetItemSpell }

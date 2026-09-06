@@ -65,6 +65,8 @@ Layout and secure-frame changes requested during combat wait until combat ends.
 
 Custom unit frames support value text and optional whole-number health/power percentages. Enable percentages under **Unit Frames → [frame] → Typography & Text → Health Percent / Power Percent**. They default to off and use Blizzard's native percentage calculations for protected values. Each text element has its own position and style controls.
 
+Class-resource rows show the player's secondary resource, such as combo points, Holy Power, shards, runes, Chi, Arcane Charges, or Essence. Availability follows class, specialization, and form. The HUD keeps empty segments visible at zero and uses the actual readable maximum; if that maximum is restricted, it displays a continuous bar. Destruction shards use native raw units for fractional progress. Essence includes readable partial progress and otherwise displays whole points. Rune bars show available count, without individual recharge animations. The custom player frame uses a continuous bar for its secondary resource.
+
 ## Slash Commands
 
 All commands also accept `/actionhud` in place of `/ah`.

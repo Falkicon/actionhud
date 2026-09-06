@@ -20,6 +20,10 @@ end
 function UnitFrames:RegisterRuntimeEvents()
 	self:RegisterEvent("PLAYER_TARGET_CHANGED", "UpdateAll")
 	self:RegisterEvent("PLAYER_FOCUS_CHANGED", "UpdateAll")
+	self:RegisterEvent("RUNE_POWER_UPDATE", "UpdatePlayerClassPower")
+	for _, event in ipairs({ "PLAYER_SPECIALIZATION_CHANGED", "PLAYER_TALENT_UPDATE", "UPDATE_SHAPESHIFT_FORM" }) do
+		self:RegisterEvent(event, "UpdateLayout")
+	end
 	for _, event in ipairs({
 		"GROUP_ROSTER_UPDATE",
 		"PARTY_LEADER_CHANGED",
@@ -167,6 +171,12 @@ function UnitFrames:UpdateFrameEvent(event, unit)
 			updateKind = "powerLayout"
 		end
 		self:UpdateFrameValues(f, updateKind)
+	end
+end
+
+function UnitFrames:UpdatePlayerClassPower()
+	if self._runtimeActive and self.frames.player then
+		self:UpdateFrameValues(self.frames.player, "power")
 	end
 end
 

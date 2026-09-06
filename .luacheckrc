@@ -130,6 +130,7 @@ read_globals = {
 	"UnitGroupRolesAssigned",
 	"UnitHealth",
 	"UnitHealthPercent",
+	"UnitHasPowerType",
 	"UnitHealthMax",
 	"UnitGetDetailedHealPrediction",
 	"UnitGetIncomingHeals",

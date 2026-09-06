@@ -89,6 +89,8 @@ Test Druid forms, Rogue stealth, page changes, spell overrides, shared slots, ra
 
 ## Custom Unit Frames
 
+`Utils.GetPlayerClassPowerTypeSafe()` is the shared secondary-resource selector for Resources and the custom player frame. It uses public class/spec/form identity and optional `UnitHasPowerType` availability. Never substitute the primary `UnitPowerType` for the secondary pool. HUD segments receive the same native current value with public per-segment ranges; an opaque maximum uses a continuous native bar. Keep current and maximum in matching native units, and create/position segments only during the shared layout pass. Depletion does not remove the row.
+
 The active implementation creates `SecureUnitButtonTemplate` frames for Player, Target, Target of Target, and Focus. Frame creation is deferred until enabled and outside combat; frames are reused across enable cycles. Corresponding Blizzard frames can optionally be hidden and restored.
 
 The current controls are **Enable Custom Unit Frames**, **Hide Blizzard Frames**, and per-frame dimensions, background/border, bars, text, and status icons. Positioning uses **Layout → Unlock Module Positions**. Settings changes request the shared layout pass and defer protected geometry during combat.

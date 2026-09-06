@@ -245,20 +245,21 @@ assertEqual(true, showReady, "unrestricted ready-check state must still show")
 assertContains(readyTexture, "NotReady", "not-ready texture changed")
 
 resetApiValues()
-apiValues.powerToken = "MANA"
+ns.Utils.GetPlayerClassPowerTypeSafe = function() return nil, true end
 local hasSecondary, powerAvailable = IdentitySafety.HasSecondaryPower("player")
-assertEqual(false, hasSecondary, "primary resources must not create a class bar")
-assertEqual(true, powerAvailable, "unrestricted power tokens must remain available")
+assertEqual(false, hasSecondary, "classes without a secondary resource must not create a class bar")
+assertEqual(true, powerAvailable, "known unsupported classes remain available")
 
-apiValues.powerToken = "COMBO_POINTS"
+ns.Utils.GetPlayerClassPowerTypeSafe = function() return 4, true end
 hasSecondary, powerAvailable = IdentitySafety.HasSecondaryPower("player")
 assertEqual(true, hasSecondary, "secondary resources must still create a class bar")
 assertEqual(true, powerAvailable, "unrestricted secondary resources must remain available")
+assertEqual(false, IdentitySafety.HasSecondaryPower("target"), "secondary resources are player-only")
 
-apiValues.powerToken = secretValue
+ns.Utils.GetPlayerClassPowerTypeSafe = function() return nil, false end
 hasSecondary, powerAvailable = IdentitySafety.HasSecondaryPower("player")
-assertEqual(false, hasSecondary, "restricted power tokens must not create a class bar")
-assertEqual(false, powerAvailable, "restricted power tokens must be marked unavailable")
+assertEqual(false, hasSecondary, "unavailable resources must not create a class bar")
+assertEqual(false, powerAvailable, "helper availability must be preserved")
 
 resetApiValues()
 apiValues.isPlayer = true
