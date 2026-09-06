@@ -2,7 +2,9 @@
 
 ## [Unreleased]
 
-These changes are in development and still require in-game combat validation. The addon manifest remains at 2.13.7.
+## [2.14.0] - 2026-09-06
+
+Adds optional Player Buffs and Consumables displays, improves resource accuracy and settings access, and strengthens runtime lifecycle and layout handling. Warrior smoke tests passed; broader class/spec and combat checks remain documented in STATUS.md.
 
 ### Added
 

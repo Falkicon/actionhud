@@ -6,7 +6,7 @@ For shared patterns, library references, and development guides, also read the s
 
 ## Project Intent
 
-ActionHud is a compact display overlay for Blizzard Action Bars 1 and 2, with resource bars, equipped trinkets, optional custom secure unit frames, and an optional native display for selected player buffs. The action icons do not handle clicks. The target interface is declared in [ActionHud.toc](ActionHud.toc): WoW Retail 12.1 (`120100`).
+ActionHud is a compact display overlay for Blizzard Action Bars 1 and 2, with resource bars, equipped trinkets, optional selected consumables, optional custom secure unit frames, and an optional native display for selected player buffs. The action and consumable icons do not handle clicks. The target interface is declared in [ActionHud.toc](ActionHud.toc): WoW Retail 12.1 (`120100`).
 
 - Edit Mode determines mirrored button counts and rows. This is not a fixed 6×4 grid.
 - Action Bar 2 uses action slots 61–72. Internal `bar6` identifiers refer to this bar; user-facing documentation should call it Action Bar 2.
@@ -75,7 +75,7 @@ Runtime modules expose:
 | `_runtimeActive` | Frames and runtime subscriptions have started |
 | `_pendingEnabledState` | Lifecycle or secure geometry reconciliation is pending |
 
-`ApplyEnabledState()` records intent and reconciles outside combat. `StartRuntime()` is idempotent; stop paths release event subscriptions and hide frames when allowed. ActionBars and Trinkets use Ace enable/disable; Resources and UnitFrames keep their Ace modules available while their features are off. Use `_runtimeActive` when checking whether a feature is running; Ace `IsEnabled()` alone is insufficient. PlayerBuffs also uses `_runtimeActive` for its native container lifecycle.
+`ApplyEnabledState()` records intent and reconciles outside combat. `StartRuntime()` is idempotent; stop paths release event subscriptions and hide frames when allowed. ActionBars and Trinkets use Ace enable/disable; Resources, Consumables, PlayerBuffs, and UnitFrames keep their Ace modules available while their profile features are off. Use `_runtimeActive` when checking whether a feature is running; Ace `IsEnabled()` alone is insufficient.
 
 Resources, Action Bars, Trinkets, Consumables, and PlayerBuffs can participate in the HUD stack. Consumables and PlayerBuffs are independently positioned by default and use the shared draggable-container behavior when outside the stack. Preserve scale-correct center offsets and combat deferral when changing drag or profile code.
 

@@ -24,6 +24,8 @@ Keep the active load graph in `ActionHud.toc` and `embeds.xml` consistent with `
 
 Update user-facing documentation when controls or commands change. Put pending changes under **Unreleased** in [CHANGELOG.md](CHANGELOG.md); keep published release entries as history.
 
+For a release, update the version in `ActionHud.toc` and move the release notes from **Unreleased** to the matching changelog version. Merge the pull request after its checks pass, tag that merged commit as `vX.Y.Z`, and push that specific tag. The existing CurseForge GitHub webhook packages the tagged release; there is no separate upload workflow.
+
 ## Local Checks
 
 Use Python in a virtual environment with the pinned dependencies. For example, from the addon root in PowerShell:
@@ -57,6 +59,8 @@ Test the paths affected by your change after installing the development build an
 - **Action slots:** Druid forms, Rogue stealth, page changes, proc overrides, shared slots, empty cooldown/charge slots, range tint, and assist glows.
 - **Layout and lifecycle:** enable/disable persistence, stack inclusion, profile switch/copy/reset, independent dragging, UI scale changes, and entering combat mid-drag.
 - **Protected APIs and unit frames:** instanced combat, restricted health/prediction data, maximum-health changes, and deferred secure geometry after leaving combat.
+- **Consumables:** bag discovery, exact-ID additions, quality variants, carried counts/charges, depleted slots, cooldown clearing, shared decimal thresholds, and drag-overlay visibility.
+- **Player Buffs:** Recent Buffs and Blizzard Catalog selection, native aura appearance/removal, fixed slots, stack inclusion, and combat-deferred configuration.
 
 Record the client build, character/class, relevant settings, and results in the pull request. Automated mocks do not replace combat validation. See the [quality review](docs/quality-review.md#required-in-game-validation) for the pending checks from the current implementation pass.
 

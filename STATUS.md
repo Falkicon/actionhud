@@ -2,7 +2,7 @@
 
 **Last updated:** 2026-09-06
 
-This page describes the current development worktree. [ActionHud.toc](ActionHud.toc) declares Retail 12.1 (`120100`) and version 2.13.7; subsequent changes are listed under [Unreleased](CHANGELOG.md#unreleased). The recent review and architecture changes have passed offline checks and still need in-game combat validation.
+This page records implementation and validation for version 2.14.0. [ActionHud.toc](ActionHud.toc) declares Retail 12.1 (`120100`); release changes are listed in [CHANGELOG.md](CHANGELOG.md). Offline checks and the reported Warrior smoke tests passed. Broader class/spec and combat checks remain listed below.
 
 ## Active Runtime
 
@@ -44,18 +44,18 @@ These are results for the development worktree, not certification of live-client
 
 ## Pending Validation and Follow-Up
 
-- The user confirmed Consumables icons and carried counts appear. Its drag label and color wash rendered behind the icons; verify the elevated overlay after `/reload`, then lock positions and confirm both disappear. Item-use cooldown behavior remains pending live validation.
-- Consumables: after `/reload`, open **Consumables**, add a carried potion or healthstone from the bag picker, and enable the module. Verify count/charges and cooldown after using it through the normal game binding, including shared potion cooldowns and instanced combat. Depleted items should stay in place with zero count. Check reordering, resizing, dragging, stack inclusion, and profile switching; settings changes during combat must apply after combat. This feature still needs live validation.
+- The user confirmed Consumables icons and carried counts appear and reported that the subsequent drag-overlay fix looks good. Item-use cooldown behavior remains pending live validation.
+- Consumables: after `/reload`, open **Consumables**, add a carried potion or healthstone from the bag picker, and enable the module. Verify count/charges and cooldown after using it through the normal game binding, including shared potion cooldowns and instanced combat. Depleted items should stay in place with zero count. Check reordering, resizing, dragging, stack inclusion, and profile switching; settings changes during combat must apply after combat. These scenarios still need live validation.
 - The user confirmed the corrected Blizzard Catalog is working well on Warrior after the filter fix was merged to local main (`d47915d`). The catalog uses tracked-aura categories and player-aura eligibility without requiring `hasAura = true`. This records a successful catalog smoke test; individual buff matching and other classes/specs still need confirmation.
 - Validate Recent Buffs after `/reload`: cast a helpful buff outside combat, then open Player Buffs and find it in the default source. Add it, switch to Blizzard Catalog, and check search, tooltips, pagination, Add/Added state, and selected controls. Recent discovery must pause when restricted, keep the existing history visible, and resume when access is available. It may miss buffs that expire while restricted.
 - Check that recent history survives `/reload` and profile changes on the same character. Clear History must leave selected buffs intact. Verify catalog selections with linked aura IDs display correctly in combat, and that spec/metadata changes update candidate filters after combat without Lua errors.
 - Rallying Cry did not appear when selected from the spellbook. Its cast ID now resolves to the buff ID, including existing selections; after `/reload`, cast it and confirm the icon/countdown appears and disappears when the buff ends. This fix still needs in-game validation.
 
-- Install the worktree for testing and verify stance/form changes, spell overrides, duplicate slots, range feedback, and charge cooldowns in-game.
+- Verify stance/form changes, spell overrides, duplicate slots, range feedback, and charge cooldowns in-game.
 - Exercise profile changes, module toggles, stack inclusion, scaled dragging, and combat-interrupted dragging.
 - Verify secure unit-frame geometry, restricted health/heal prediction, and maximum-health updates in instanced combat.
 - PlayerBuffs smoke test: the user confirmed that a manually configured Spell Reflection entry shows the native icon and countdown. Expiration behavior, early removal when a reflection is consumed, instanced-combat behavior, and geometry remain pending.
-- Validate PlayerBuffs in-game: `/reload`, open **Player Buffs**, search for Spell Reflection, add it, enable the module, and confirm the countdown expires normally or ends early when a reflection is consumed, and inactive configured slots remain reserved. Change icon size, columns, spacing, and independent position. Include the module in the HUD stack and confirm buffs appearing or expiring do not shift other stack modules; toggling stack inclusion should update the stack layout as expected. Repeat the enable/configuration flow during combat and check for Lua errors. Live combat validation is pending; this worktree has not been verified in-game.
+- Validate PlayerBuffs in-game: `/reload`, open **Player Buffs**, search for Spell Reflection, add it, enable the module, and confirm the countdown expires normally or ends early when a reflection is consumed, and inactive configured slots remain reserved. Change icon size, columns, spacing, and independent position. Include the module in the HUD stack and confirm buffs appearing or expiring do not shift other stack modules; toggling stack inclusion should update the stack layout as expected. Repeat the enable/configuration flow during combat and check for Lua errors. These detailed combat and lifecycle cases remain pending beyond the reported icon/countdown smoke test.
 - Collect comparable performance recordings before claiming performance gains.
 - Align legacy in-game debug help and position diagnostics with the implemented slash commands and current profile keys. The top-level command documentation reflects `SlashHandler`; legacy `debug`, `record`, and `clear` subcommands are not implemented.
 

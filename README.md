@@ -1,6 +1,6 @@
 # ActionHud
 
-A compact action bar HUD for World of Warcraft Retail. It mirrors your primary action bars and combines cooldown feedback, resource bars, optional custom unit frames, equipped trinkets, and selected player buffs.
+A compact action bar HUD for World of Warcraft Retail. It mirrors your primary action bars and combines cooldown feedback, resource bars, optional custom unit frames, equipped trinkets, selected consumables, and selected player buffs.
 
 ![WoW Version](https://img.shields.io/badge/WoW-12.1-blue)
 ![Interface](https://img.shields.io/badge/Interface-120100-green)
@@ -47,9 +47,10 @@ Ace3 and the required support libraries are embedded. FenCore and !Mechanic are 
 ## Setup
 
 1. Configure **Action Bar 1** and **Action Bar 2** in Blizzard's Edit Mode. Place the abilities you want to monitor on those bars.
-2. Open `/ah` outside combat. In **Action Bars**, use **Top Bar Priority** to choose which mirrored bar appears first, then adjust icon dimensions and visibility.
+2. Open `/ah` outside combat. To use either optional **Consumables** or **Player Buffs**, open its pane, select an entry with **Add**, then turn on its enable toggle. Adding an entry alone does not enable the display.
 3. In **Layout**, enable **Unlock Module Positions**. Drag the HUD stack or the overlays for independently positioned modules. Disable the toggle when finished.
-4. Use the Layout arrows and **Gap After** controls to arrange stack modules. The **Action Bars**, **Resource Bars**, **Trinket Bar**, and **Player Buffs** settings control each module's stack inclusion; custom unit frames are positioned independently.
+4. In **Action Bars**, use **Top Bar Priority** to choose which mirrored bar appears first, then adjust icon dimensions and visibility.
+5. Use the Layout arrows and **Gap After** controls to arrange stack modules. The **Action Bars**, **Resource Bars**, **Trinket Bar**, **Consumables**, and **Player Buffs** settings control each module's stack inclusion; custom unit frames are positioned independently.
 
 Layout and secure-frame changes requested during combat wait until combat ends.
 
@@ -63,6 +64,7 @@ Layout and secure-frame changes requested during combat wait until combat ends.
 | Resource Bars | Health/power/class bar visibility, dimensions, prediction, and positioning |
 | Unit Frames | Master and per-unit toggles, dimensions, text, status icons, and Blizzard-frame visibility |
 | Trinket Bar | Equipped trinket display, sizing, stack inclusion, and positioning |
+| Consumables | Carried-item picker, selected items, advanced IDs, enablement, sizing, stack inclusion, and positioning |
 | Player Buffs | Recent Buffs, Blizzard Catalog, selected buffs, preview, advanced IDs, enablement, icon sizing, columns, spacing, stack inclusion, and positioning |
 | Profiles | Create, switch, copy, delete, and reset profiles |
 
@@ -75,6 +77,8 @@ Player Buffs is disabled by default. Its picker opens on **Recent Buffs**, a sea
 Choose **Blizzard Catalog** to browse the game's known self-buffs before observing them. This list comes from Blizzard's Cooldown Viewer metadata and is not a complete list of every buff. Associated spell IDs are passed to the native renderer together, avoiding guesses about which linked ID is the active buff. Search by name or ID, press Enter, and click **Add**; hover for spell tooltips. **Advanced: Spell IDs** remains available for external buffs, procs, and missing entries. Existing Rallying Cry selections are still mapped to its buff. No additional addon or spell-list library is required.
 
 **Selected Buffs** shows names and icons with remove and reorder controls. Up to 12 unique IDs are retained in the existing profile; adding spells does not enable the feature. **Preview** shows configured order and columns at a fixed icon size even while buffs are inactive. Set **Icon Size**, **Columns**, and **Spacing** for the live display. Configured slots stay reserved when their buffs expire. Enable **Include in HUD Stack**, or use **Layout → Unlock Module Positions** to move the independent display. Buff countdown decimals use a fixed 3-second threshold. HUD configuration changes made during combat apply after combat ends.
+
+Consumables is also disabled by default. Its picker searches consumables currently carried in your bags; click **Add**, then turn on **Enable Consumables**. **Advanced: Item IDs** can select an absent item by exact ID. Quality variants have separate IDs and remain separate selections. Counts exclude bank storage and include item uses or charges reported by WoW. The row is display-only: it never uses an item or chooses a replacement, and depleted selections keep their configured slots. Its cooldown decimals use the shared **Action Bars → Cooldowns → Countdown Decimal Threshold** setting.
 
 ## Slash Commands
 
@@ -111,10 +115,11 @@ The runner checks manifests, packaging, and localization; compiles first-party L
 | [Core/DraggableContainer.lua](Core/DraggableContainer.lua), [Core/UnitEventRouter.lua](Core/UnitEventRouter.lua) | Shared drag behavior and unit-scoped events |
 | [Utils.lua](Utils.lua) | API wrappers, restricted-value guards, fonts, and library fallbacks |
 | [LayoutManager.lua](LayoutManager.lua) | Queued layout, lifecycle reconciliation, measurements, and positioning |
-| [ActionBars.lua](ActionBars.lua), [Resources.lua](Resources.lua), [Trinkets.lua](Trinkets.lua) | HUD modules |
+| [ActionBars.lua](ActionBars.lua), [Resources.lua](Resources.lua), [Trinkets.lua](Trinkets.lua), [Consumables.lua](Consumables.lua) | HUD modules |
+| [Core/ConsumableItems.lua](Core/ConsumableItems.lua) | Consumable ID parsing, guarded item metadata/count/cooldown access, and bag discovery |
 | [PlayerBuffs.lua](PlayerBuffs.lua) | Optional fixed-footprint native player-aura display |
 | [UnitFrames/](UnitFrames/) | Custom unit-frame identity, lifecycle, layout, and rendering |
-| [Settings/](Settings/), [Locales/enUS.lua](Locales/enUS.lua) | AceConfig options, including Player Buffs, and UI strings |
+| [Settings/](Settings/), [Locales/enUS.lua](Locales/enUS.lua) | AceConfig options, including Consumables and Player Buffs, and UI strings |
 | [Mechanic.lua](Mechanic.lua) | Optional Mechanic tools, logging settings, and performance integration |
 
 Read [Runtime lifecycle and layout](docs/runtime-layout.md) before changing module lifecycle or geometry. The [quality review](docs/quality-review.md) records the recent fixes and their verification limits.

@@ -16,8 +16,9 @@ Each pass runs these phases for stack and independent modules:
 1. Reconcile pending lifecycle transitions against the current profile.
 2. `PrepareLayout()` updates the content needed to measure it. Action bars lay
    out their buttons, resources apply their configuration, trinkets discover
-   equipped on-use items, and PlayerBuffs applies its public slot footprint and
-   native aura candidate filters, including associated IDs from Blizzard's public catalog.
+   equipped on-use items, Consumables applies its configured item slots, and
+   PlayerBuffs applies its public slot footprint and native aura candidate
+   filters, including associated IDs from Blizzard's public catalog.
 3. Measure stack heights and widths into a complete manager-owned snapshot.
 4. Size the root and call `ApplyLayoutPosition()` on active modules.
 5. `RenderLayout()` refreshes icons, resource values, cooldowns, native aura
@@ -85,9 +86,10 @@ is active. The manager requires both Ace `IsEnabled()` and `_runtimeActive`
 before preparing, positioning, or rendering a module.
 
 Ace module enablement and feature enablement remain separate concepts. ActionBars
-and Trinkets preserve their existing Ace enable/disable toggles. Resources and
-UnitFrames keep their Ace module available while their profile feature is off.
-Consumers should use `_runtimeActive` to ask whether a feature is running.
+and Trinkets preserve their existing Ace enable/disable toggles. Resources,
+Consumables, PlayerBuffs, and UnitFrames keep their Ace modules available while
+their profile features are off. Consumers should use `_runtimeActive` to ask
+whether a feature is running.
 
 `Core/Defaults.lua` is the single source of profile defaults. Settings reset
 controls read `addon.db.defaults.profile`; they should not repeat default values.
