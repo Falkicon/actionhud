@@ -63,6 +63,7 @@ local activeContainers = {}
 		- defaultY: number (default Y position)
 		- size: table { width, height } (optional, default 40x40)
 		- frame: existing container frame to initialize (optional)
+		- overlayLevelOffset: number (optional, default 10; clears the known three-level addon widget nesting)
 		
 	@return Frame container
 ]]
@@ -75,6 +76,7 @@ function DraggableContainer:Create(opts)
 	local defaultX = opts.defaultX or 0
 	local defaultY = opts.defaultY or -100
 	local size = opts.size or { width = 40, height = 40 }
+	local overlayLevelOffset = opts.overlayLevelOffset or 10
 
 	if not parent then
 		return nil
@@ -126,15 +128,22 @@ function DraggableContainer:Create(opts)
 		end
 	end)
 
+	-- Keep drag visuals above addon-owned icons, cooldowns, and text within
+	-- the module's existing frame strata; do not inspect native aura children.
+	container.overlayFrame = CreateFrame("Frame", nil, container)
+	container.overlayFrame:SetAllPoints()
+	container.overlayFrame:SetFrameLevel((container:GetFrameLevel() or 0) + overlayLevelOffset)
+	container.overlayFrame:EnableMouse(false)
+
 	-- Create drag overlay (colored background, no border)
-	container.overlay = container:CreateTexture(nil, "BACKGROUND")
+	container.overlay = container.overlayFrame:CreateTexture(nil, "BACKGROUND")
 	container.overlay:SetAllPoints()
 	local color = MODULE_COLORS[moduleId] or { r = 1, g = 1, b = 1 }
 	container.overlay:SetColorTexture(color.r, color.g, color.b, 0.4)
 	container.overlay:Hide()
 
 	-- Create label (Arial with outline, centered)
-	container.label = container:CreateFontString(nil, "OVERLAY")
+	container.label = container.overlayFrame:CreateFontString(nil, "OVERLAY")
 	container.label:SetFont("Fonts\\ARIALN.TTF", 12, "OUTLINE")
 	container.label:SetPoint("CENTER")
 	container.label:SetText(MODULE_LABELS[moduleId] or moduleId)
@@ -146,6 +155,7 @@ function DraggableContainer:Create(opts)
 	container._yKey = yKey
 	container._defaultX = defaultX
 	container._defaultY = defaultY
+	container._overlayLevelOffset = overlayLevelOffset
 
 	-- Register in active containers
 	activeContainers[moduleId] = container
@@ -183,6 +193,7 @@ function DraggableContainer:UpdateOverlay(container)
 	end
 
 	local isUnlocked = DraggableContainer:IsUnlocked(container._db)
+	container.overlayFrame:SetFrameLevel((container:GetFrameLevel() or 0) + container._overlayLevelOffset)
 
 	if isUnlocked then
 		container:EnableMouse(true)

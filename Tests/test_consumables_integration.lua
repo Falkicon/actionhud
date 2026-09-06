@@ -55,6 +55,25 @@ assert(module.slots[1].count:GetText() == "4" and module.slots[2].count:GetText(
 assert(not module.slots[1].frame:IsMouseEnabled(), "item display must not handle clicks")
 assert(module.slots[1].cooldown.countdownThreshold == 3)
 
+-- Unlock visuals must sit above the complete addon-owned slot stack without
+-- becoming a mouse-intercepting child. Preserve the existing drag strata.
+local dragVisual = module.container.overlayFrame
+assert(module.container.overlay:GetParent() == dragVisual and module.container.label:GetParent() == dragVisual)
+assert(dragVisual:GetParent() == module.container and not dragVisual:IsMouseEnabled())
+addon.db.profile.layoutUnlocked = true
+ns.DraggableContainer:UpdateOverlay(module.container)
+assert(module.container.overlay:IsShown() and module.container.label:IsShown())
+assert(module.container:IsMouseEnabled() and not dragVisual:IsMouseEnabled())
+assert(dragVisual:GetFrameLevel() > module.slots[1].icon:GetParent():GetFrameLevel())
+assert(dragVisual:GetFrameLevel() > module.slots[1].cooldown:GetFrameLevel())
+assert(dragVisual:GetFrameLevel() > module.slots[1].count:GetParent():GetFrameLevel())
+assert(module.container:GetFrameStrata() == "HIGH")
+addon.db.profile.layoutUnlocked = false
+ns.DraggableContainer:UpdateOverlay(module.container)
+assert(not module.container.overlay:IsShown() and not module.container.label:IsShown())
+assert(not module.container:IsMouseEnabled() and not dragVisual:IsMouseEnabled())
+assert(module.container:GetFrameStrata() == "MEDIUM")
+
 -- Updating item state in combat must not create frames, move slots, or resize.
 local slot = module.slots[1]
 local applied, cleared = {}, 0

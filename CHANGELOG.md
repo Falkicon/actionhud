@@ -28,6 +28,7 @@ These changes are in development and still require in-game combat validation. Th
 
 ### Fixed
 
+- Unlocked module labels and color washes now draw above their icon, cooldown, and count layers, keeping the Consumables drag overlay readable.
 - Blizzard Catalog no longer requires `hasAura = true` for tracked player buffs. This restores entries such as Spell Reflection, Shield Block, Shield Wall, and Ignore Pain while retaining target-debuff and unlearned-spell exclusions.
 - Rallying Cry selections now resolve the ability ID to its buff ID, including previously saved selections. Cast and buff IDs are deduplicated into the same slot.
 - `/ah`, `/actionhud`, and the Addon Compartment now open settings using the registered category ID instead of passing the canvas frame to Blizzard's navigation API.
