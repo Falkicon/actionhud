@@ -93,7 +93,7 @@ The active implementation creates `SecureUnitButtonTemplate` frames for Player, 
 
 The current controls are **Enable Custom Unit Frames**, **Hide Blizzard Frames**, and per-frame dimensions, background/border, bars, text, and status icons. Positioning uses **Layout → Unlock Module Positions**. Settings changes request the shared layout pass and defer protected geometry during combat.
 
-Value text is supported. Percentage text is deliberately hidden because of restricted-value handling. Historical notes about reskinning Blizzard frames, removing portraits, hover-only text, or requiring reload after every setting do not describe this implementation.
+Value text and optional health/power percentage text are supported. Percentages default to off and use native percentage APIs with a display-scaling curve, passing results directly to native formatted text. Do not calculate percentages from restricted current/maximum values in Lua. Historical notes about reskinning Blizzard frames, removing portraits, hover-only text, or requiring reload after every setting do not describe this implementation.
 
 ## SavedVariables
 

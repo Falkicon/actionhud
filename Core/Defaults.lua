@@ -170,7 +170,16 @@ ns.defaults = {
 						outline = "NONE",
 						colorMode = "white",
 					},
-					-- Percent display removed due to Midnight secret value issues
+					percent = {
+						enabled = false,
+						position = "Right",
+						xOffset = 0,
+						yOffset = 0,
+						font = "Arial Narrow",
+						size = 11,
+						outline = "NONE",
+						colorMode = "white",
+					},
 				},
 				powerText = {
 					value = {
@@ -259,7 +268,16 @@ ns.defaults = {
 						outline = "NONE",
 						colorMode = "white",
 					},
-					-- Percent display removed due to Midnight secret value issues
+					percent = {
+						enabled = false,
+						position = "Right",
+						xOffset = 0,
+						yOffset = 0,
+						font = "Arial Narrow",
+						size = 11,
+						outline = "NONE",
+						colorMode = "white",
+					},
 				},
 				powerText = {
 					value = {
@@ -272,7 +290,16 @@ ns.defaults = {
 						outline = "NONE",
 						colorMode = "white",
 					},
-					-- Percent display removed due to Midnight secret value issues
+					percent = {
+						enabled = false,
+						position = "Right",
+						xOffset = 0,
+						yOffset = 0,
+						font = "Arial Narrow",
+						size = 11,
+						outline = "NONE",
+						colorMode = "white",
+					},
 				},
 				iconMargin = 0,
 				icons = {
@@ -339,7 +366,16 @@ ns.defaults = {
 						outline = "NONE",
 						colorMode = "white",
 					},
-					-- Percent display removed due to Midnight secret value issues
+					percent = {
+						enabled = false,
+						position = "Right",
+						xOffset = 0,
+						yOffset = 0,
+						font = "Arial Narrow",
+						size = 11,
+						outline = "NONE",
+						colorMode = "white",
+					},
 				},
 				powerText = {
 					value = {
@@ -352,7 +388,16 @@ ns.defaults = {
 						outline = "NONE",
 						colorMode = "white",
 					},
-					-- Percent display removed due to Midnight secret value issues
+					percent = {
+						enabled = false,
+						position = "Right",
+						xOffset = 0,
+						yOffset = 0,
+						font = "Arial Narrow",
+						size = 11,
+						outline = "NONE",
+						colorMode = "white",
+					},
 				},
 				iconMargin = 0,
 				icons = {
@@ -419,7 +464,16 @@ ns.defaults = {
 						outline = "NONE",
 						colorMode = "white",
 					},
-					-- Percent display removed due to Midnight secret value issues
+					percent = {
+						enabled = false,
+						position = "Right",
+						xOffset = 0,
+						yOffset = 0,
+						font = "Arial Narrow",
+						size = 11,
+						outline = "NONE",
+						colorMode = "white",
+					},
 				},
 				powerText = {
 					value = {
@@ -432,7 +486,16 @@ ns.defaults = {
 						outline = "NONE",
 						colorMode = "white",
 					},
-					-- Percent display removed due to Midnight secret value issues
+					percent = {
+						enabled = false,
+						position = "Right",
+						xOffset = 0,
+						yOffset = 0,
+						font = "Arial Narrow",
+						size = 11,
+						outline = "NONE",
+						colorMode = "white",
+					},
 				},
 				iconMargin = 0,
 				icons = {

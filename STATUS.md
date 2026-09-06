@@ -16,7 +16,7 @@ This page describes the current development worktree. [ActionHud.toc](ActionHud.
 | LayoutManager | Queued lifecycle reconciliation, stack measurement, positioning, and rendering with combat deferral |
 | Performance | Optional call counts and total/average/peak timings through `/ah perf` and Mechanic integration |
 
-Custom unit frames are disabled by default. They support value text, while percentage text remains disabled. Runtime source responsibilities and load order are mapped in [README.md](README.md#development) and [Runtime lifecycle and layout](docs/runtime-layout.md).
+Custom unit frames are disabled by default. They support value text and optional native health/power percentages, which default to off. Runtime source responsibilities and load order are mapped in [README.md](README.md#development) and [Runtime lifecycle and layout](docs/runtime-layout.md).
 
 ## Recent Improvements
 
@@ -25,6 +25,7 @@ Custom unit frames are disabled by default. They support value text, while perce
 - Extracted shared defaults and split UnitFrames into identity, lifecycle, layout, and rendering files.
 - Added a full-TOC integration host, repository validators, standalone lint configuration, and CI checks.
 - Added opt-in profiling and lazy debug-log formatting. No in-game speedup is claimed without measurements.
+- Corrected protected resource ranges and native absorb prediction; added decimal countdown/GCD controls and optional native unit-frame percentages. See the [API upgrade progress](docs/blizzard-api-review-2026-09.md#implementation-progress) for test notes.
 
 See the [quality review](docs/quality-review.md) for individual findings and [Performance profiling](docs/performance.md) for measurement guidance.
 
@@ -32,7 +33,7 @@ See the [quality review](docs/quality-review.md) for individual findings and [Pe
 
 The implementation pass on 2026-09-05 completed:
 
-- All 14 standalone Lua suites and seven Python validator tests passed with `lupa==2.8`.
+- All 16 standalone Lua suites and seven Python validator tests passed with `lupa==2.8`.
 - First-party Lua compilation and TOC/XML, localization, and package checks passed.
 - Luacheck 1.2.0 reported zero warnings/errors across 22 active first-party Lua files.
 - Git whitespace checks passed.

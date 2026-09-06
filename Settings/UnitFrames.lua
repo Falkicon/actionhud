@@ -591,11 +591,11 @@ function ns.Settings.BuildUnitFramesOptions(self)
 						level = GetTextGroup("healthText", "level", L["Level"], 11),
 						name = GetTextGroup("healthText", "name", L["Name"], 12),
 						value = GetTextGroup("healthText", "value", L["Health Value"], 13),
-						-- percent removed due to Midnight secret value issues
+						percent = GetTextGroup("healthText", "percent", L["Health Percent"], 14),
 
 						powerHeader = { name = L["Power Text"], type = "header", order = 20 },
 						powerValue = GetTextGroup("powerText", "value", L["Power Value"], 21),
-						-- powerPercent removed due to Midnight secret value issues
+						powerPercent = GetTextGroup("powerText", "percent", L["Power Percent"], 22),
 					},
 				},
 				icons = {

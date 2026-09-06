@@ -16,6 +16,24 @@ local UnitPowerType = UnitPowerType
 local RAID_CLASS_COLORS = RAID_CLASS_COLORS
 local PowerBarColor = PowerBarColor
 
+-- Native percentage APIs evaluate the scaling curve before returning an opaque
+-- display value. Never derive a percentage from raw health or power in Lua.
+function Utils.GetUnitHealthPercentSafe(unit)
+	local curve = CurveConstants and CurveConstants.ScaleTo100
+	if type(UnitHealthPercent) ~= "function" or not curve then return nil end
+	local ok, value = pcall(UnitHealthPercent, unit, true, curve)
+	if ok then return value end
+	return nil
+end
+
+function Utils.GetUnitPowerPercentSafe(unit)
+	local curve = CurveConstants and CurveConstants.ScaleTo100
+	if type(UnitPowerPercent) ~= "function" or not curve then return nil end
+	local ok, value = pcall(UnitPowerPercent, unit, nil, false, curve)
+	if ok then return value end
+	return nil
+end
+
 local function GetSecondsFormatterFactory()
 	return C_StringUtil and C_StringUtil.CreateSecondsFormatter or CreateSecondsFormatter
 end

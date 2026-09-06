@@ -108,6 +108,8 @@ The initial research pass changed no runtime code. Implementation progress is re
 
 ## Implementation progress
 
+After the health/absorb and countdown changes were merged through `e8b3f0b` into the installed local-main checkout, the user reported that the addon was still working fine and supplied a new screenshot. This records a user-reported smoke test of the installed build; individual GCD-toggle, decimal-threshold, and charge-recovery cases were not separately reported.
+
 ### Step 1: native heal-calculator absorbs
 
 - Corrected `Utils.GetUnitHealsSafe` to call `GetTotalDamageAbsorbs` and preserve its result unchanged for native display.
@@ -126,3 +128,11 @@ The user reported improved bars and no errors, but subsequently confirmed that t
 - Clients without the native duration getter retain their existing GCD display rather than guessing from cooldown lengths or GCD metadata.
 - In-game checks: watch an action and on-use trinket cross the configured threshold; verify 0 restores whole seconds. Disable GCD display and use a spell that only triggers the GCD, then a spell with its own cooldown and an ability with charges. Real cooldowns and charge recovery must remain visible. Re-enable GCD display and confirm sweeps return. Repeat in instanced combat and check for Lua errors.
 - Offline validation: all 15 Lua suites and 7 Python tests pass; runtime lint has zero warnings/errors. In-game validation remains pending.
+
+### Step 3a: optional native percentage text
+
+- Restored **Health Percent** and **Power Percent** under each custom unit frame's **Typography & Text** settings. New defaults keep both off; existing saved text preferences are retained.
+- Blizzard's health/power percentage APIs perform the calculation and scaling. Their results pass directly to native whole-number percentage text, without addon arithmetic on restricted values.
+- Offline validation: all 16 Lua suites and 7 Python tests pass; runtime lint has zero warnings/errors. The new full-TOC suite covers settings, profile changes, event routing, opaque value passthrough, and clearing/recovery after unavailable APIs or native formatting failures.
+- In-game checks: enable **Health Percent** on Player and Target; watch it change as health drops and returns to full. Enable **Power Percent** on Player and spend/regain power. Check target switching, a dead or missing target, and disabling/re-enabling each text setting. Move percentage text with its position controls if it overlaps existing value text. Repeat with a hostile target in instanced combat and watch for stale text or Lua errors.
+- In-game validation remains pending.

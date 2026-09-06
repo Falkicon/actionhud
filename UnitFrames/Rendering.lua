@@ -5,6 +5,29 @@ local Utils = ns.Utils
 local IdentitySafety = ns.UnitFrameIdentitySafety
 local FormatValue = IdentitySafety.FormatValue
 
+local function ClearPercentage(element)
+	if not element then return end
+	element.fontString:SetText("")
+	element.fontString:Hide()
+end
+
+local function UpdatePercentage(element, enabled, getter, unit)
+	if not element then return end
+	if enabled then
+		local value = getter(unit)
+		if type(value) ~= "nil" then
+			local fontString = element.fontString
+			-- Native FontString formatting accepts the opaque scaled percentage.
+			local ok = pcall(fontString.SetFormattedText, fontString, "%.0f%%", value)
+			if ok then
+				fontString:Show()
+				return
+			end
+		end
+	end
+	ClearPercentage(element)
+end
+
 -- Helper to safely return a value or a default, avoiding boolean tests on secrets
 local function Pass(v, default)
 	if type(v) == "nil" then
@@ -23,9 +46,13 @@ function UnitFrames:UpdateFrameValues(f, updateKind)
 	local unitExists, identityAvailable = IdentitySafety.IsTruthy(UnitExists(unit))
 	if not identityAvailable then
 		-- Do not drive ordinary frame state from a restricted identity result.
+		ClearPercentage(f.healthElements.percent)
+		ClearPercentage(f.powerElements.percent)
 		return
 	end
 	if not unitExists then
+		ClearPercentage(f.healthElements.percent)
+		ClearPercentage(f.powerElements.percent)
 		-- Can't modify secure frames during combat
 		if not InCombatLockdown() then
 			f:Hide()
@@ -35,6 +62,8 @@ function UnitFrames:UpdateFrameValues(f, updateKind)
 
 	local db = self.db.profile.ufConfig[f.unitId]
 	if not db or not db.enabled then
+		ClearPercentage(f.healthElements.percent)
+		ClearPercentage(f.powerElements.percent)
 		if not InCombatLockdown() then
 			f:Hide()
 		end
@@ -236,11 +265,9 @@ function UnitFrames:UpdateFrameValues(f, updateKind)
 		pcall(fontString.SetFormattedText, fontString, "%s/%s", hStr, mStr)
 	end
 
-	-- Percent display is disabled due to Midnight secret value issues
-	-- Keeping values only for now
-	if updateAll and f.healthElements.percent then
-		f.healthElements.percent.fontString:SetText("")
-		f.healthElements.percent.fontString:Hide()
+	if updateHealth then
+		UpdatePercentage(f.healthElements.percent, db.healthText.percent and db.healthText.percent.enabled,
+			Utils.GetUnitHealthPercentSafe, unit)
 	end
 
 	-- Power Text
@@ -253,11 +280,10 @@ function UnitFrames:UpdateFrameValues(f, updateKind)
 		pcall(fontString.SetFormattedText, fontString, "%s/%s", pStr, pmStr)
 	end
 
-	-- Percent display is disabled due to Midnight secret value issues
-	-- Keeping values only for now
-	if updateAll and f.powerElements.percent then
-		f.powerElements.percent.fontString:SetText("")
-		f.powerElements.percent.fontString:Hide()
+	if updatePower then
+		UpdatePercentage(f.powerElements.percent,
+			db.powerBarEnabled and f._showPower and db.powerText.percent and db.powerText.percent.enabled,
+			Utils.GetUnitPowerPercentSafe, unit)
 	end
 
 	-- 6. Status Icons

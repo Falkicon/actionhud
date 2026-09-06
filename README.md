@@ -63,7 +63,7 @@ Layout and secure-frame changes requested during combat wait until combat ends.
 | Trinket Bar | Equipped trinket display, sizing, stack inclusion, and positioning |
 | Profiles | Create, switch, copy, delete, and reset profiles |
 
-Custom unit frames support value text; percentage text is currently disabled because of protected-value restrictions.
+Custom unit frames support value text and optional whole-number health/power percentages. Enable percentages under **Unit Frames → [frame] → Typography & Text → Health Percent / Power Percent**. They default to off and use Blizzard's native percentage calculations for protected values. Each text element has its own position and style controls.
 
 ## Slash Commands
 
