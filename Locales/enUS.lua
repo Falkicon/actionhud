@@ -478,6 +478,41 @@ L["Maximum number of Player Buffs icons per row."] = true
 L["Spacing"] = true
 L["Space between Player Buffs icons."] = true
 
+-- Settings UI - Consumables
+L["Consumables"] = true
+L["Enable Consumables"] = true
+L["Show the selected consumables."] = true
+L["Show carried counts and cooldowns for selected consumables. Icons are display-only and do not use items. Depleted items stay in place, dimmed; exact item IDs are never swapped for quality variants."] = true
+L["Consumables is disabled."] = true
+L["Add at least one item to display Consumables."] = true
+L["Consumables is waiting until combat ends to update its display."] = true
+L["Consumables is active."] = true
+L["Consumables could not update its display."] = true
+L["Choose from Bags"] = true
+L["Choose an item currently in your bags, or use Advanced: Item IDs for any exact item ID."] = true
+L["Search items"] = true
+L["Search by item name or item ID, then press Enter."] = true
+L["Refresh items from your bags."] = true
+L["No matching items. Try another search or refresh your bags."] = true
+L["%d matching items. %d of 12 items selected."] = true
+L["Selected Items"] = true
+L["No items selected. Add an item above or enter an item ID under Advanced: Item IDs."] = true
+L["Advanced: Item IDs"] = true
+L["Item IDs"] = true
+L["Enter up to 12 exact item IDs separated by commas or whitespace. Quality variants use separate item IDs."] = true
+L["Enter only positive integer item IDs separated by commas or whitespace."] = true
+L["Enter no more than 12 unique item IDs."] = true
+L["Fix the saved item ID list under Advanced: Item IDs before editing selected items."] = true
+L["Clear Item IDs"] = true
+L["Clear the item ID list without changing any other Consumables settings."] = true
+L["Size of Consumables icons."] = true
+L["Maximum number of Consumables icons per row."] = true
+L["Space between Consumables icons."] = true
+L["Item %d"] = true
+L["%s  ×%s"] = true
+L["%d. %s  ×%s"] = true
+L["?"] = true
+
 -- Settings UI - Layout
 L["Layout"] = true
 L["HUD Stack Order"] = true

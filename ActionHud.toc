@@ -19,6 +19,7 @@ Core\Performance.lua
 ActionHud.lua
 Core\BlizzardBuffCatalog.lua
 Core\RecentPlayerBuffs.lua
+Core\ConsumableItems.lua
 LayoutManager.lua
 ActionBars.lua
 Resources.lua
@@ -37,6 +38,7 @@ UnitFrames\UnitFrames.lua
 UnitFrames\Layout.lua
 UnitFrames\Rendering.lua
 Trinkets.lua
+Consumables.lua
 PlayerBuffs.lua
 Settings\init.lua
 Settings\ActionBars.lua
@@ -47,6 +49,7 @@ Settings\Resources.lua
 # Settings\Tracked.lua
 Settings\UnitFrames.lua
 Settings\Trinkets.lua
+Settings\Consumables.lua
 Settings\PlayerBuffPicker.lua
 Settings\PlayerBuffs.lua
 Settings\Layout.lua

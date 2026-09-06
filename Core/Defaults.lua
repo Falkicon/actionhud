@@ -541,6 +541,16 @@ ns.defaults = {
 		trinketsTimerFontSize = "medium",
 		trinketsGrowDirection = "RIGHT", -- LEFT or RIGHT
 
+		-- Consumables Module
+		consumablesEnabled = false,
+		consumablesIncludeInStack = false,
+		consumablesItemIDs = "",
+		consumablesIconSize = 28,
+		consumablesColumns = 4,
+		consumablesSpacing = 2,
+		consumablesXOffset = 100,
+		consumablesYOffset = -60,
+
 		-- Player Buffs Module
 		playerBuffsEnabled = false,
 		playerBuffsIncludeInStack = false,

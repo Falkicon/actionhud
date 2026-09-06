@@ -13,6 +13,7 @@ This page describes the current development worktree. [ActionHud.toc](ActionHud.
 | Resources | Player/target health and power, plus player class resources |
 | UnitFrames | Optional custom secure frames for Player, Target, Target of Target, and Focus |
 | Trinkets | Equipped on-use trinket display and cooldowns |
+| Consumables | Optional fixed-slot item count/cooldown display with bag picker and manual IDs; disabled by default |
 | PlayerBuffs | Optional native helpful-aura display, with Recent Buffs discovery and Blizzard Catalog selection; display disabled by default |
 | LayoutManager | Queued lifecycle reconciliation, stack measurement, positioning, and rendering with combat deferral |
 | Performance | Optional call counts and total/average/peak timings through `/ah perf` and Mechanic integration |
@@ -34,15 +35,16 @@ See the [quality review](docs/quality-review.md) for individual findings and [Pe
 
 The implementation pass on 2026-09-06 completed:
 
-- All 25 standalone Lua suites and seven Python validator tests passed with `lupa==2.8`.
+- All 27 standalone Lua suites and seven Python validator tests passed with `lupa==2.8`.
 - First-party Lua compilation and TOC/XML, localization, and package checks passed.
-- Luacheck 1.2.0 reported zero warnings/errors across 27 active first-party Lua files.
+- Luacheck 1.2.0 reported zero warnings/errors across 30 active first-party Lua files.
 - Git whitespace checks passed.
 
 These are results for the development worktree, not certification of live-client behavior. The host does not model native taint, secret values, or rendering. Repeat the commands in [CONTRIBUTING.md](CONTRIBUTING.md#local-checks) after runtime changes.
 
 ## Pending Validation and Follow-Up
 
+- Consumables: after `/reload`, open **Consumables**, add a carried potion or healthstone from the bag picker, and enable the module. Verify count/charges and cooldown after using it through the normal game binding, including shared potion cooldowns and instanced combat. Depleted items should stay in place with zero count. Check reordering, resizing, dragging, stack inclusion, and profile switching; settings changes during combat must apply after combat. This feature still needs live validation.
 - The user confirmed the corrected Blizzard Catalog is working well on Warrior after the filter fix was merged to local main (`d47915d`). The catalog uses tracked-aura categories and player-aura eligibility without requiring `hasAura = true`. This records a successful catalog smoke test; individual buff matching and other classes/specs still need confirmation.
 - Validate Recent Buffs after `/reload`: cast a helpful buff outside combat, then open Player Buffs and find it in the default source. Add it, switch to Blizzard Catalog, and check search, tooltips, pagination, Add/Added state, and selected controls. Recent discovery must pause when restricted, keep the existing history visible, and resume when access is available. It may miss buffs that expire while restricted.
 - Check that recent history survives `/reload` and profile changes on the same character. Clear History must leave selected buffs intact. Verify catalog selections with linked aura IDs display correctly in combat, and that spec/metadata changes update candidate filters after combat without Lua errors.

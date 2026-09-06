@@ -144,6 +144,7 @@ function ActionHud:SetupOptions()
 	-- local trackedOptions = ns.Settings.BuildTrackedOptions(self)
 	local customUfOptions = ns.Settings.BuildUnitFramesOptions(self)
 	local trinketOptions = ns.Settings.BuildTrinketsOptions(self)
+	local consumableOptions = ns.Settings.BuildConsumablesOptions(self)
 	local playerBuffOptions = ns.Settings.BuildPlayerBuffsOptions(self)
 	local GetLayoutOptions = ns.Settings.BuildLayoutOptions(self)
 
@@ -183,6 +184,10 @@ function ActionHud:SetupOptions()
 
 	LibStub("AceConfig-3.0"):RegisterOptionsTable("ActionHud_Trinkets", trinketOptions)
 	LibStub("AceConfigDialog-3.0"):AddToBlizOptions("ActionHud_Trinkets", L["Trinket Bar"], "ActionHud")
+
+	LibStub("AceConfig-3.0"):RegisterOptionsTable("ActionHud_Consumables", consumableOptions)
+	local consumablePanel = LibStub("AceConfigDialog-3.0"):AddToBlizOptions("ActionHud_Consumables", L["Consumables"], "ActionHud")
+	consumablePanel:HookScript("OnShow", function() ns.Settings.RefreshConsumablesPicker() end)
 
 	LibStub("AceConfig-3.0"):RegisterOptionsTable("ActionHud_PlayerBuffs", playerBuffOptions)
 	local playerBuffPanel = LibStub("AceConfigDialog-3.0"):AddToBlizOptions("ActionHud_PlayerBuffs", L["Player Buffs"], "ActionHud")

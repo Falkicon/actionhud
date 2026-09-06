@@ -6,6 +6,7 @@ These changes are in development and still require in-game combat validation. Th
 
 ### Added
 
+- Optional Consumables display with a searchable bag picker, ordered selections, manual item IDs, carried counts/charges, and native cooldown sweeps. Selected slots remain fixed when depleted; layout supports independent dragging or HUD stack inclusion. Disabled by default.
 - Recent Buffs picker with a persistent per-character history of up to 100 readable helpful aura IDs, and a Blizzard Catalog sourced from the game's Cooldown Viewer metadata. Discovery pauses during combat/restrictions; manual IDs remain available. No spell-list dependency is added.
 - Player Buffs picker with name/ID search, spell icons and tooltips, selected-buff reordering/removal, and an inactive preview. Advanced spell-ID editing remains available.
 

@@ -38,6 +38,9 @@ The TOC/XML manifests define the runtime. `.pkgmeta` defines package exclusions.
 | `ActionBars.lua` | Mirrored buttons, page/slot resolution, cooldowns, usability, range, and glows |
 | `Resources.lua` | Player/target health and power, plus player class resources |
 | `Trinkets.lua` | Equipped on-use trinket display and cooldowns |
+| `Consumables.lua` | Optional fixed-slot item count and cooldown display, with event-driven refresh and shared lifecycle/layout |
+| `Core/ConsumableItems.lua` | Public item-ID parsing, guarded item metadata/count/cooldown access, and cached bag discovery |
+| `Settings/Consumables.lua` | Consumables bag picker, ordered selections, manual IDs, sizing and positioning controls |
 | `PlayerBuffs.lua` | Optional fixed-footprint native display for selected helpful player auras |
 | `UnitFrames/Identity.lua` | Restricted identity normalization, colors, status icon decisions, and value formatting |
 | `UnitFrames/UnitFrames.lua` | Ace module creation, lifecycle, events, and layout requests |
@@ -74,7 +77,13 @@ Runtime modules expose:
 
 `ApplyEnabledState()` records intent and reconciles outside combat. `StartRuntime()` is idempotent; stop paths release event subscriptions and hide frames when allowed. ActionBars and Trinkets use Ace enable/disable; Resources and UnitFrames keep their Ace modules available while their features are off. Use `_runtimeActive` when checking whether a feature is running; Ace `IsEnabled()` alone is insufficient. PlayerBuffs also uses `_runtimeActive` for its native container lifecycle.
 
-Resources, Action Bars, Trinkets, and PlayerBuffs can participate in the HUD stack. PlayerBuffs is independently positioned by default and uses the shared draggable-container behavior when it is outside the stack. Preserve scale-correct center offsets and combat deferral when changing drag or profile code.
+Resources, Action Bars, Trinkets, Consumables, and PlayerBuffs can participate in the HUD stack. Consumables and PlayerBuffs are independently positioned by default and use the shared draggable-container behavior when outside the stack. Preserve scale-correct center offsets and combat deferral when changing drag or profile code.
+
+### Consumables
+
+Consumables is disabled by default and remains Ace-enabled while its profile feature is off. `consumablesItemIDs` stores up to 12 ordered unique item IDs. The picker discovers carried consumables from bag metadata; manual IDs can select absent items. Exact IDs remain distinct across quality variants. Counts exclude bank storage and include item uses/charges. The module never uses items or selects replacements automatically.
+
+Keep slot geometry fixed by configuration, including depleted items. Bag/cooldown events refresh values on existing widgets; configuration, frame creation, and enablement reconcile through LayoutManager after combat. Use `Core/ConsumableItems.lua` for guarded API access. Only validated public start/duration values may reach `Cooldown:SetCooldown`; unavailable or restricted results must not be interpreted as ready. There is no assumed generic item cooldown duration-object API. The display uses the shared `cooldownDecimalThreshold` and independent position `(100, -60)` by default.
 
 ### Player Buffs
 

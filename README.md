@@ -22,10 +22,11 @@ Check out these complementary addons to round out your interface:
 
 - **Action bar mirroring** — Follows the button count and row layout of Blizzard's **Action Bar 1** and **Action Bar 2** in Edit Mode, including stance/form page changes.
 - **Action feedback** — Cooldown sweeps and countdowns, display counts, yellow proc glows, blue Assisted Combat highlights, and usability/range tinting.
-- **Cooldown controls** — Under **Action Bars → Cooldowns**, choose whether to show the global cooldown sweep and when countdowns switch to tenths of a second. Decimals default to the final 3 seconds and also apply to trinkets; set the threshold to 0 for whole seconds.
+- **Cooldown controls** — Under **Action Bars → Cooldowns**, choose whether to show the global cooldown sweep and when countdowns switch to tenths of a second. Decimals default to the final 3 seconds and also apply to trinkets and consumables; set the threshold to 0 for whole seconds.
 - **Resource bars** — Player and target health/power, plus player class resources. Individual bars can be toggled and sized independently.
 - **Custom unit frames** — Optional secure frames for Player, Target, Target of Target, and Focus. Configure dimensions, backgrounds, borders, text, and status icons; optionally hide the corresponding Blizzard frames.
 - **Trinket bar** — Tracks equipped on-use trinkets and their cooldowns.
+- **Consumables** — Optional display for up to 12 selected items, with carried counts (including charges) and cooldowns. Choose items from your bags or enter item IDs, then enable the module. Depleted items keep their slots. Quality variants use separate item IDs; the display does not automatically choose replacements or use items.
 - **Player Buffs** — Optional WoW 12.1 native display for up to 12 selected helpful player auras. Configured slots keep their footprint when an aura is inactive, so icons do not shift; the feature is disabled by default.
 - **Layout** — Reorder stack modules, adjust gaps, or position modules independently with draggable overlays.
 - **Profiles** — Create, switch, copy, delete, and reset settings profiles through AceDB.

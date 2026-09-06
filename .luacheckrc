@@ -47,6 +47,7 @@ read_globals = {
 	"C_ActionBar",
 	"C_AddOns",
 	"C_ChallengeMode",
+	"C_Container",
 	"C_CooldownViewer",
 	"C_CurveUtil",
 	"C_DurationUtil",

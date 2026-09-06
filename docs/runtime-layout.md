@@ -26,6 +26,13 @@ Each pass runs these phases for stack and independent modules:
 UnitFrames participates as an auxiliary module outside the stack. Its secure
 geometry changes use the same combat deferral as the main HUD.
 
+Consumables reserves a fixed footprint for its configured item IDs, including
+items with zero carried count. It is disabled by default and independently
+positioned at `(100, -60)`, with optional HUD stack inclusion. Bag and cooldown
+events update existing icons, counts, and sweeps; configuration and lifecycle
+changes use the same deferred layout pass. Item depletion does not resize the
+stack. The cooldown decimal threshold is shared with Action Bars and Trinkets.
+
 PlayerBuffs is an optional stack participant and is disabled by default. It
 tracks up to 12 ordered, unique `HELPFUL` aura spell IDs on `player` through
 WoW 12.1's native `CustomAuraContainer`. The configured icon size, columns, and
