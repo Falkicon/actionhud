@@ -21,6 +21,7 @@ These changes are in development and still require in-game combat validation. Th
 
 ### Fixed
 
+- Settings panels stopping at their first checkbox: updated the embedded AceGUI checkbox to upstream widget version 27, replacing the removed `SetDesaturation` global with native texture methods.
 - Read total damage absorbs from the native heal prediction calculator using its documented getter, preserving restricted values for display.
 - Preserve protected maximum health/power values in HUD resource bar ranges, preventing target health from displaying only full or empty; apply the same range handling to heal prediction and absorbs.
 - Disabled modules reappearing during layout, inconsistent enablement persistence, and incomplete runtime event cleanup.
