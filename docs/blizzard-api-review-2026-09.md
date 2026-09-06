@@ -116,4 +116,13 @@ The initial research pass changed no runtime code. Implementation progress is re
 - In-game check after installing this checkout: with heal prediction and absorb displays enabled, apply a shield, take damage, and receive a cast-time heal. Check shield consumption/expiration and prediction clearing on completion, cancellation, and target changes, both outside combat and in an instance. Look for stuck overlays and Lua errors. The existing direct-absorb fallback means a dramatic visual difference is not expected.
 - Separately validate the pending target-health range correction: a damaged target should show a proportional bar through intermediate health values, including in instanced combat.
 
-The user reported improved bars and no errors, but subsequently confirmed that the test may have used the earlier installed version. This is not counted as validation of the new fixes. Step 1 is being merged into the installed local-main checkout for a confirmed reload and test.
+The user reported improved bars and no errors, but subsequently confirmed that the test may have used the earlier installed version. This is not counted as validation of the new fixes. Step 1 was merged into the installed local-main checkout as `00684bc` for a confirmed reload and test.
+
+### Step 2: countdown decimals and global cooldown controls
+
+- Added **Action Bars → Cooldowns** controls for **Show Global Cooldown** (default on) and **Countdown Decimal Threshold** (default 3 seconds; 0 disables decimals). The decimal threshold also applies to equipped trinkets.
+- Native cooldown widgets render the decimals; addon code does not calculate protected remaining time. Missing native formatting methods are safely skipped.
+- The GCD option controls the native action duration getter's `ignoreGCD` argument while preserving charge and loss-of-control handling.
+- Clients without the native duration getter retain their existing GCD display rather than guessing from cooldown lengths or GCD metadata.
+- In-game checks: watch an action and on-use trinket cross the configured threshold; verify 0 restores whole seconds. Disable GCD display and use a spell that only triggers the GCD, then a spell with its own cooldown and an ability with charges. Real cooldowns and charge recovery must remain visible. Re-enable GCD display and confirm sweeps return. Repeat in instanced combat and check for Lua errors.
+- Offline validation: all 15 Lua suites and 7 Python tests pass; runtime lint has zero warnings/errors. In-game validation remains pending.

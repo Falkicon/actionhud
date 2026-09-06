@@ -133,6 +133,7 @@ function methods:EnableMouse(value) protect(self); self.mouseEnabled = value end
 function methods:IsMouseEnabled() return self.mouseEnabled end
 function methods:StartMoving() protect(self); self.moving = true end
 function methods:StopMovingOrSizing() protect(self); self.moving = false end
+function methods:SetCountdownMillisecondsThreshold(seconds) self.countdownThreshold = seconds end
 -- Presentation-only methods deliberately do not emulate native rendering.
 for name in string.gmatch([[SetAllPoints SetAlpha SetBackdrop SetBackdropColor SetBackdropBorderColor
 SetClampedToScreen SetMovable RegisterForDrag RegisterForClicks SetStatusBarTexture SetStatusBarColor

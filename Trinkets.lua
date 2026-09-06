@@ -238,6 +238,9 @@ function Trinkets:ApplyLayoutPosition()
 			Utils.ApplyIconCrop(f.icon, width, height)
 			local fontName = Utils.GetTimerFont(p.trinketsTimerFontSize)
 			f.cooldown:SetCountdownFont(fontName)
+			if f.cooldown.SetCountdownMillisecondsThreshold then
+				f.cooldown:SetCountdownMillisecondsThreshold(p.cooldownDecimalThreshold or 3)
+			end
 			table.insert(visibleFrames, f)
 		end
 	end

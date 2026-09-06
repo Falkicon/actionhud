@@ -12,6 +12,22 @@ local trinkets = addon:GetModule("Trinkets")
 local unitFrames = addon:GetModule("UnitFrames")
 local lm = addon:GetModule("LayoutManager")
 local modules = { ab, resources, trinkets, unitFrames }
+local trinketCooldowns = {}
+local trinketContainer = ns.DraggableContainer:GetContainer("trinkets")
+for _, frame in ipairs(host.frames) do
+	if frame.kind == "Cooldown" and frame.parent and frame.parent.parent == trinketContainer then
+		trinketCooldowns[#trinketCooldowns + 1] = frame
+		assert(frame.countdownThreshold == 3, "trinket countdown must initialize with the profile threshold")
+	end
+end
+assert(#trinketCooldowns == 2, "both equipped trinkets must be tested")
+addon.db.profile.cooldownDecimalThreshold = 0
+addon:RefreshLayout()
+host:Flush()
+for _, frame in ipairs(trinketCooldowns) do
+	assert(frame.countdownThreshold == 0, "disabling decimals must update existing trinket cooldowns")
+end
+addon.db.profile.cooldownDecimalThreshold = 3
 addon.db.profile.ufEnabled = true
 addon:OnProfileChanged()
 host:Flush()

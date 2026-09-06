@@ -22,6 +22,7 @@ Check out these complementary addons to round out your interface:
 
 - **Action bar mirroring** — Follows the button count and row layout of Blizzard's **Action Bar 1** and **Action Bar 2** in Edit Mode, including stance/form page changes.
 - **Action feedback** — Cooldown sweeps and countdowns, display counts, yellow proc glows, blue Assisted Combat highlights, and usability/range tinting.
+- **Cooldown controls** — Under **Action Bars → Cooldowns**, choose whether to show the global cooldown sweep and when countdowns switch to tenths of a second. Decimals default to the final 3 seconds and also apply to trinkets; set the threshold to 0 for whole seconds.
 - **Resource bars** — Player and target health/power, plus player class resources. Individual bars can be toggled and sized independently.
 - **Custom unit frames** — Optional secure frames for Player, Target, Target of Target, and Focus. Configure dimensions, backgrounds, borders, text, and status icons; optionally hide the corresponding Blizzard frames.
 - **Trinket bar** — Tracks equipped on-use trinkets and their cooldowns.

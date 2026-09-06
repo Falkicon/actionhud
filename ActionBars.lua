@@ -984,7 +984,7 @@ local function SelectRestrictedCooldownType(cooldownInfo, chargeInfo, lossOfCont
 	return nil
 end
 
-local function GetRestrictedCooldownDuration(actionID, cooldownType)
+local function GetRestrictedCooldownDuration(actionID, cooldownType, ignoreGCD)
 	if not C_ActionBar then
 		return nil
 	end
@@ -1002,7 +1002,12 @@ local function GetRestrictedCooldownDuration(actionID, cooldownType)
 		return nil
 	end
 
-	local ok, durationObject = pcall(getter, actionID)
+	local ok, durationObject
+	if cooldownType == "normal" then
+		ok, durationObject = pcall(getter, actionID, ignoreGCD == true)
+	else
+		ok, durationObject = pcall(getter, actionID)
+	end
 	if ok then
 		return durationObject
 	end
@@ -1033,7 +1038,30 @@ local function TryApplyDurationObjectCooldown(cooldownFrame, durationObject, dra
 	return ok
 end
 
+local function ApplyCountdownThreshold(cooldownFrame, threshold)
+	if cooldownFrame and cooldownFrame.SetCountdownMillisecondsThreshold then
+		cooldownFrame:SetCountdownMillisecondsThreshold(threshold)
+	end
+end
+
+local function EnsureChargeCooldown(btn, threshold)
+	if not btn.chargeCooldown then
+		btn.chargeCooldown = CreateFrame("Cooldown", nil, btn, "CooldownFrameTemplate")
+		btn.chargeCooldown:SetHideCountdownNumbers(true)
+		btn.chargeCooldown:SetDrawSwipe(false)
+		btn.chargeCooldown:SetAllPoints(btn.cd)
+		btn.chargeCooldown:SetFrameLevel(btn:GetFrameLevel())
+		ApplyCountdownThreshold(btn.chargeCooldown, threshold)
+	end
+	return btn.chargeCooldown
+end
+
 function AB:UpdateCooldown(btn)
+	local profile = ActionHud.db.profile
+	local threshold = profile.cooldownDecimalThreshold or 3
+	local ignoreGCD = profile.showGlobalCooldown == false
+	ApplyCountdownThreshold(btn.cd, threshold)
+	ApplyCountdownThreshold(btn.chargeCooldown, threshold)
 	if not btn.hasAction then
 		ClearCooldownDisplay(btn.cd)
 		ClearCooldownDisplay(btn.chargeCooldown)
@@ -1081,21 +1109,27 @@ function AB:UpdateCooldown(btn)
 	-- for actions whose charge info reports zero charges. Always provide the
 	-- secondary frame or ActionButton_ApplyCooldown aborts the entire refresh.
 	if ActionButton_ApplyCooldown and not hasSecretCooldownValues then
-		if not btn.chargeCooldown then
-			btn.chargeCooldown = CreateFrame("Cooldown", nil, btn, "CooldownFrameTemplate")
-			btn.chargeCooldown:SetHideCountdownNumbers(true)
-			btn.chargeCooldown:SetDrawSwipe(false)
-			btn.chargeCooldown:SetAllPoints(btn.cd)
-			btn.chargeCooldown:SetFrameLevel(btn:GetFrameLevel())
-		end
+		EnsureChargeCooldown(btn, threshold)
 		ActionButton_ApplyCooldown(btn.cd, cooldownInfo, btn.chargeCooldown, chargeInfo, nil, lossOfControlInfo)
+		if ignoreGCD and SelectRestrictedCooldownType(cooldownInfo, chargeInfo, lossOfControlInfo) == "normal" then
+			-- Replace only the normal sweep; Blizzard retains charge and LoC composition.
+			local durationObject = GetRestrictedCooldownDuration(btn.actionID, "normal", true)
+			TryApplyDurationObjectCooldown(btn.cd, durationObject, true)
+		end
 		return
 	end
 
 	if hasSecretCooldownValues then
 		local cooldownType = SelectRestrictedCooldownType(cooldownInfo, chargeInfo, lossOfControlInfo)
-		local durationObject = GetRestrictedCooldownDuration(btn.actionID, cooldownType)
+		local durationObject = GetRestrictedCooldownDuration(btn.actionID, cooldownType, ignoreGCD)
 		ClearCooldownDisplay(btn.chargeCooldown)
+		if ignoreGCD and cooldownType == "normal" and chargeInfo.isActive then
+			-- A native zero-length normal duration can clear the GCD without hiding
+			-- an ongoing recharge. Keep the charge edge on a sibling cooldown frame.
+			local chargeFrame = EnsureChargeCooldown(btn, threshold)
+			local chargeDuration = GetRestrictedCooldownDuration(btn.actionID, "charge")
+			TryApplyDurationObjectCooldown(chargeFrame, chargeDuration, true)
+		end
 
 		if durationObject and TryApplyDurationObjectCooldown(btn.cd, durationObject, true) then
 			return
@@ -1103,6 +1137,13 @@ function AB:UpdateCooldown(btn)
 
 		ClearCooldownDisplay(btn.cd)
 		return
+	end
+
+	if ignoreGCD and SelectRestrictedCooldownType(cooldownInfo, chargeInfo, lossOfControlInfo) == "normal" then
+		local durationObject = GetRestrictedCooldownDuration(btn.actionID, "normal", true)
+		if TryApplyDurationObjectCooldown(btn.cd, durationObject, true) then
+			return
+		end
 	end
 
 	-- Fallback for pre-12.0: Direct passthrough

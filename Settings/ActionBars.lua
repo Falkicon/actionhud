@@ -193,6 +193,43 @@ function ns.Settings.BuildActionBarsOptions(self)
 					},
 				},
 			},
+			cooldownsGroup = {
+				name = L["Cooldowns"],
+				type = "group",
+				inline = true,
+				order = 25,
+				args = {
+					showGlobalCooldown = {
+						name = L["Show Global Cooldown"],
+						desc = L["Show the global cooldown sweep on action icons. Spell cooldowns and charge recovery remain visible when disabled."],
+						type = "toggle",
+						order = 1,
+						get = function()
+							return self.db.profile.showGlobalCooldown ~= false
+						end,
+						set = function(_, val)
+							self.db.profile.showGlobalCooldown = val
+							self:RefreshLayout()
+						end,
+					},
+					decimalThreshold = {
+						name = L["Countdown Decimal Threshold"],
+						desc = L["Show tenths of a second below this duration on action and trinket cooldowns. Set to 0 for whole seconds."],
+						type = "range",
+						min = 0,
+						max = 10,
+						step = 1,
+						order = 2,
+						get = function()
+							return self.db.profile.cooldownDecimalThreshold or 3
+						end,
+						set = function(_, val)
+							self.db.profile.cooldownDecimalThreshold = val
+							self:RefreshLayout()
+						end,
+					},
+				},
+			},
 			fontsGroup = {
 				name = L["Fonts"],
 				type = "group",

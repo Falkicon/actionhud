@@ -6,6 +6,7 @@ These changes are in development and still require in-game combat validation. Th
 
 ### Added
 
+- Action Bars cooldown controls for showing the global cooldown sweep and native decimal countdowns on action/trinket icons (default: final 3 seconds).
 - Opt-in `/ah perf on`, `off`, `reset`, and `report` commands with call counts and total, average, and peak timings; profiling also works without Mechanic.
 - Full-TOC integration tests using the embedded libraries, plus automated localization, manifest, package, and Luacheck checks.
 
