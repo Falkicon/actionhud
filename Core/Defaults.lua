@@ -4,6 +4,9 @@
 local _, ns = ...
 
 ns.defaults = {
+	char = {
+		playerBuffRecentIDs = {},
+	},
 	profile = {
 		locked = true,
 		actionBarsEnabled = true,

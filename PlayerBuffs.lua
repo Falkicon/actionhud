@@ -72,10 +72,24 @@ function PlayerBuffs:OnInitialize()
 end
 
 function PlayerBuffs:OnEnable()
+	self:RegisterEvent("PLAYER_ENTERING_WORLD", "OnCatalogChanged")
+	self:RegisterEvent("PLAYER_SPECIALIZATION_CHANGED", "OnCatalogChanged")
+	self:RegisterEvent("SPELLS_CHANGED", "OnCatalogChanged")
+	self:RegisterEvent("COOLDOWN_VIEWER_DATA_LOADED", "OnCatalogChanged")
+	self:RegisterEvent("COOLDOWN_VIEWER_TABLE_HOTFIXED", "OnCatalogChanged")
+	self:RegisterEvent("COOLDOWN_VIEWER_SPELL_OVERRIDE_UPDATED", "OnCatalogChanged")
+	ns.BlizzardBuffCatalog:Refresh()
 	self:ApplyEnabledState()
 end
 
+function PlayerBuffs:OnCatalogChanged()
+	-- Payloads are irrelevant: rebuild public configuration at the next safe pass.
+	ns.BlizzardBuffCatalog:Refresh()
+	self:UpdateLayout()
+end
+
 function PlayerBuffs:OnDisable()
+	self:UnregisterAllEvents()
 	self:StopRuntime()
 end
 
@@ -216,7 +230,15 @@ function PlayerBuffs:ConfigureSlots()
 		slot.anchor:SetSize(size, size)
 		slot.anchor:SetPoint("TOPLEFT", self.container, "TOPLEFT",
 			((index - 1) % columns) * (size + spacing), -math.floor((index - 1) / columns) * (size + spacing))
-		self.auraContainer:SetAuraSlotCandidateFilters(slot.key, { includeSpellIDs = { [self.spellIDs[index]] = true } })
+		local spellID = self.spellIDs[index]
+		local candidates = ns.BlizzardBuffCatalog:GetCandidateSpellIDs(spellID)
+		local includeSpellIDs = { [spellID] = true }
+		-- Public catalog configuration only. Blizzard resolves which associated
+		-- aura is active; addon code never reads the selected native aura.
+		for candidateID in pairs(candidates or {}) do
+			includeSpellIDs[self:ResolveAuraSpellID(candidateID)] = true
+		end
+		self.auraContainer:SetAuraSlotCandidateFilters(slot.key, { includeSpellIDs = includeSpellIDs })
 	end
 	for index = count + 1, #self.slots do
 		self.auraContainer:SetAuraSlotCandidateFilters(self.slots[index].key, { includeSpellIDs = {} })

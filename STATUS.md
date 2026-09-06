@@ -13,7 +13,7 @@ This page describes the current development worktree. [ActionHud.toc](ActionHud.
 | Resources | Player/target health and power, plus player class resources |
 | UnitFrames | Optional custom secure frames for Player, Target, Target of Target, and Focus |
 | Trinkets | Equipped on-use trinket display and cooldowns |
-| PlayerBuffs | Optional WoW 12.1 native `CustomAuraContainer` display for selected helpful player auras; disabled by default |
+| PlayerBuffs | Optional native helpful-aura display, with Recent Buffs discovery and Blizzard Catalog selection; display disabled by default |
 | LayoutManager | Queued lifecycle reconciliation, stack measurement, positioning, and rendering with combat deferral |
 | Performance | Optional call counts and total/average/peak timings through `/ah perf` and Mechanic integration |
 
@@ -34,16 +34,17 @@ See the [quality review](docs/quality-review.md) for individual findings and [Pe
 
 The implementation pass on 2026-09-06 completed:
 
-- All 24 standalone Lua suites and seven Python validator tests passed with `lupa==2.8`.
+- All 25 standalone Lua suites and seven Python validator tests passed with `lupa==2.8`.
 - First-party Lua compilation and TOC/XML, localization, and package checks passed.
-- Luacheck 1.2.0 reported zero warnings/errors across 26 active first-party Lua files.
+- Luacheck 1.2.0 reported zero warnings/errors across 27 active first-party Lua files.
 - Git whitespace checks passed.
 
 These are results for the development worktree, not certification of live-client behavior. The host does not model native taint, secret values, or rendering. Repeat the commands in [CONTRIBUTING.md](CONTRIBUTING.md#local-checks) after runtime changes.
 
 ## Pending Validation and Follow-Up
 
-- The initial spellbook picker rendered in-game, but its oversized buttons and truncated reorder labels needed refinement. Validate the compact rows, Add/Added state, tooltips, paging, passive filtering, reorder/remove controls, and preview. Verify Advanced ID edits and profile switching preserve selections.
+- Validate Recent Buffs after `/reload`: cast a helpful buff outside combat, then open Player Buffs and find it in the default source. Add it, switch to Blizzard Catalog, and check search, tooltips, pagination, Add/Added state, and selected controls. Recent discovery must pause when restricted, keep the existing history visible, and resume when access is available. It may miss buffs that expire while restricted.
+- Check that recent history survives `/reload` and profile changes on the same character. Clear History must leave selected buffs intact. Verify catalog selections with linked aura IDs display correctly in combat, and that spec/metadata changes update candidate filters after combat without Lua errors.
 - Rallying Cry did not appear when selected from the spellbook. Its cast ID now resolves to the buff ID, including existing selections; after `/reload`, cast it and confirm the icon/countdown appears and disappears when the buff ends. This fix still needs in-game validation.
 
 - Install the worktree for testing and verify stance/form changes, spell overrides, duplicate slots, range feedback, and charge cooldowns in-game.

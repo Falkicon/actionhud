@@ -186,8 +186,14 @@ function ActionHud:SetupOptions()
 
 	LibStub("AceConfig-3.0"):RegisterOptionsTable("ActionHud_PlayerBuffs", playerBuffOptions)
 	local playerBuffPanel = LibStub("AceConfigDialog-3.0"):AddToBlizOptions("ActionHud_PlayerBuffs", L["Player Buffs"], "ActionHud")
-	-- Rebuild once on the next visit, rather than on every option activation.
-	playerBuffPanel:HookScript("OnHide", function() ns.PlayerBuffSpellbook:Refresh() end)
+	playerBuffPanel:HookScript("OnShow", function() ns.RecentPlayerBuffs:Refresh() end)
+	-- Invalidate the catalog once per settings visit; Recent Buffs collects asynchronously.
+	playerBuffPanel:HookScript("OnHide", function() ns.BlizzardBuffCatalog:Refresh() end)
+	self:RegisterMessage("ACTIONHUD_RECENT_BUFFS_CHANGED", function()
+		if playerBuffPanel:IsShown() then
+			LibStub("AceConfigRegistry-3.0"):NotifyChange("ActionHud_PlayerBuffs")
+		end
+	end)
 
 	-- 9-10. Meta settings
 	local profiles = LibStub("AceDBOptions-3.0"):GetOptionsTable(self.db)

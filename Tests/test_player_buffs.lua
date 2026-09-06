@@ -109,6 +109,60 @@ assert(state.enabled and #native.slots == 3)
 spells.clearSpellIDs.func(); flush()
 assert(buffs:GetStatus() == "empty" and not state.enabled and not container:IsShown())
 
+-- The catalog supplies all public associated IDs to one native slot. Changes
+-- from spec/hotfix events refresh filters only after combat, without child reads.
+local getCandidates, refreshCatalog = ns.BlizzardBuffCatalog.GetCandidateSpellIDs, ns.BlizzardBuffCatalog.Refresh
+local linkedID, catalogRefreshes = 200002, 0
+function ns.BlizzardBuffCatalog:GetCandidateSpellIDs(id)
+	if id == 200001 then return { [200001] = true, [linkedID] = true, [97462] = true } end
+end
+function ns.BlizzardBuffCatalog:Refresh() catalogRefreshes = catalogRefreshes + 1 end
+setIDs("200001")
+assert(state.slots.selected1.filters.includeSpellIDs[200001] and state.slots.selected1.filters.includeSpellIDs[200002])
+assert(state.slots.selected1.filters.includeSpellIDs[97463] and not state.slots.selected1.filters.includeSpellIDs[97462])
+host:SetCombat(true)
+writes = native.writes
+linkedID = 200003
+host:Fire("COOLDOWN_VIEWER_TABLE_HOTFIXED"); flush()
+assert(catalogRefreshes == 1 and native.writes == writes)
+host:SetCombat(false)
+assert(state.slots.selected1.filters.includeSpellIDs[200003] and not state.slots.selected1.filters.includeSpellIDs[200002])
+ns.BlizzardBuffCatalog.GetCandidateSpellIDs, ns.BlizzardBuffCatalog.Refresh = getCandidates, refreshCatalog
+
+-- Real AceEvent/router integration: discovery persists actual IDs independently
+-- of display enablement and never causes native rendering writes or layout.
+local recent = ns.RecentPlayerBuffs
+local secretsAPI, aurasAPI = C_Secrets, C_UnitAuras
+local observed, scans = { { spellId = 132404 } }, 0
+C_Secrets = { ShouldAurasBeSecret = function() return host.combat end }
+C_UnitAuras = {
+	GetUnitAuras = function(unit, filter)
+		assert(not host.combat and unit == "player" and filter == "HELPFUL")
+		scans = scans + 1
+		return observed
+	end,
+	AuraIsPrivate = function() return false end,
+}
+enable(false)
+writes = native.writes
+host:Fire("UNIT_AURA", "target"); flush()
+assert(scans == 0)
+host:Fire("UNIT_AURA", "player"); flush()
+assert(scans == 1 and addon.db.char.playerBuffRecentIDs[1] == 132404)
+assert(native.writes == writes and not buffs._runtimeActive, "discovery must not drive native rendering")
+host:SetCombat(true)
+observed = { { spellId = 23920 } }
+host:Fire("UNIT_AURA", "player"); flush()
+assert(scans == 1 and recent:GetEntries()[1].id == 132404)
+host:SetCombat(false)
+assert(scans == 2 and recent:GetEntries()[1].id == 23920)
+recent:Disable()
+host:Fire("UNIT_AURA", "player"); flush()
+assert(scans == 2, "Ace disable must release the discovery router")
+C_Secrets, C_UnitAuras = secretsAPI, aurasAPI
+recent:Enable(); flush()
+enable(true)
+
 -- A swallowed native initialization error must not report a working display or
 -- repeatedly allocate broken slots on subsequent layout passes.
 native.failInitialization = true

@@ -17,7 +17,7 @@ Each pass runs these phases for stack and independent modules:
 2. `PrepareLayout()` updates the content needed to measure it. Action bars lay
    out their buttons, resources apply their configuration, trinkets discover
    equipped on-use items, and PlayerBuffs applies its public slot footprint and
-   native aura candidate filters.
+   native aura candidate filters, including associated IDs from Blizzard's public catalog.
 3. Measure stack heights and widths into a complete manager-owned snapshot.
 4. Size the root and call `ApplyLayoutPosition()` on active modules.
 5. `RenderLayout()` refreshes icons, resource values, cooldowns, native aura
@@ -34,8 +34,10 @@ their native icons are inactive and invisible. Outside the stack, its default
 draggable position is `(0, -100)`; **Layout → Unlock Module Positions** controls
 dragging. It can also be included in the vertical HUD stack.
 
-The addon does not read aura data, hook native aura widgets, or poll for aura
-state. Native child widgets are initialized once from the container's
+The renderer does not read aura data, hook native aura widgets, or poll for aura
+state. RecentPlayerBuffs separately collects readable IDs for the settings
+history while unrestricted; this never drives rendering, visibility, or geometry.
+Native child widgets are initialized once from the container's
 `initializeFrame` callback. Later layout passes move only ordinary public slot
 anchors and the wrapper; the native container and buttons retain responsibility
 for aura data, icon, timer, and application-count rendering. The buff timer uses

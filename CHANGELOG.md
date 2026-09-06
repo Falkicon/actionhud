@@ -6,7 +6,8 @@ These changes are in development and still require in-game combat validation. Th
 
 ### Added
 
-- Player Buffs spellbook picker with name/ID search, spell icons and tooltips, passive filtering, selected-buff reordering/removal, and an inactive preview. Advanced spell-ID editing remains available; the one-off Warrior preset is replaced by the browser.
+- Recent Buffs picker with a persistent per-character history of up to 100 readable helpful aura IDs, and a Blizzard Catalog sourced from the game's Cooldown Viewer metadata. Discovery pauses during combat/restrictions; manual IDs remain available. No spell-list dependency is added.
+- Player Buffs picker with name/ID search, spell icons and tooltips, selected-buff reordering/removal, and an inactive preview. Advanced spell-ID editing remains available.
 
 - Optional native health and power percentage text for each custom unit frame, with individual position and style controls.
 - Action Bars cooldown controls for showing the global cooldown sweep and native decimal countdowns on action/trinket icons (default: final 3 seconds).
@@ -16,7 +17,8 @@ These changes are in development and still require in-game combat validation. Th
 
 ### Changed
 
-- Compact Player Buffs spellbook rows with separate Add/Added controls, smaller paging controls, and selected-buff names and reorder/remove actions on one row.
+- Replaced spellbook enumeration with Recent Buffs and Blizzard Catalog. Native buff slots accept Blizzard's associated spell IDs together, and catalog filters refresh after spell/spec and metadata changes. Source links and seasonal maintenance notes are recorded beside the code.
+- Compact Player Buffs rows with separate Add/Added controls, smaller paging controls, and selected-buff names and reorder/remove actions on one row.
 - Centralized layout requests into one queued LayoutManager pass with shared lifecycle reconciliation and combat deferral.
 - Moved profile defaults into `Core/Defaults.lua` and separated UnitFrames identity, lifecycle, layout, and rendering responsibilities.
 - Avoid eager debug-log formatting when logging is disabled.
