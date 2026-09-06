@@ -23,7 +23,7 @@ local function SecretTiming(name)
 end
 
 local ActionBars
-local ActionHud = {}
+local ActionHud = { db = { profile = {} } }
 function ActionHud.NewModule()
 	ActionBars = {}
 	return ActionBars
@@ -111,6 +111,13 @@ local function NewCooldownFrame()
 	function frame:SetDrawEdge(drawEdge)
 		self.drawEdge = drawEdge
 	end
+	function frame:SetCountdownMillisecondsThreshold(seconds)
+		self.threshold = seconds
+	end
+	function frame:SetCooldown(start, duration)
+		self.start = start
+		self.duration = duration
+	end
 	function frame:SetCooldownFromDurationObject(durationObject, clearIfZero)
 		self.durationObject = durationObject
 		self.clearIfZero = clearIfZero
@@ -167,21 +174,25 @@ local function RunRestrictedCase(options)
 		GetActionLossOfControlCooldownInfo = function()
 			return options.lossOfControlInfo
 		end,
-		GetActionCooldownDuration = function()
+		GetActionCooldownDuration = function(actionID, ignoreGCD)
+			AssertEqual(42, actionID, "normal getter receives the resolved action")
+			calls.ignoreGCD = ignoreGCD
 			calls.normal = calls.normal + 1
 			return normalDuration
 		end,
-		GetActionChargeDuration = function()
+		GetActionChargeDuration = function(...)
+			AssertEqual(1, select("#", ...), "charge getter must not receive ignoreGCD")
 			calls.charge = calls.charge + 1
 			return chargeDuration
 		end,
-		GetActionLossOfControlCooldownDuration = function()
+		GetActionLossOfControlCooldownDuration = function(...)
+			AssertEqual(1, select("#", ...), "LoC getter must not receive ignoreGCD")
 			calls.lossOfControl = calls.lossOfControl + 1
 			return locDuration
 		end,
 	}
 
-	local button = { hasAction = true, actionID = 42, cd = NewCooldownFrame() }
+	local button = { hasAction = true, actionID = 42, cd = NewCooldownFrame(), GetFrameLevel = function() return 1 end }
 	ActionBars:UpdateCooldown(button)
 	return button, calls, {
 		normal = normalDuration,
@@ -228,6 +239,8 @@ do
 	})
 	AssertEqual(durations.normal, button.cd.durationObject, "ordinary cooldown should use normal duration")
 	AssertEqual(1, calls.normal, "normal duration should be requested once")
+	AssertEqual(false, calls.ignoreGCD, "missing profile setting must preserve the global cooldown")
+	AssertEqual(3, button.cd.threshold, "decimal countdowns default to three seconds")
 	AssertEqual(0, calls.charge, "inactive charge duration should not be requested")
 	AssertEqual(0, calls.lossOfControl, "inactive LoC duration should not be requested")
 end
@@ -415,6 +428,98 @@ do
 	ActionBars:ApplyIconColor(button)
 	AssertEqual("readyRange", button._colorMode, "a valid out-of-range result should tint the icon")
 	AssertEqual(0.8, icon.color[1], "a valid out-of-range result should use the range color")
+end
+
+do
+	local button = { hasAction = false, cd = NewCooldownFrame(), chargeCooldown = NewCooldownFrame() }
+	button.cd:Show()
+	button.chargeCooldown:Show()
+	ActionBars:UpdateCooldown(button)
+	AssertEqual(false, button.cd.shown, "empty slots must hide their primary cooldown")
+	AssertEqual(false, button.chargeCooldown.shown, "empty slots must hide their charge cooldown")
+	AssertEqual(1, button.chargeCooldown.clearCount, "empty slots must clear stale charge timing")
+end
+
+do
+	ActionHud.db.profile.showGlobalCooldown = false
+	ActionHud.db.profile.cooldownDecimalThreshold = 5
+	local cooldownInfo, chargeInfo, lossOfControlInfo = RestrictedInfo(true, true, false, false)
+	local options = { cooldownInfo = cooldownInfo, chargeInfo = chargeInfo, lossOfControlInfo = lossOfControlInfo }
+	local button, calls = RunRestrictedCase(options)
+	AssertEqual(true, calls.ignoreGCD, "hide GCD must reach the native normal duration getter")
+	AssertEqual(true, button.cd.clearIfZero, "native zero-duration normal cooldown must clear stale timing")
+	AssertEqual(5, button.cd.threshold, "configured decimal threshold reaches the native widget")
+
+	cooldownInfo.isOnGCD = true
+	local chargeButton, chargeCalls, durations = RunRestrictedCase(options)
+	AssertEqual(durations.charge, chargeButton.chargeCooldown.durationObject, "GCD suppression must preserve active recharge")
+	AssertEqual(true, chargeButton.chargeCooldown.shown, "recharge edge remains independently visible")
+	AssertEqual(5, chargeButton.chargeCooldown.threshold, "new restricted charge frame inherits decimal threshold")
+	AssertEqual(durations.normal, chargeButton.cd.durationObject, "overlapping GCD metadata must not discard a real cooldown")
+	AssertEqual(1, chargeCalls.normal, "native duration decides which part of the cooldown is GCD")
+	ActionHud.db.profile.showGlobalCooldown = true
+	local _, visibleCalls = RunRestrictedCase(options)
+	AssertEqual(false, visibleCalls.ignoreGCD, "explicit show GCD restores native default policy")
+	ActionHud.db.profile.showGlobalCooldown = false
+
+	lossOfControlInfo.isActive = true
+	lossOfControlInfo.shouldReplaceNormalCooldown = true
+	local locButton, _, locDurations = RunRestrictedCase(options)
+	AssertEqual(locDurations.lossOfControl, locButton.cd.durationObject, "hide GCD must preserve LoC precedence")
+	ActionHud.db.profile = {}
+end
+
+do
+	ActionHud.db.profile = { showGlobalCooldown = false, cooldownDecimalThreshold = 0 }
+	local cooldownInfo = { startTime = 10, duration = 1, isEnabled = true, isActive = true, modRate = 1 }
+	local chargeInfo = { currentCharges = 1, maxCharges = 2, cooldownStartTime = 10,
+		cooldownDuration = 20, chargeModRate = 1, isActive = true }
+	local locInfo = { startTime = 0, duration = 0, modRate = 1, isActive = false,
+		shouldReplaceNormalCooldown = false }
+	local durationObject = {}
+	local normalCalls = 0
+	C_ActionBar = {
+		GetActionCooldown = function() return cooldownInfo end,
+		GetActionCharges = function() return chargeInfo end,
+		GetActionLossOfControlCooldownInfo = function() return locInfo end,
+		GetActionCooldownDuration = function(_, ignoreGCD)
+			AssertEqual(true, ignoreGCD, "readable normal cooldown also uses native GCD policy")
+			normalCalls = normalCalls + 1
+			return durationObject
+		end,
+	}
+	ActionButton_ApplyCooldown = function(_, _, chargeFrame, charges, _, loc)
+		AssertEqual(chargeInfo, charges, "readable recharge metadata remains untouched")
+		AssertEqual(locInfo, loc, "readable LoC metadata remains untouched")
+		chargeFrame:Show()
+	end
+	local button = { hasAction = true, actionID = 42, cd = NewCooldownFrame(), chargeCooldown = NewCooldownFrame() }
+	ActionBars:UpdateCooldown(button)
+	AssertEqual(durationObject, button.cd.durationObject, "readable normal sweep uses native duration")
+	AssertEqual(true, button.chargeCooldown.shown, "normal sweep replacement preserves secondary charge display")
+	AssertEqual(0, button.cd.threshold, "zero disables native decimals on the primary frame")
+	AssertEqual(0, button.chargeCooldown.threshold, "zero also reaches the charge frame")
+	ActionHud.db.profile.cooldownDecimalThreshold = 2
+	locInfo.isActive = true
+	locInfo.shouldReplaceNormalCooldown = true
+	ActionBars:UpdateCooldown(button)
+	AssertEqual(1, normalCalls, "LoC replacement must not be overwritten by a normal duration")
+	AssertEqual(2, button.chargeCooldown.threshold, "existing widgets refresh threshold after settings changes")
+	ActionButton_ApplyCooldown = nil
+	C_ActionBar.GetActionCooldownDuration = nil
+	locInfo.isActive = false
+	locInfo.shouldReplaceNormalCooldown = false
+	ActionBars:UpdateCooldown(button)
+	AssertEqual(1, button.cd.duration, "legacy fallback must preserve a short real cooldown")
+	cooldownInfo.isOnGCD = true
+	ActionBars:UpdateCooldown(button)
+	AssertEqual(1, button.cd.duration, "GCD metadata cannot be trusted outside the cooldown event")
+	ActionBars:UpdateCooldown(button)
+	AssertEqual(1, button.cd.duration, "legacy fallback preserves real cooldowns even with overlapping GCD metadata")
+	button.cd.SetCountdownMillisecondsThreshold = false
+	button.chargeCooldown.SetCountdownMillisecondsThreshold = false
+	ActionBars:UpdateCooldown(button)
+	ActionHud.db.profile = {}
 end
 
 print("SUCCESS: ActionBars restricted cooldown compositor verified!")

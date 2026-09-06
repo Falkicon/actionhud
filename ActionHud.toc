@@ -2,7 +2,7 @@
 ## Title: ActionHud
 ## Notes: Minimalist HUD mirroring Action Bars 1 & 2
 ## Author: Jason Falk
-## Version: 2.13.7
+## Version: 2.14.0
 ## X-License: GPL-3.0
 ## SavedVariables: ActionHudDB
 ## OptionalDeps: !Mechanic, FenCore
@@ -14,7 +14,12 @@ Locales\enUS.lua
 Core\DraggableContainer.lua
 Core\UnitEventRouter.lua
 Utils.lua
+Core\Defaults.lua
+Core\Performance.lua
 ActionHud.lua
+Core\BlizzardBuffCatalog.lua
+Core\RecentPlayerBuffs.lua
+Core\ConsumableItems.lua
 LayoutManager.lua
 ActionBars.lua
 Resources.lua
@@ -28,8 +33,13 @@ Resources.lua
 # Cooldowns\UtilityCooldownsLayout.lua
 # Cooldowns\TrackedDefensives.lua
 # Cooldowns\DefensiveTracker.lua
+UnitFrames\Identity.lua
 UnitFrames\UnitFrames.lua
+UnitFrames\Layout.lua
+UnitFrames\Rendering.lua
 Trinkets.lua
+Consumables.lua
+PlayerBuffs.lua
 Settings\init.lua
 Settings\ActionBars.lua
 Settings\Resources.lua
@@ -39,5 +49,8 @@ Settings\Resources.lua
 # Settings\Tracked.lua
 Settings\UnitFrames.lua
 Settings\Trinkets.lua
+Settings\Consumables.lua
+Settings\PlayerBuffPicker.lua
+Settings\PlayerBuffs.lua
 Settings\Layout.lua
 Mechanic.lua

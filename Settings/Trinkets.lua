@@ -27,12 +27,8 @@ function ns.Settings.BuildTrinketsOptions(self)
 				end,
 				set = function(info, val)
 					self.db.profile.trinketsEnabled = val
-					local LM = ActionHud:GetModule("LayoutManager", true)
-					if LM then
-						LM:TriggerLayoutUpdate()
-					else
-						ActionHud:GetModule("Trinkets"):UpdateLayout()
-					end
+					ActionHud:GetModule("Trinkets"):ApplyEnabledState()
+					self:RefreshLayout()
 				end,
 			},
 			includeInStack = {
@@ -84,8 +80,9 @@ function ns.Settings.BuildTrinketsOptions(self)
 					return IsInStack()
 				end,
 				func = function()
-					self.db.profile.trinketsXOffset = 150
-					self.db.profile.trinketsYOffset = 0
+					local defaults = self.db.defaults.profile
+					self.db.profile.trinketsXOffset = defaults.trinketsXOffset
+					self.db.profile.trinketsYOffset = defaults.trinketsYOffset
 					local DraggableContainer = ns.DraggableContainer
 					if DraggableContainer then
 						local container = DraggableContainer:GetContainer("trinkets")

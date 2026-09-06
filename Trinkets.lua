@@ -12,25 +12,49 @@ local GetInventoryItemID = GetInventoryItemID
 local C_Item = C_Item
 local C_Spell = C_Spell
 local InCombatLockdown = InCombatLockdown
-local GetInventoryItemCooldown = Utils.GetInventoryItemCooldownSafe
 
 function Trinkets:OnInitialize()
 	self.db = addon.db
 end
 
-function Trinkets:OnEnable()
-	self:CreateFrames()
+function Trinkets:ApplyEnabledState()
+	self._desiredEnabled = self.db.profile.trinketsEnabled == true
+	if InCombatLockdown() then
+		self._pendingEnabledState = true
+		self:UpdateLayout()
+		return
+	end
+	self._pendingEnabledState = nil
+	if not self._desiredEnabled then self:Disable(); return end
+	if not self:IsEnabled() then self:Enable(); return end
+	self:StartRuntime()
+end
 
+function Trinkets:OnEnable()
+	self:ApplyEnabledState()
+end
+
+function Trinkets:StartRuntime()
+	if self._runtimeActive then self:UpdateLayout(); return end
+	self:CreateFrames()
+	if not container then return end
+	self._runtimeActive = true
 	self:RegisterEvent("PLAYER_EQUIPMENT_CHANGED", "UpdateTrinkets")
 	self:RegisterEvent("PLAYER_ENTERING_WORLD", "UpdateTrinkets")
 	self:RegisterEvent("SPELL_UPDATE_COOLDOWN", "UpdateCooldowns")
 	self:RegisterEvent("PLAYER_REGEN_ENABLED", "OnCombatEnd")
+	self:UpdateLayout()
+end
 
-	-- Ensure we update on load
-	C_Timer.After(0.5, function()
-		self:UpdateTrinkets()
-		self:UpdateLayout()
-	end)
+function Trinkets:OnDisable()
+	self._runtimeActive = false
+	self._pendingEnabledState = nil
+	self.visibleCount = 0
+	self:UnregisterAllEvents()
+	if container then
+		container:Hide()
+	end
+	self:UpdateLayout()
 end
 
 function Trinkets:CreateFrames()
@@ -80,13 +104,13 @@ function Trinkets:CreateFrames()
 	end
 end
 
-function Trinkets:UpdateTrinkets()
+function Trinkets:PrepareLayout()
 	if not container then
 		return
 	end
 
 	local p = self.db.profile
-	if not p.trinketsEnabled then
+	if not self:IsEnabled() or not p.trinketsEnabled then
 		container:Hide()
 		return
 	end
@@ -98,12 +122,9 @@ function Trinkets:UpdateTrinkets()
 
 		-- In 11.0+, GetInventoryItemID might return 0 instead of nil
 		if itemID and itemID > 0 then
-			local itemSpellName, itemSpellID = Utils.GetItemSpellSafe(itemID)
+			local _, itemSpellID = Utils.GetItemSpellSafe(itemID)
 
-			addon:Log(
-				string.format("Trinket slot %d: ID=%d, SpellID=%s", f.slot, itemID, tostring(itemSpellID or "nil")),
-				"discovery"
-			)
+			addon:Logf("discovery", "Trinket slot %d: ID=%d, SpellID=%s", f.slot, itemID, itemSpellID or "nil")
 
 			if itemSpellID then
 				local itemIcon = C_Item.GetItemIconByID(itemID)
@@ -125,18 +146,18 @@ function Trinkets:UpdateTrinkets()
 
 	if visibleCount > 0 then
 		container:Show()
-		self:UpdateLayout()
 	else
 		container:Hide()
 	end
 
-	self:UpdateCooldowns()
+	self.visibleCount = visibleCount
 end
 
 function Trinkets:UpdateCooldowns()
 	if not container or not container:IsShown() then
 		return
 	end
+	local perfStart = ns.RecordPerformance and debugprofilestop()
 
 	for i = 1, 2 do
 		local f = trinketFrames[i]
@@ -180,19 +201,20 @@ function Trinkets:UpdateCooldowns()
 			end
 		end
 	end
+	if perfStart then ns.RecordPerformance("TrinketsUpdate", perfStart) end
 end
 
 function Trinkets:OnCombatEnd()
 	self:UpdateCooldowns()
 end
 
-function Trinkets:UpdateLayout()
+function Trinkets:ApplyLayoutPosition()
 	if not container then
 		return
 	end
 
 	local p = self.db.profile
-	if not p.trinketsEnabled then
+	if not self:IsEnabled() or not p.trinketsEnabled then
 		container:Hide()
 		return
 	end
@@ -216,6 +238,9 @@ function Trinkets:UpdateLayout()
 			Utils.ApplyIconCrop(f.icon, width, height)
 			local fontName = Utils.GetTimerFont(p.trinketsTimerFontSize)
 			f.cooldown:SetCountdownFont(fontName)
+			if f.cooldown.SetCountdownMillisecondsThreshold then
+				f.cooldown:SetCountdownMillisecondsThreshold(p.cooldownDecimalThreshold or 3)
+			end
 			table.insert(visibleFrames, f)
 		end
 	end
@@ -247,8 +272,6 @@ function Trinkets:UpdateLayout()
 			end
 		end
 
-		-- Report height to LayoutManager
-		LM:SetModuleHeight("trinkets", height)
 	else
 		-- Independent mode: fit to visible content
 		container:SetSize(actualWidth, height)
@@ -288,11 +311,6 @@ function Trinkets:UpdateLayout()
 			end
 		end
 
-		-- Release height reservation when not in stack
-		local LM = addon:GetModule("LayoutManager", true)
-		if LM then
-			LM:SetModuleHeight("trinkets", 0)
-		end
 	end
 
 	if #visibleFrames > 0 then
@@ -308,7 +326,7 @@ end
 -- Stack layout functions - return real values when module is enabled
 function Trinkets:CalculateHeight()
 	local p = self.db.profile
-	if not p.trinketsEnabled then
+	if not self._runtimeActive or not p.trinketsEnabled or (self.visibleCount or 0) == 0 then
 		return 0
 	end
 	return p.trinketsIconHeight or 32
@@ -316,14 +334,23 @@ end
 
 function Trinkets:GetLayoutWidth()
 	local p = self.db.profile
-	if not p.trinketsEnabled then
+	if not self._runtimeActive or not p.trinketsEnabled or (self.visibleCount or 0) == 0 then
 		return 0
 	end
 	-- Width of both trinkets + spacing
 	local spacing = 2
-	return (p.trinketsIconWidth or 32) * 2 + spacing
+	return (p.trinketsIconWidth or 32) * self.visibleCount + spacing * (self.visibleCount - 1)
 end
 
-function Trinkets:ApplyLayoutPosition()
+function Trinkets:UpdateLayout()
+	local manager = addon:GetModule("LayoutManager", true)
+	if manager then manager:RequestLayout("trinkets") end
+end
+
+function Trinkets:UpdateTrinkets()
 	self:UpdateLayout()
+end
+
+function Trinkets:RenderLayout()
+	self:UpdateCooldowns()
 end

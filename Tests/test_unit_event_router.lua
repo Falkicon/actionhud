@@ -63,4 +63,18 @@ assert(calls[1] == "UNIT_HEALTH:target", "unit event was not dispatched")
 router:UnregisterAll(owner)
 assert(next(frame.registrations) == nil, "unit events were not unregistered")
 
+router:Register(owner, "UNIT_HEALTH", "OnUnitEvent", "player")
+local stale = pending[#pending]
+router:UnregisterAll(owner)
+router:Register(owner, "UNIT_POWER_UPDATE", "OnUnitEvent", "target")
+local current = pending[#pending]
+local count = #pending
+stale()
+router:Register(owner, "UNIT_HEALTH", "OnUnitEvent", "focus")
+assert(#pending == count, "a stale callback must not break coalescing of newer registrations")
+assert(next(frame.registrations) == nil, "a stale callback must not restore old registrations")
+current()
+assert(frame.registrations.UNIT_HEALTH[1] == "focus", "newer registration was lost")
+assert(frame.registrations.UNIT_POWER_UPDATE[1] == "target", "newer registration was lost")
+
 print("SUCCESS: unit events are scoped and cleanly unregistered")

@@ -11,11 +11,14 @@ ns.DraggableContainer = DraggableContainer
 -- Module colors for drag overlays
 local MODULE_COLORS = {
 	actionbars = { r = 1, g = 0.5, b = 0 }, -- Orange
+	actionBars = { r = 1, g = 0.5, b = 0 }, -- Action Bars module registry ID
 	resources = { r = 0, g = 1, b = 0 }, -- Green
 	cooldowns = { r = 0, g = 0.5, b = 1 }, -- Blue (legacy)
 	essentialCooldowns = { r = 0, g = 0.5, b = 1 }, -- Blue
 	utilityCooldowns = { r = 0.5, g = 0, b = 0.8 }, -- Deep Purple
 	trinkets = { r = 0.8, g = 0, b = 1 }, -- Purple
+	playerBuffs = { r = 0, g = 0.85, b = 0.85 }, -- Teal
+	consumables = { r = 1, g = 0.6, b = 0.1 }, -- Orange
 	buffs = { r = 0, g = 1, b = 1 }, -- Cyan
 	ufPlayer = { r = 0, g = 0.8, b = 0.3 }, -- Green
 	ufTarget = { r = 1, g = 0.2, b = 0.2 }, -- Red
@@ -26,11 +29,14 @@ local MODULE_COLORS = {
 -- Module display labels
 local MODULE_LABELS = {
 	actionbars = L["Action Bars"],
+	actionBars = L["Action Bars"],
 	resources = L["Resource Bars"],
 	cooldowns = L["Cooldowns"],
 	essentialCooldowns = L["Essential Cooldowns"],
 	utilityCooldowns = L["Utility Cooldowns"],
 	trinkets = L["Trinkets"],
+	playerBuffs = L["Player Buffs"],
+	consumables = L["Consumables"],
 	buffs = L["Tracked Buffs"],
 	ufPlayer = L["Player Frame"],
 	ufTarget = L["Target Frame"],
@@ -56,6 +62,8 @@ local activeContainers = {}
 		- defaultX: number (default X position)
 		- defaultY: number (default Y position)
 		- size: table { width, height } (optional, default 40x40)
+		- frame: existing container frame to initialize (optional)
+		- overlayLevelOffset: number (optional, default 10; clears the known three-level addon widget nesting)
 		
 	@return Frame container
 ]]
@@ -68,13 +76,14 @@ function DraggableContainer:Create(opts)
 	local defaultX = opts.defaultX or 0
 	local defaultY = opts.defaultY or -100
 	local size = opts.size or { width = 40, height = 40 }
+	local overlayLevelOffset = opts.overlayLevelOffset or 10
 
 	if not parent then
 		return nil
 	end
 
 	-- Create container frame
-	local container = CreateFrame("Frame", "ActionHud" .. moduleId .. "Container", parent)
+	local container = opts.frame or CreateFrame("Frame", "ActionHud" .. moduleId .. "Container", parent)
 	container:SetSize(size.width, size.height)
 	container:SetMovable(true)
 	container:SetClampedToScreen(true)
@@ -82,39 +91,59 @@ function DraggableContainer:Create(opts)
 
 	-- Drag handlers
 	container:SetScript("OnDragStart", function(self)
-		if DraggableContainer:IsUnlocked(db) then
+		if not InCombatLockdown() and DraggableContainer:IsUnlocked(db) then
 			self:StartMoving()
 		end
 	end)
 
-	container:SetScript("OnDragStop", function(self)
+	local function StopDrag(self)
+		if InCombatLockdown() then
+			self:RegisterEvent("PLAYER_REGEN_ENABLED")
+			return
+		end
+		self:UnregisterEvent("PLAYER_REGEN_ENABLED")
 		self:StopMovingOrSizing()
 
 		-- Calculate offset from parent center
 		local cx, cy = self:GetCenter()
 		local px, py = parent:GetCenter()
-		local xOffset = cx - px
-		local yOffset = cy - py
+		local scale = parent:GetEffectiveScale() / self:GetEffectiveScale()
+		local xOffset = cx - px * scale
+		local yOffset = cy - py * scale
 
 		-- Save to profile
 		db.profile[xKey] = xOffset
 		db.profile[yKey] = yOffset
+		DraggableContainer:UpdatePosition(self)
 
 		-- Notify settings UI
 		if LibStub("AceConfigRegistry-3.0", true) then
 			LibStub("AceConfigRegistry-3.0"):NotifyChange("ActionHud")
 		end
+	end
+	container:SetScript("OnDragStop", StopDrag)
+	container:SetScript("OnEvent", function(self, event)
+		if event == "PLAYER_REGEN_ENABLED" then
+			StopDrag(self)
+		end
 	end)
 
+	-- Keep drag visuals above addon-owned icons, cooldowns, and text within
+	-- the module's existing frame strata; do not inspect native aura children.
+	container.overlayFrame = CreateFrame("Frame", nil, container)
+	container.overlayFrame:SetAllPoints()
+	container.overlayFrame:SetFrameLevel((container:GetFrameLevel() or 0) + overlayLevelOffset)
+	container.overlayFrame:EnableMouse(false)
+
 	-- Create drag overlay (colored background, no border)
-	container.overlay = container:CreateTexture(nil, "BACKGROUND")
+	container.overlay = container.overlayFrame:CreateTexture(nil, "BACKGROUND")
 	container.overlay:SetAllPoints()
 	local color = MODULE_COLORS[moduleId] or { r = 1, g = 1, b = 1 }
 	container.overlay:SetColorTexture(color.r, color.g, color.b, 0.4)
 	container.overlay:Hide()
 
 	-- Create label (Arial with outline, centered)
-	container.label = container:CreateFontString(nil, "OVERLAY")
+	container.label = container.overlayFrame:CreateFontString(nil, "OVERLAY")
 	container.label:SetFont("Fonts\\ARIALN.TTF", 12, "OUTLINE")
 	container.label:SetPoint("CENTER")
 	container.label:SetText(MODULE_LABELS[moduleId] or moduleId)
@@ -126,6 +155,7 @@ function DraggableContainer:Create(opts)
 	container._yKey = yKey
 	container._defaultX = defaultX
 	container._defaultY = defaultY
+	container._overlayLevelOffset = overlayLevelOffset
 
 	-- Register in active containers
 	activeContainers[moduleId] = container
@@ -163,6 +193,7 @@ function DraggableContainer:UpdateOverlay(container)
 	end
 
 	local isUnlocked = DraggableContainer:IsUnlocked(container._db)
+	container.overlayFrame:SetFrameLevel((container:GetFrameLevel() or 0) + container._overlayLevelOffset)
 
 	if isUnlocked then
 		container:EnableMouse(true)

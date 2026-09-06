@@ -1,4 +1,51 @@
 # Changelog
+
+## [Unreleased]
+
+## [2.14.0] - 2026-09-06
+
+Adds optional Player Buffs and Consumables displays, improves resource accuracy and settings access, and strengthens runtime lifecycle and layout handling. Warrior smoke tests passed; broader class/spec and combat checks remain documented in STATUS.md.
+
+### Added
+
+- Optional Consumables display with a searchable bag picker, ordered selections, manual item IDs, carried counts/charges, and native cooldown sweeps. Selected slots remain fixed when depleted; layout supports independent dragging or HUD stack inclusion. Disabled by default.
+- Recent Buffs picker with a persistent per-character history of up to 100 readable helpful aura IDs, and a Blizzard Catalog sourced from the game's Cooldown Viewer metadata. Discovery pauses during combat/restrictions; manual IDs remain available. No spell-list dependency is added.
+- Player Buffs picker with name/ID search, spell icons and tooltips, selected-buff reordering/removal, and an inactive preview. Advanced spell-ID editing remains available.
+
+- Optional native health and power percentage text for each custom unit frame, with individual position and style controls.
+- Action Bars cooldown controls for showing the global cooldown sweep and native decimal countdowns on action/trinket icons (default: final 3 seconds).
+- Optional **Player Buffs** display backed by WoW 12.1's native `CustomAuraContainer`: configure up to 12 ordered, unique helpful player aura spell IDs, with fixed slot footprints, native icons/timers/stacks, configurable icon size/columns/spacing, independent or HUD-stack positioning. It is disabled by default and does not read aura data, hook aura widgets, or poll.
+- Opt-in `/ah perf on`, `off`, `reset`, and `report` commands with call counts and total, average, and peak timings; profiling also works without Mechanic.
+- Full-TOC integration tests using the embedded libraries, plus automated localization, manifest, package, and Luacheck checks.
+
+### Changed
+
+- Replaced spellbook enumeration with Recent Buffs and Blizzard Catalog. Native buff slots accept Blizzard's associated spell IDs together, and catalog filters refresh after spell/spec and metadata changes. Source links and seasonal maintenance notes are recorded beside the code.
+- Compact Player Buffs rows with separate Add/Added controls, smaller paging controls, and selected-buff names and reorder/remove actions on one row.
+- Centralized layout requests into one queued LayoutManager pass with shared lifecycle reconciliation and combat deferral.
+- Moved profile defaults into `Core/Defaults.lua` and separated UnitFrames identity, lifecycle, layout, and rendering responsibilities.
+- Avoid eager debug-log formatting when logging is disabled.
+- Exclude dormant cooldown-viewer modules, associated settings, legacy core experiments, and development tooling from release packages.
+- Updated setup, architecture, commands, contributor instructions, and development status documentation.
+
+### Fixed
+
+- Unlocked module labels and color washes now draw above their icon, cooldown, and count layers, keeping the Consumables drag overlay readable.
+- Blizzard Catalog no longer requires `hasAura = true` for tracked player buffs. This restores entries such as Spell Reflection, Shield Block, Shield Wall, and Ignore Pain while retaining target-debuff and unlearned-spell exclusions.
+- Rallying Cry selections now resolve the ability ID to its buff ID, including previously saved selections. Cast and buff IDs are deduplicated into the same slot.
+- `/ah`, `/actionhud`, and the Addon Compartment now open settings using the registered category ID instead of passing the canvas frame to Blizzard's navigation API.
+- Class-resource accuracy: use actual segment capacity and native restricted-value fills, keep depleted rows visible, select the correct secondary pool on custom player frames, and refresh on form/spec/rune changes.
+- Settings panels stopping at their first checkbox: updated the embedded AceGUI checkbox to upstream widget version 27, replacing the removed `SetDesaturation` global with native texture methods.
+- Read total damage absorbs from the native heal prediction calculator using its documented getter, preserving restricted values for display.
+- Preserve protected maximum health/power values in HUD resource bar ranges, preventing target health from displaying only full or empty; apply the same range handling to heal prediction and absorbs.
+- Disabled modules reappearing during layout, inconsistent enablement persistence, and incomplete runtime event cleanup.
+- Repeated action-bar hooks and stale callbacks across disable/re-enable cycles.
+- Range, usability, and assist updates missing duplicate mirrored action slots; stale cooldown displays on empty slots.
+- Restricted maximum-health values reaching prediction arithmetic and stale unit-frame prediction displays.
+- Secure layout changes during combat and cached frame heights preventing a deferred resize.
+- Stack measurements, independent resource anchoring, scaled drag offsets, profile position restoration, and combat-interrupted dragging.
+- Settings position resets, layout reordering across hidden modules, and Mechanic settings/lifecycle tool actions.
+
 ## [2.13.7] - 2026-08-17
 
 ### Fixed

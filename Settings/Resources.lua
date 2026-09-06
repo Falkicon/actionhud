@@ -90,8 +90,9 @@ function ns.Settings.BuildResourcesOptions(self)
 					return IsInStack()
 				end,
 				func = function()
-					self.db.profile.resourcesXOffset = 0
-					self.db.profile.resourcesYOffset = 100
+					local defaults = self.db.defaults.profile
+					self.db.profile.resourcesXOffset = defaults.resourcesXOffset
+					self.db.profile.resourcesYOffset = defaults.resourcesYOffset
 					local DraggableContainer = ns.DraggableContainer
 					if DraggableContainer then
 						local container = DraggableContainer:GetContainer("resources")

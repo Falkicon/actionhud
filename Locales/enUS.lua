@@ -4,6 +4,13 @@ if not L then
 end
 
 -- Core messages
+L["Performance recording started."] = true
+L["Performance recording stopped. Results retained."] = true
+L["Performance counters reset."] = true
+L["No performance samples. Use /ah perf on to start."] = true
+L["%s: %d calls, %.3f ms total, %.3f ms average, %.3f ms peak"] = true
+L["%d calls; %.3f ms total; %.3f ms peak"] = true
+L["Usage: /ah perf on, off, reset, or report"] = true
 L["ActionHud: Navigate to Gameplay Enhancements."] = true
 L["Slash Commands:"] = true
 L["/ah: Open settings."] = true
@@ -76,6 +83,7 @@ L["A minimalist HUD mirroring Action Bars 1 & 2 in a 6x4 grid."] = true
 L["Required Setup:"] = true
 L["Click the button below to open WoW's Gameplay Enhancements settings."] = true
 L["Enable these options:"] = true
+L["Enable this option:"] = true
 L["Assisted Highlight"] = true
 L["(rotation glows)"] = true
 L["Enable Cooldown Manager"] = true
@@ -112,6 +120,10 @@ L["Proc Glow Opacity (Yellow)"] = true
 L["Assist Glow Opacity (Blue)"] = true
 L["Fonts"] = true
 L["Cooldown Font Size"] = true
+L["Show Global Cooldown"] = true
+L["Show the global cooldown sweep on action icons. Spell cooldowns and charge recovery remain visible when disabled."] = true
+L["Countdown Decimal Threshold"] = true
+L["Show tenths of a second below this duration on action and trinket cooldowns. Set to 0 for whole seconds."] = true
 L["Stack Count Font Size"] = true
 L["Layout Mirroring"] = true
 L["Top Bar Priority"] = true
@@ -172,6 +184,44 @@ L["Large"] = true
 L["Huge"] = true
 L["Essential Cooldowns"] = true
 L["Utility Cooldowns"] = true
+
+-- Player Buffs picker
+L["Spell %d"] = true
+L["Add at least one spell to display Player Buffs."] = true
+L["Advanced: Spell IDs"] = true
+L["Find Buffs"] = true
+L["Choose a buff to track. Known spell-to-buff mappings are applied automatically; use Advanced: Spell IDs if one does not appear."] = true
+L["Source"] = true
+L["Recent Buffs"] = true
+L["Blizzard Catalog"] = true
+L["Recent Buffs records readable helpful buffs on you. It can miss buffs while combat restrictions hide aura data."] = true
+L["Blizzard Catalog lists known self buffs from Blizzard data. It is not a complete list."] = true
+L["Search buffs"] = true
+L["Search by buff name or spell ID, then press Enter."] = true
+L["Refresh the selected buff source."] = true
+L["Clear History"] = true
+L["Forget all recorded Recent Buffs. This does not change your selected buffs."] = true
+L["Recent Buffs may be incomplete because aura data is restricted during combat."] = true
+L["Recent Buffs are unavailable. You can still add spell IDs under Advanced: Spell IDs."] = true
+L["Blizzard Catalog is unavailable. You can still add spell IDs under Advanced: Spell IDs."] = true
+L["No matching buffs. Try another search or refresh the selected source."] = true
+L["Fix the saved spell ID list under Advanced: Spell IDs before editing selected buffs."] = true
+L["%d matching buffs. %d of 12 buffs selected."] = true
+L["Previous page"] = true
+L["Next page"] = true
+L["Page %d of %d"] = true
+L["Add"] = true
+L["Added"] = true
+L["Previous"] = true
+L["Next"] = true
+L["Refresh"] = true
+L["Selected Buffs"] = true
+L["No buffs selected. Add a buff above or enter a spell ID under Advanced: Spell IDs."] = true
+L["Move Up"] = true
+L["Move Down"] = true
+L["Remove"] = true
+L["Preview"] = true
+L["Preview shows configured order and columns at a fixed icon size, even when buffs are inactive."] = true
 L["Enable management of Essential Cooldowns frame."] = true
 L["Enable management of Utility Cooldowns frame."] = true
 L["Size of cooldown icons."] = true
@@ -270,10 +320,13 @@ L["Target of Target"] = true
 -- Settings UI - Custom Unit Frames
 L["Custom Unit Frames"] = true
 L["Custom frames for Player and Target with advanced support for Midnight's 'Secret Values'."] = true
+L["Custom frames for Player, Target, Target of Target, and Focus with support for Midnight's secret values."] = true
 L["Enable Custom Unit Frames"] = true
 L["Enable ActionHud custom player and target unit frames. Compatible with Midnight 12.0 secret values."] = true
+L["Enable ActionHud custom Player, Target, Target of Target, and Focus frames."] = true
 L["Hide Blizzard Frames"] = true
 L["Hide the default Blizzard Player, Target, and Focus frames when custom frames are enabled."] = true
+L["Hide the default Blizzard Player, Target, Target of Target, and Focus frames when custom frames are enabled."] = true
 L["Bar Width"] = true
 L["Height"] = true
 L["X Offset"] = true
@@ -400,6 +453,66 @@ L["Trinket Bar"] = true
 L["Enable the sidecar Trinket module."] = true
 L["Sizing & Positioning"] = true
 
+-- Settings UI - Player Buffs
+L["Player Buffs"] = true
+L["Track selected helpful player buffs and defensives in fixed positions. Configured slots stay reserved while inactive, so icons do not shift."] = true
+L["Enable Player Buffs"] = true
+L["Show the configured helpful auras on the player."] = true
+L["Player Buffs requires WoW 12.1's native aura container API, which is unavailable on this client."] = true
+L["Player Buffs is disabled."] = true
+L["Enter at least one aura spell ID to display Player Buffs."] = true
+L["The saved aura spell ID list is invalid. Edit it below."] = true
+L["Player Buffs is waiting until combat ends to create its display."] = true
+L["Player Buffs is active."] = true
+L["Player Buffs could not create its native aura display."] = true
+L["Aura Spell IDs"] = true
+L["Enter up to 12 helpful aura spell IDs separated by commas or whitespace. Aura spell IDs can differ from the spells you cast."] = true
+L["Enter only positive integer spell IDs separated by commas or whitespace."] = true
+L["Enter no more than 12 unique spell IDs."] = true
+L["Warrior Example"] = true
+L["Use Spell Reflection's aura spell ID (23920). This does not enable Player Buffs or cast the ability."] = true
+L["Clear Spell IDs"] = true
+L["Clear the aura spell ID list without changing any other Player Buffs settings."] = true
+L["Size of Player Buffs icons."] = true
+L["Maximum number of Player Buffs icons per row."] = true
+L["Spacing"] = true
+L["Space between Player Buffs icons."] = true
+
+-- Settings UI - Consumables
+L["Consumables"] = true
+L["Enable Consumables"] = true
+L["Show the selected consumables."] = true
+L["Show carried counts and cooldowns for selected consumables. Icons are display-only and do not use items. Depleted items stay in place, dimmed; exact item IDs are never swapped for quality variants."] = true
+L["Consumables is disabled."] = true
+L["Add at least one item to display Consumables."] = true
+L["Consumables is waiting until combat ends to update its display."] = true
+L["Consumables is active."] = true
+L["Consumables could not update its display."] = true
+L["Choose from Bags"] = true
+L["Choose an item currently in your bags, or use Advanced: Item IDs for any exact item ID."] = true
+L["Search items"] = true
+L["Search by item name or item ID, then press Enter."] = true
+L["Refresh items from your bags."] = true
+L["No matching items. Try another search or refresh your bags."] = true
+L["%d matching items. %d of 12 items selected."] = true
+L["Selected Items"] = true
+L["No items selected. Add an item above or enter an item ID under Advanced: Item IDs."] = true
+L["Advanced: Item IDs"] = true
+L["Item IDs"] = true
+L["Enter up to 12 exact item IDs separated by commas or whitespace. Quality variants use separate item IDs."] = true
+L["Enter only positive integer item IDs separated by commas or whitespace."] = true
+L["Enter no more than 12 unique item IDs."] = true
+L["Fix the saved item ID list under Advanced: Item IDs before editing selected items."] = true
+L["Clear Item IDs"] = true
+L["Clear the item ID list without changing any other Consumables settings."] = true
+L["Size of Consumables icons."] = true
+L["Maximum number of Consumables icons per row."] = true
+L["Space between Consumables icons."] = true
+L["Item %d"] = true
+L["%s  ×%s"] = true
+L["%d. %s  ×%s"] = true
+L["?"] = true
+
 -- Settings UI - Layout
 L["Layout"] = true
 L["HUD Stack Order"] = true
@@ -421,6 +534,20 @@ L["These frames are styled by ActionHud but positioned via Blizzard's EditMode:"
 
 -- Settings UI - Profiles
 L["Profiles"] = true
+
+-- Mechanic quick actions
+L["ActionHud Tools"] = true
+L["Quick actions for HUD management."] = true
+L["Settings"] = true
+L["HUD:"] = true
+L["Toggle Lock"] = true
+L["Locked"] = true
+L["Unlocked"] = true
+L["Modules:"] = true
+L["Debug:"] = true
+L["ON"] = true
+L["OFF"] = true
+L["Use /ah or /actionhud for more options."] = true
 
 -- Cooldown Manager
 L["CooldownManager Enabled"] = true

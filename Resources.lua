@@ -4,14 +4,11 @@ local Resources = addon:NewModule("Resources", "AceEvent-3.0")
 ns.Resources = Resources -- For backward compatibility with other modules referencing it
 
 -- Local upvalues for performance
-local UnitClass = UnitClass
 local UnitHealth = UnitHealth -- @scan-ignore: midnight-upvalue
 local UnitHealthMax = UnitHealthMax
 local UnitPower = UnitPower -- @scan-ignore: midnight-upvalue
 local UnitPowerMax = UnitPowerMax
-local UnitPowerType = UnitPowerType
 local UnitExists = UnitExists
-local UnitIsPlayer = UnitIsPlayer
 
 local main
 local container
@@ -56,14 +53,6 @@ local RuneSpecColors = {
 	[3] = { r = 0.3, g = 0.7, b = 0.3 }, -- Unholy (Green)
 }
 
-local function GetPlayerClassToken()
-	local _, class = UnitClass("player")
-	if Utils.IsValueSecret(class) then
-		return nil
-	end
-	return class
-end
-
 local function UnitExistsSafe(unit)
 	local exists = UnitExists(unit)
 	if Utils.IsValueSecret(exists) then
@@ -73,10 +62,13 @@ local function UnitExistsSafe(unit)
 end
 
 local function SafeNumber(value)
-	if value == nil or Utils.IsValueSecret(value) then
+	if Utils.IsValueSecret(value) or type(value) ~= "number" then
 		return nil
 	end
-	return tonumber(value)
+	if value ~= value or value == math.huge or value == -math.huge then
+		return nil
+	end
+	return value
 end
 
 local function CreateBar(parent, withHealthOverlays)
@@ -114,274 +106,126 @@ local function CreateBar(parent, withHealthOverlays)
 end
 
 local function GetClassPowerType()
-	local class = GetPlayerClassToken()
-	if class == "ROGUE" or class == "DRUID" then
-		return Enum.PowerType.ComboPoints
-	elseif class == "PALADIN" then
-		return Enum.PowerType.HolyPower
-	elseif class == "WARLOCK" then
-		return Enum.PowerType.SoulShards
-	elseif class == "MAGE" then
-		return Enum.PowerType.ArcaneCharges
-	elseif class == "MONK" then
-		return Enum.PowerType.Chi
-	elseif class == "EVOKER" then
-		return Enum.PowerType.Essence
-	elseif class == "DEATHKNIGHT" then
-		return Enum.PowerType.Runes
-	end
-	return nil
-end
-
-local function GetClassPowerFractional(unit, pType)
-	-- Use pcall for all power operations to handle secret values
-	local ok, cur = pcall(UnitPower, unit, pType) -- @scan-ignore: midnight-player-only
-	if not ok then
-		cur = 0
-	end
-
-	if pType == Enum.PowerType.SoulShards then
-		local class = GetPlayerClassToken()
-		if class == "WARLOCK" then
-			local spec = Utils.GetSpecializationSafe()
-			-- Destruction Warlocks (Spec 3) have partial shards
-			if spec == 3 then
-				local rawOk, raw = pcall(UnitPower, unit, pType, true) -- @scan-ignore: midnight-player-only
-				local mod = UnitPowerDisplayMod and UnitPowerDisplayMod(pType)
-				if Utils.IsValueSecret(mod) or type(mod) == "nil" then
-					mod = 100
-				end
-				if rawOk and mod ~= 0 then
-					if type(raw) == "number" and not Utils.IsValueSecret(raw) then
-						return raw / mod
-					end
-					local divOk, result = pcall(function()
-						return raw / mod
-					end)
-					if divOk then
-						return result
-					end
-				end
-			end
-		end
-	elseif pType == Enum.PowerType.Essence then
-		local partialOk, partial = true, 0
-		if UnitPartialPower then
-			partialOk, partial = pcall(UnitPartialPower, unit, pType)
-		end
-		if not partialOk or type(partial) == "nil" then
-			partial = 0
-		end
-		if
-			type(cur) == "number"
-			and type(partial) == "number"
-			and not Utils.IsValueSecret(cur)
-			and not Utils.IsValueSecret(partial)
-		then
-			return cur + (partial / 1000.0)
-		end
-		local addOk, result = pcall(function()
-			return cur + (partial / 1000.0)
-		end)
-		if addOk then
-			return result
-		end
-	end
-
-	return cur
+	return Utils.GetPlayerClassPowerTypeSafe()
 end
 
 local function CanShowClassPower()
 	local pType = GetClassPowerType()
 	if not pType then
-		return false, nil, 0, nil
+		return false
 	end
-
 	local max = UnitPowerMax("player", pType) -- @scan-ignore: midnight-player-only
-	local cur = GetClassPowerFractional("player", pType)
-
-	-- Handle Midnight secret values
-	local maxIsSecret = Utils.IsValueSecret(max)
-	local curIsSecret = Utils.IsValueSecret(cur)
-
 	local maxNum = SafeNumber(max)
-	local curNum = SafeNumber(cur)
-
-	-- Normalize internal units (some clients return 300 for 3 shards)
-	if maxNum and maxNum > 10 then
-		maxNum = math.floor(maxNum / 100)
+	if maxNum then
+		-- Eligibility and capacity control layout; spending the last point does not.
+		return Utils.SafeCompare(maxNum, 0, ">"), pType, maxNum, max
 	end
-	if curNum and curNum > 10 then
-		curNum = curNum / 100
-	end
+	return Utils.IsValueSecret(max), pType, nil, max
+end
 
-	if maxIsSecret or curIsSecret or not maxNum then
-		-- Fallback for secret OR non-numeric values
-		return true, pType, 5, cur
+local function GetClassPowerValue(pType, maxNum, max)
+	local ok, cur = pcall(UnitPower, "player", pType) -- @scan-ignore: midnight-player-only
+	if not ok or (not Utils.IsValueSecret(cur) and type(cur) ~= "number") then
+		return nil
 	end
 
-	if maxNum <= 0 then
-		return false, pType, 0, cur
+	-- Keep Destruction shards in native raw units. Public interval endpoints can
+	-- be scaled; an opaque current value must never be divided in Lua.
+	if pType == Enum.PowerType.SoulShards and Utils.GetSpecializationSafe() == 3 and maxNum then
+		local mod = UnitPowerDisplayMod and SafeNumber(UnitPowerDisplayMod(pType))
+		if mod and Utils.SafeCompare(mod, 0, ">") then
+			local rawOk, raw = pcall(UnitPower, "player", pType, true) -- @scan-ignore: midnight-player-only
+			if rawOk and (Utils.IsValueSecret(raw) or type(raw) == "number") then
+				return raw, mod, maxNum * mod
+			end
+		end
+	elseif pType == Enum.PowerType.Essence and UnitPartialPower then
+		local partialOk, partial = pcall(UnitPartialPower, "player", pType)
+		local curNum = SafeNumber(cur)
+		local partialNum = partialOk and SafeNumber(partial)
+		if curNum and partialNum then
+			-- Blizzard's Essence partial value uses thousandths of one point.
+			cur = curNum + partialNum / 1000
+		end
 	end
+	return cur, 1, max
+end
 
-	-- For Warlocks, always show bar if in combat
-	local class = GetPlayerClassToken()
-	local inCombat = UnitAffectingCombat("player")
-	if Utils.IsValueSecret(inCombat) then
-		inCombat = false
+local function PrepareClassPower(maxNum)
+	-- Only the layout scheduler creates and positions segments. An unknown
+	-- maximum cannot determine geometry and is displayed by the continuous bar.
+	local count = maxNum and Utils.SafeCompare(maxNum, math.floor(maxNum), "==") and maxNum or 0
+	local width = playerClassBar:GetWidth()
+	local height = playerClassBar:GetHeight()
+	local segWidth = count > 0 and math.max(1, (width - (count - 1)) / count) or 0
+	playerClassBar._segmentMax = count
+	for i = 1, count do
+		local seg = classSegments[i]
+		if not seg then
+			seg = CreateBar(playerClassBar, false)
+			classSegments[i] = seg
+		end
+		seg:ClearAllPoints()
+		seg:SetSize(segWidth, height)
+		if i == 1 then
+			seg:SetPoint("LEFT", playerClassBar, "LEFT", 0, 0)
+		else
+			seg:SetPoint("LEFT", classSegments[i - 1], "RIGHT", 1, 0)
+		end
 	end
-	if class == "WARLOCK" and inCombat == true then
-		return true, pType, maxNum, cur
+	for i = count + 1, #classSegments do
+		classSegments[i]:Hide()
 	end
-
-	-- Show if we have any power (including partials)
-	if not curNum or curNum <= 0.01 then
-		return false, pType, 0, cur
-	end
-
-	return true, pType, maxNum, cur
 end
 
 local function UpdateClassPower()
 	if not playerClassBar then
 		return false
 	end
-
 	local wasShown = playerClassBar:IsShown()
 	if not RCFG.classEnabled then
 		playerClassBar:Hide()
 		return wasShown
 	end
-	local show, pType, max, curFractional = CanShowClassPower()
+	local show, pType, maxNum, max = CanShowClassPower()
 	if not show then
 		playerClassBar:Hide()
 		return wasShown
 	end
-
-	-- Get fractional power (3.4 shards, 5.2 essence, etc)
-	local curIsSecret = Utils.IsValueSecret(curFractional)
-
-	-- Force max to be numeric for the loop (safely)
-	if Utils.IsValueSecret(max) then
-		max = 5
-	else
-		max = tonumber(max) or 5
-	end
-
-	playerClassBar:Show()
-	local width = playerClassBar:GetWidth()
-	if width <= 0 then
-		width = container:GetWidth()
-	end
-	local height = playerClassBar:GetHeight()
-	local layoutChanged = playerClassBar._segmentMax ~= max
-		or playerClassBar._segmentWidth ~= width
-		or playerClassBar._segmentHeight ~= height
-
-	-- Ensure segments exist as StatusBars
-	for i = 1, max do
-		if not classSegments[i] then
-			local f = CreateFrame("StatusBar", nil, playerClassBar)
-			f:SetStatusBarTexture("Interface\\Buttons\\WHITE8x8")
-			f:SetMinMaxValues(0, 1)
-
-			f.bg = f:CreateTexture(nil, "BACKGROUND")
-			f.bg:SetAllPoints()
-			f.bg:SetColorTexture(0, 0, 0, 0.3)
-
-			classSegments[i] = f
-			layoutChanged = true
-		elseif not classSegments[i].SetStatusBarColor then
-			-- Conversion safety: if it was a texture, we need to replace it
-			-- This shouldn't happen after the first reload but good for dev
-			classSegments[i]:Hide()
-			local f = CreateFrame("StatusBar", nil, playerClassBar)
-			f:SetStatusBarTexture("Interface\\Buttons\\WHITE8x8")
-			f:SetMinMaxValues(0, 1)
-			f.bg = f:CreateTexture(nil, "BACKGROUND")
-			f.bg:SetAllPoints()
-			f.bg:SetColorTexture(0, 0, 0, 0.3)
-			classSegments[i] = f
-			layoutChanged = true
-		end
-	end
-
-	local spacing = 1
-	local segWidth = (width - ((max - 1) * spacing)) / max
-	if segWidth < 1 then
-		segWidth = 1
+	local cur, units, nativeMax = GetClassPowerValue(pType, maxNum, max)
+	if not Utils.IsValueSecret(cur) and type(cur) ~= "number" then
+		playerClassBar:Hide()
+		return wasShown
 	end
 
 	local baseColor = ClassBarColors[pType]
 	if pType == Enum.PowerType.Runes then
-		local spec = Utils.GetSpecializationSafe()
-		baseColor = RuneSpecColors[spec] or ClassBarColors[pType]
+		baseColor = RuneSpecColors[Utils.GetSpecializationSafe()] or baseColor
 	end
-
-	if layoutChanged then
-		playerClassBar._segmentMax = max
-		playerClassBar._segmentWidth = width
-		playerClassBar._segmentHeight = height
-		for i = max + 1, #classSegments do
-			classSegments[i]:Hide()
+	local count = maxNum and Utils.SafeCompare(maxNum, math.floor(maxNum), "==") and maxNum or 0
+	local layoutChanged = playerClassBar._segmentMax ~= count
+	playerClassBar:Show()
+	if count == 0 or layoutChanged then
+		-- Never reuse a stale pip count. While a public capacity change awaits
+		-- layout (including combat deferral), the existing native bar is accurate.
+		for _, seg in ipairs(classSegments) do seg:Hide() end
+		local bar = playerClassBar.continuous
+		bar:SetMinMaxValues(0, nativeMax)
+		bar:SetValue(cur)
+		bar:SetStatusBarColor(baseColor.r, baseColor.g, baseColor.b)
+		bar:Show()
+		if layoutChanged then Resources:UpdateLayout() end
+	else
+		playerClassBar.continuous:Hide()
+		for i = 1, count do
+			local seg = classSegments[i]
+			-- The native status bar clamps the same opaque current into each
+			-- public interval. No Lua fill arithmetic or inferred fullness.
+			seg:SetMinMaxValues((i - 1) * units, i * units)
+			seg:SetValue(cur)
+			seg:SetStatusBarColor(baseColor.r, baseColor.g, baseColor.b)
+			seg:Show()
 		end
-	end
-
-	for i = 1, max do
-		local seg = classSegments[i]
-		if layoutChanged then
-			seg:ClearAllPoints()
-			seg:SetWidth(segWidth)
-			seg:SetHeight(height)
-			if i == 1 then
-				seg:SetPoint("LEFT", playerClassBar, "LEFT", 0, 0)
-			else
-				seg:SetPoint("LEFT", classSegments[i - 1], "RIGHT", spacing, 0)
-			end
-		end
-
-		-- Calculate fill for this specific segment (0.0 to 1.0)
-		local fill = 0
-		if not curIsSecret and type(curFractional) == "number" then
-			fill = math.max(0, math.min(1, curFractional - (i - 1)))
-		elseif curIsSecret then
-			-- If secret, assume full fill for active segments
-			-- The StatusBar:SetValue(fill) will handle the secret value correctly if we pass it directly
-			-- However, for individual segments, we use curIsSecret to show/hide segments logically
-			if i <= 5 then
-				fill = 1
-			end
-		end
-
-		seg:SetValue(fill)
-
-		-- Color / Alpha
-		if curIsSecret then
-			if seg._alpha ~= 0.6 then
-				seg._alpha = 0.6
-				seg:SetAlpha(0.6)
-			end
-		else
-			local fillAlpha = 0.3
-			if fill > 0 then
-				fillAlpha = 1
-			end
-			if seg._alpha ~= fillAlpha then
-				seg._alpha = fillAlpha
-				seg:SetAlpha(fillAlpha)
-			end
-		end
-		if seg._baseColor ~= baseColor or seg._dimmedColor ~= curIsSecret then
-			seg._baseColor = baseColor
-			seg._dimmedColor = curIsSecret
-			local multiplier = curIsSecret and 0.8 or 1
-			if baseColor then
-				seg:SetStatusBarColor(baseColor.r * multiplier, baseColor.g * multiplier, baseColor.b * multiplier)
-			else
-				seg:SetStatusBarColor(multiplier, multiplier, 0)
-			end
-		end
-		seg:Show()
 	end
 	return not wasShown
 end
@@ -396,12 +240,18 @@ local function UpdateBarColor(bar, unit)
 end
 
 local function SafeSetMinMax(targetBar, minVal, maxVal)
+	if Utils.IsValueSecret(maxVal) then
+		-- Keep the native range in the same units as the raw current value.
+		-- Opaque maxima cannot be normalized or compared with cached ranges.
+		targetBar._safeMin = nil
+		targetBar._safeMax = nil
+		targetBar:SetMinMaxValues(minVal, maxVal)
+		return
+	end
 	local normalizedMax = 1
-	if not Utils.IsValueSecret(maxVal) then
-		local numMax = tonumber(maxVal)
-		if numMax and numMax > 0 then
-			normalizedMax = numMax
-		end
+	local numMax = tonumber(maxVal)
+	if numMax and numMax > 0 then
+		normalizedMax = numMax
 	end
 	if targetBar._safeMin ~= minVal or targetBar._safeMax ~= normalizedMax then
 		targetBar._safeMin = minVal
@@ -527,8 +377,10 @@ local function UpdateBarValue(bar, unit)
 				if
 					not Utils.IsValueSecret(cur)
 					and not Utils.IsValueSecret(incomingHeals)
+					and not Utils.IsValueSecret(max)
 					and type(cur) == "number"
 					and type(incomingHeals) == "number"
+					and type(max) == "number"
 				then
 					bar.predict:SetValue(math.min(max, cur + incomingHeals))
 				else
@@ -551,7 +403,7 @@ local function UpdateBarValue(bar, unit)
 			SafeSetMinMax(bar.absorb, 0, max)
 
 			-- Prefer secret value for pass-through, or max of numbers
-			local absorbValue = 0
+			local absorbValue
 			if Utils.IsValueSecret(calcAbsorb) then
 				absorbValue = calcAbsorb
 			elseif Utils.IsValueSecret(unitAbsorb) then
@@ -597,7 +449,7 @@ function Resources:OnInitialize()
 	self.db = addon.db
 end
 
-function Resources:OnEnable()
+function Resources:CreateFrames()
 	main = _G["ActionHudFrame"]
 	if not main then
 		return
@@ -639,6 +491,9 @@ function Resources:OnEnable()
 		playerPower.type = "POWER"
 
 		playerClassBar = CreateFrame("Frame", nil, playerGroup)
+		playerClassBar.continuous = CreateBar(playerClassBar, false)
+		playerClassBar.continuous:SetAllPoints()
+		playerClassBar.continuous:Hide()
 
 		targetHealth = CreateBar(targetGroup, true)
 		targetHealth.type = "HEALTH"
@@ -647,6 +502,9 @@ function Resources:OnEnable()
 		targetPower.type = "POWER"
 	end
 
+end
+
+function Resources:OnEnable()
 	self:ApplyEnabledState()
 end
 
@@ -657,6 +515,7 @@ function Resources:RegisterRuntimeEvents()
 	self:RegisterEvent("PLAYER_REGEN_ENABLED", "UpdateCombatVisibility")
 	for _, event in ipairs({
 		"UNIT_HEALTH",
+		"UNIT_MAXHEALTH",
 		"UNIT_HEAL_PREDICTION",
 		"UNIT_ABSORB_AMOUNT_CHANGED",
 		"UNIT_POWER_UPDATE",
@@ -666,35 +525,27 @@ function Resources:RegisterRuntimeEvents()
 		ns.UnitEventRouter:Register(self, event, "OnEvent", "player", "target")
 	end
 	self:RegisterEvent("UPDATE_SHAPESHIFT_FORM", "OnEvent")
+	self:RegisterEvent("PLAYER_SPECIALIZATION_CHANGED", "OnEvent")
 	self:RegisterEvent("RUNE_POWER_UPDATE", "OnEvent")
 end
 
 function Resources:StartRuntime()
-	if self._runtimeActive then
-		self:UpdateLayout()
-		self:UpdateCombatVisibility()
-		return
-	end
-
+	if self._runtimeActive then self:UpdateLayout(); return end
+	self:CreateFrames()
+	if not container then return end
 	self._runtimeActive = true
-	self:UpdateLayout()
 	self:RegisterRuntimeEvents()
-
-	UpdateBarColor(playerHealth, "player")
-	UpdateBarColor(playerPower, "player")
-	UpdateBarValue(playerHealth, "player")
-	UpdateBarValue(playerPower, "player")
-	UpdateClassPower()
-
-	self:UpdateCombatVisibility()
+	self:UpdateLayout()
 end
 
 function Resources:OnDisable()
+	self._pendingEnabledState = nil
 	self:StopRuntime()
 end
 
 function Resources:StopRuntime()
 	self._runtimeActive = false
+	RCFG.enabled = false
 	self:UnregisterAllEvents()
 	if ns.UnitEventRouter then
 		ns.UnitEventRouter:UnregisterAll(self)
@@ -702,14 +553,18 @@ function Resources:StopRuntime()
 	if container then
 		container:Hide()
 	end
+	self:UpdateLayout()
 end
 
 function Resources:ApplyEnabledState()
-	if self.db.profile.resEnabled then
-		self:StartRuntime()
-	else
-		self:StopRuntime()
+	self._desiredEnabled = self.db.profile.resEnabled == true
+	if InCombatLockdown() then
+		self._pendingEnabledState = true
+		self:UpdateLayout()
+		return
 	end
+	self._pendingEnabledState = nil
+	if self:IsEnabled() and self._desiredEnabled then self:StartRuntime() else self:StopRuntime() end
 end
 
 -- Show or hide resource bars based on combat state and resHideOutOfCombat setting
@@ -753,7 +608,7 @@ function Resources:OnEvent(event, unit)
 		UpdateBarColor(targetPower, "target")
 		UpdateBarValue(targetHealth, "target")
 		UpdateBarValue(targetPower, "target")
-	elseif event == "UNIT_HEALTH" or event == "UNIT_HEAL_PREDICTION" or event == "UNIT_ABSORB_AMOUNT_CHANGED" then
+	elseif event == "UNIT_HEALTH" or event == "UNIT_MAXHEALTH" or event == "UNIT_HEAL_PREDICTION" or event == "UNIT_ABSORB_AMOUNT_CHANGED" then
 		if unit == "player" then
 			UpdateBarValue(playerHealth, "player")
 		end
@@ -763,7 +618,7 @@ function Resources:OnEvent(event, unit)
 	elseif event == "UNIT_POWER_UPDATE" then
 		if unit == "player" then
 			UpdateBarValue(playerPower, "player")
-			if GetClassPowerType() and UpdateClassPower() then
+			if UpdateClassPower() then
 				self:UpdateLayout()
 			end
 		end
@@ -775,6 +630,7 @@ function Resources:OnEvent(event, unit)
 			UpdateBarColor(playerPower, "player")
 			UpdateBarValue(playerPower, "player")
 			UpdateClassPower()
+			self:UpdateLayout()
 		end
 		if unit == "target" then
 			UpdateBarColor(targetPower, "target")
@@ -785,7 +641,7 @@ function Resources:OnEvent(event, unit)
 			UpdateClassPower()
 			self:UpdateLayout()
 		end
-	elseif event == "UPDATE_SHAPESHIFT_FORM" then
+	elseif event == "UPDATE_SHAPESHIFT_FORM" or event == "PLAYER_SPECIALIZATION_CHANGED" then
 		UpdateClassPower()
 		self:UpdateLayout()
 	elseif event == "RUNE_POWER_UPDATE" then
@@ -823,7 +679,6 @@ function Resources:CalculateHeight()
 
 	if db.resClassEnabled and CanShowClassPower() then
 		totalHeight = totalHeight + (visibleBars > 0 and spacing or 0) + classHeight
-		visibleBars = visibleBars + 1
 	end
 
 	return totalHeight
@@ -832,8 +687,11 @@ end
 -- Get the width of this module for LayoutManager
 function Resources:GetLayoutWidth()
 	local p = addon.db.profile
-	local cols = 6
-	return cols * (p.iconWidth or 20)
+	if p.resBarWidth and p.resBarWidth > 0 then
+		return p.resBarWidth
+	end
+	local AB = addon:GetModule("ActionBars", true)
+	return AB and AB.GetLayoutWidth and AB:GetLayoutWidth() or 120
 end
 
 -- Apply position from LayoutManager
@@ -841,7 +699,7 @@ function Resources:ApplyLayoutPosition()
 	if not container then
 		return
 	end
-	if not RCFG.enabled then
+	if not RCFG.enabled or self:CalculateHeight() <= 0 then
 		container:Hide()
 		return
 	end
@@ -858,11 +716,7 @@ function Resources:ApplyLayoutPosition()
 
 	if inStack then
 		-- Stack mode: use ActionBars width for tight fit, anchor based on alignment
-		local AB = addon:GetModule("ActionBars", true)
-		local containerWidth = 120
-		if AB and AB.GetLayoutWidth then
-			containerWidth = AB:GetLayoutWidth()
-		end
+		local containerWidth = self:GetLayoutWidth()
 		local containerHeight = self:CalculateHeight()
 		if containerWidth > 0 and containerHeight > 0 then
 			container:SetSize(containerWidth, containerHeight)
@@ -898,10 +752,10 @@ function Resources:ApplyLayoutPosition()
 	container:Show()
 	UpdateClassPower()
 
-	addon:Log(string.format("Resources positioned: inStack=%s", tostring(inStack)), "layout")
+	addon:Logf("layout", "Resources positioned: inStack=%s", inStack and "true" or "false")
 end
 
-function Resources:UpdateLayout()
+function Resources:PrepareLayout()
 	if not container or not addon then
 		return
 	end
@@ -911,7 +765,7 @@ function Resources:UpdateLayout()
 	-- Debug Container Visual
 	addon:UpdateLayoutOutline(container, "Resource Bars", "resources")
 
-	RCFG.enabled = db.resEnabled == true
+	RCFG.enabled = self._runtimeActive == true and db.resEnabled == true
 	RCFG.healthEnabled = db.resHealthEnabled ~= false
 	RCFG.powerEnabled = db.resPowerEnabled ~= false
 	RCFG.classEnabled = db.resClassEnabled ~= false
@@ -926,14 +780,10 @@ function Resources:UpdateLayout()
 
 	if not RCFG.enabled then
 		container:Hide()
-		local LM = addon:GetModule("LayoutManager", true)
-		if LM then
-			LM:SetModuleHeight("resources", 0)
-		end
 		return
 	end
 
-	local hasClassBar, _, _ = CanShowClassPower()
+	local hasClassBar, _, maxClassPower = CanShowClassPower()
 	local showClass = RCFG.classEnabled and hasClassBar
 
 	-- Calculate total height based on enabled bars
@@ -941,10 +791,6 @@ function Resources:UpdateLayout()
 
 	if totalHeight <= 0 then
 		container:Hide()
-		local LM = addon:GetModule("LayoutManager", true)
-		if LM then
-			LM:SetModuleHeight("resources", 0)
-		end
 		return
 	end
 
@@ -958,35 +804,9 @@ function Resources:UpdateLayout()
 	end
 
 	-- Get width: use fixed width if set, otherwise HUD width when in stack
-	local LM = addon:GetModule("LayoutManager", true)
-	local inStack = LM and LM:IsModuleInStack("resources")
-	local db = addon.db.profile
-	local hudWidth
-
-	-- Priority: fixed width > ActionBars width > default
-	-- Resources should match ActionBars width, not the widest module in the HUD
-	if db.resBarWidth and db.resBarWidth > 0 then
-		hudWidth = db.resBarWidth
-	else
-		-- Use ActionBars width (whether in stack or independent mode)
-		local AB = addon:GetModule("ActionBars", true)
-		hudWidth = 120
-		if AB and AB.GetLayoutWidth then
-			hudWidth = AB:GetLayoutWidth()
-		end
-	end
+	local hudWidth = self:GetLayoutWidth()
 
 	container:SetSize(hudWidth, totalHeight)
-
-	-- Report height to LayoutManager - only when in stack
-	if LM then
-		if inStack then
-			LM:SetModuleHeight("resources", totalHeight)
-		else
-			-- Release height reservation when not in stack
-			LM:SetModuleHeight("resources", 0)
-		end
-	end
 
 	local useSplit = false
 	if RCFG.showTarget and UnitExistsSafe("target") then
@@ -1069,7 +889,6 @@ function Resources:UpdateLayout()
 				targetPower:SetPoint("TOP", targetGroup, "TOP", 0, 0)
 			end
 			FillWidth(targetPower, targetGroup)
-			lastTargetBar = targetPower
 		else
 			targetPower:Hide()
 		end
@@ -1088,7 +907,7 @@ function Resources:UpdateLayout()
 			playerClassBar:SetPoint("TOP", playerGroup, "TOP", 0, 0)
 		end
 		FillWidth(playerClassBar, playerGroup)
-		UpdateClassPower()
+		PrepareClassPower(maxClassPower)
 	else
 		playerClassBar:Hide()
 	end
@@ -1096,4 +915,22 @@ end
 
 function Resources:GetContainer()
 	return container
+end
+
+function Resources:UpdateLayout()
+	local manager = addon:GetModule("LayoutManager", true)
+	if manager then manager:RequestLayout("resources") end
+end
+
+function Resources:RenderLayout()
+	UpdateBarColor(playerHealth, "player")
+	UpdateBarColor(playerPower, "player")
+	UpdateBarValue(playerHealth, "player")
+	UpdateBarValue(playerPower, "player")
+	UpdateBarColor(targetHealth, "target")
+	UpdateBarColor(targetPower, "target")
+	UpdateBarValue(targetHealth, "target")
+	UpdateBarValue(targetPower, "target")
+	UpdateClassPower()
+	self:UpdateCombatVisibility()
 end

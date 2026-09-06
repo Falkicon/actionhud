@@ -1,0 +1,105 @@
+# Runtime lifecycle and layout
+
+`LayoutManager:RequestLayout(reason)` is the entry point for geometry changes.
+Requests coalesce into one next-frame callback. `TriggerLayoutUpdate()` remains
+an alias for existing settings code. A request records intent; it does not read
+or capture the profile, so several changes in one frame use the latest values.
+
+Combat holds the request until `PLAYER_REGEN_ENABLED`. Disabling LayoutManager
+invalidates queued callbacks with a generation counter. An old callback cannot
+clear a newer callback's scheduling state. Requests made while rendering arrange
+one follow-up pass; requests made during lifecycle reconciliation are consumed
+by the current pass.
+
+Each pass runs these phases for stack and independent modules:
+
+1. Reconcile pending lifecycle transitions against the current profile.
+2. `PrepareLayout()` updates the content needed to measure it. Action bars lay
+   out their buttons, resources apply their configuration, trinkets discover
+   equipped on-use items, Consumables applies its configured item slots, and
+   PlayerBuffs applies its public slot footprint and native aura candidate
+   filters, including associated IDs from Blizzard's public catalog.
+3. Measure stack heights and widths into a complete manager-owned snapshot.
+4. Size the root and call `ApplyLayoutPosition()` on active modules.
+5. `RenderLayout()` refreshes icons, resource values, cooldowns, native aura
+   widgets, and unit frames.
+
+UnitFrames participates as an auxiliary module outside the stack. Its secure
+geometry changes use the same combat deferral as the main HUD.
+
+Consumables reserves a fixed footprint for its configured item IDs, including
+items with zero carried count. It is disabled by default and independently
+positioned at `(100, -60)`, with optional HUD stack inclusion. Bag and cooldown
+events update existing icons, counts, and sweeps; configuration and lifecycle
+changes use the same deferred layout pass. Item depletion does not resize the
+stack. The cooldown decimal threshold is shared with Action Bars and Trinkets.
+
+PlayerBuffs is an optional stack participant and is disabled by default. It
+tracks up to 12 ordered, unique `HELPFUL` aura spell IDs on `player` through
+WoW 12.1's native `CustomAuraContainer`. The configured icon size, columns, and
+spacing define a fixed public footprint; configured slots stay reserved while
+their native icons are inactive and invisible. Outside the stack, its default
+draggable position is `(0, -100)`; **Layout → Unlock Module Positions** controls
+dragging. It can also be included in the vertical HUD stack.
+
+The renderer does not read aura data, hook native aura widgets, or poll for aura
+state. RecentPlayerBuffs separately collects readable IDs for the settings
+history while unrestricted; this never drives rendering, visibility, or geometry.
+Native child widgets are initialized once from the container's
+`initializeFrame` callback. Later layout passes move only ordinary public slot
+anchors and the wrapper; the native container and buttons retain responsibility
+for aura data, icon, timer, and application-count rendering. The buff timer uses
+a fixed native 3-second threshold, independent of the Action Bars/Trinkets
+countdown threshold. Slot configuration and native enable/disable changes defer
+until combat ends.
+
+## UnitFrames source map
+
+The TOC loads the files in this order:
+
+| File | Responsibility |
+| --- | --- |
+| `UnitFrames/Identity.lua` | Restricted identity normalization, colors, status icon decisions, and value formatting. |
+| `UnitFrames/UnitFrames.lua` | Creates the Ace module and defines lifecycle, scoped event routing, and layout requests. |
+| `UnitFrames/Layout.lua` | Constructs frames and applies configured styling and geometry. Creation and style helpers stay local here. |
+| `UnitFrames/Rendering.lua` | Updates values, prediction, text, and icons, then implements the final render phase. |
+
+The latter files retrieve the existing Ace module. Identity helpers retain their
+existing `ns.UnitFrameIdentitySafety` namespace; no additional global helper API
+is introduced by the split.
+
+## Runtime state
+
+Runtime modules expose these state fields:
+
+| Field | Meaning |
+| --- | --- |
+| `_desiredEnabled` | Latest feature toggle read from the profile. |
+| `_runtimeActive` | Frames and runtime event subscriptions have been started. |
+| `_pendingEnabledState` | A lifecycle or secure geometry change needs the next out-of-combat pass. |
+
+`ApplyEnabledState()` records desired state, defers in combat, and reconciles
+outside combat. `StartRuntime()` is idempotent. Stop paths unregister global and
+scoped events, hide their frames when allowed, and request a new measurement.
+UnitFrames unregisters immediately on stop but defers protected hiding if combat
+is active. The manager requires both Ace `IsEnabled()` and `_runtimeActive`
+before preparing, positioning, or rendering a module.
+
+Ace module enablement and feature enablement remain separate concepts. ActionBars
+and Trinkets preserve their existing Ace enable/disable toggles. Resources,
+Consumables, PlayerBuffs, and UnitFrames keep their Ace modules available while
+their profile features are off. Consumers should use `_runtimeActive` to ask
+whether a feature is running.
+
+`Core/Defaults.lua` is the single source of profile defaults. Settings reset
+controls read `addon.db.defaults.profile`; they should not repeat default values.
+
+Module `UpdateLayout()` methods only request the manager. They must not perform
+layout immediately, publish heights, start their own layout timers, or call a
+manager pass recursively. Dynamic value events can still update their existing
+widgets directly; geometry changes request a pass. External code should not call
+`PrepareLayout()`, `ApplyLayoutPosition()`, or `RenderLayout()` itself.
+
+Run `python Tests/run.py` for queued scheduling, lifecycle, combat deferral,
+full-TOC startup, and protected-value regression coverage. Secure geometry and
+stance/form behavior still require an in-game combat check.

@@ -1,18 +1,177 @@
--- ActionHud Luacheck configuration
--- Extends the central configuration
+-- Standalone Luacheck configuration for ActionHud's active first-party Lua.
+-- Keep this list limited to APIs and UI objects the loaded addon uses.
 
-local base = dofile("../ADDON_DEV/Linting/.luacheckrc")
+std = "lua51"
+codes = true
+max_line_length = false
+ignore = {
+	"211/addonName", -- WoW passes the addon name alongside the namespace.
+	"212/event", -- Event callbacks retain the event argument for stable signatures.
+	"212/info", -- AceConfig getter/setter signatures include the option path.
+	"212/mgr", -- AssistedCombatManager hook signature.
+	"212/name", -- WoW frame callbacks retain the frame name argument.
+	"212/self", -- Ace/WoW method callbacks retain their receiver.
+	"213/name", -- Diagnostic iteration preserves key/value loop shape.
+	"432/self", -- Event-script callbacks conventionally shadow their owning module.
+	"611", -- Whitespace is enforced separately by git diff --check.
+}
 
--- Inherit everything from base
-std = base.std
-max_line_length = base.max_line_length
-codes = base.codes
-ignore = base.ignore
-exclude_files = base.exclude_files
-read_globals = base.read_globals
+exclude_files = {
+	"Libs/**",
+	"Tests/**",
+	"_test_/**",
+	"tmp/**",
+}
 
--- Addon-specific globals
-globals = base.globals
-table.insert(globals, "ActionHud")
-table.insert(globals, "ActionHudDB")
+files["Core/UnitEventRouter.lua"] = {
+	ignore = { "143" }, -- Retail exposes table.unpack while the Lua 5.1 standard does not.
+}
+
+globals = {
+	"ActionHudDB",
+	"ActionHudMechanic",
+	"SLASH_ACTIONHUD1",
+	"SLASH_ACTIONHUD2",
+	"SlashCmdList",
+}
+
+read_globals = {
+	"ActionButton_HideOverlayGlow",
+	"ActionButton_ApplyCooldown",
+	"ActionButton_ShowOverlayGlow",
+	"ActionButton_UpdateOverlayGlow",
+	"AssistedCombatManager",
+	"AbbreviateNumbers",
+	"AddonCompartmentFrame",
+	"BackdropTemplateMixin",
+	"C_ActionBar",
+	"C_AddOns",
+	"C_ChallengeMode",
+	"C_Container",
+	"C_CooldownViewer",
+	"C_CurveUtil",
+	"C_DurationUtil",
+	"C_EditMode",
+	"C_IncomingSummon",
+	"C_InstanceEncounter",
+	"C_Item",
+	"C_Secrets",
+	"C_Spell",
+	"C_StringUtil",
+	"C_Timer",
+	"C_UnitAuras",
+	"CLASS_ICON_TCOORDS",
+	"CreateFrame",
+	"CreateFromMixins",
+	"CreateSecondsFormatter",
+	"CreateUnitHealPredictionCalculator",
+	"CurveConstants",
+	"CopyTable",
+	"CVarCallbackRegistry",
+	"Enum",
+	"EditModeManagerFrame",
+	"FenCore",
+	"FenUI",
+	"FocusFrame",
+	"GameTooltip",
+	"GetActionCharges",
+	"GetActionBarPage",
+	"GetActionCooldown",
+	"GetActionCount",
+	"GetActionInfo",
+	"GetActionTexture",
+	"GetBonusBarOffset",
+	"GetAddOnMetadata",
+	"GetBuildInfo",
+	"GetCVar",
+	"GetInventoryItemID",
+	"GetInventoryItemCooldown",
+	"GetInventoryItemTexture",
+	"GetOverrideBarIndex",
+	"GetMacroSpell",
+	"GetPartyAssignment",
+	"GetReadyCheckStatus",
+	"GetShapeshiftForm",
+	"GetTempShapeshiftBarIndex",
+	"GetTime",
+	"GetTotemInfo",
+	"GetUnitName",
+	"HasAction",
+	"InCombatLockdown",
+	"InterfaceOptionsFrame_OpenToCategory",
+	"IsActionInRange",
+	"IsEncounterInProgress",
+	"IsInInstance",
+	"IsResting",
+	"IsAttackAction",
+	"IsAutoRepeatAction",
+	"IsCurrentAction",
+	"IsUsableAction",
+	"LibStub",
+	"MAX_COMBO_POINTS",
+	"MAX_TOTEMS",
+	"Mixin",
+	"PlayerFrame",
+	"PowerBarColor",
+	"RAID_CLASS_COLORS",
+	"ReloadUI",
+	"RegisterUnitWatch",
+	"SecondsFormatter",
+	"Settings",
+	"SettingsPanel",
+	"SOUNDKIT",
+	"StaticPopupDialogs",
+	"TargetFrame",
+	"TargetFrameToT",
+	"UIParent",
+	"UnregisterUnitWatch",
+	"UnitAffectingCombat",
+	"UnitClass",
+	"UnitExists",
+	"UnitFactionGroup",
+	"UnitGroupRolesAssigned",
+	"UnitHealth",
+	"UnitHealthPercent",
+	"UnitHasPowerType",
+	"UnitHealthMax",
+	"UnitGetDetailedHealPrediction",
+	"UnitGetIncomingHeals",
+	"UnitGetTotalAbsorbs",
+	"UnitInParty",
+	"UnitInRaid",
+	"UnitIsAFK",
+	"UnitIsConnected",
+	"UnitIsDeadOrGhost",
+	"UnitIsEnemy",
+	"UnitIsFriend",
+	"UnitIsGroupAssistant",
+	"UnitIsGroupLeader",
+	"UnitIsPVP",
+	"UnitIsPlayer",
+	"UnitIsUnit",
+	"UnitLevel",
+	"UnitName",
+	"UnitPower",
+	"UnitPowerPercent",
+	"UnitPartialPower",
+	"UnitPowerDisplayMod",
+	"UnitPowerMax",
+	"UnitPowerType",
+	"UnitReaction",
+	"UnitSelectionColor",
+	"UnitShouldDisplayName",
+	"UnitUsingVehicle",
+	"UnitInVehicle",
+	"UnitPhaseReason",
+	"GameTooltip_SetDefaultAnchor",
+	"WOW_PROJECT_ID",
+	"WOW_PROJECT_MAINLINE",
+	"debugprofilestop",
+	"format",
+	"geterrorhandler",
+	"hooksecurefunc",
+	"issecretvalue",
+	"strsplit",
+	"wipe",
+}
 

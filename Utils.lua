@@ -9,14 +9,30 @@ local Environment = FenCore and FenCore.Environment
 local F = FenUI and FenUI.Utils
 
 -- Local upvalues for performance
-local GetTime = GetTime
 local pcall = pcall
-local wipe = wipe
 local UnitClass = UnitClass
 local UnitIsPlayer = UnitIsPlayer
 local UnitPowerType = UnitPowerType
 local RAID_CLASS_COLORS = RAID_CLASS_COLORS
 local PowerBarColor = PowerBarColor
+
+-- Native percentage APIs evaluate the scaling curve before returning an opaque
+-- display value. Never derive a percentage from raw health or power in Lua.
+function Utils.GetUnitHealthPercentSafe(unit)
+	local curve = CurveConstants and CurveConstants.ScaleTo100
+	if type(UnitHealthPercent) ~= "function" or not curve then return nil end
+	local ok, value = pcall(UnitHealthPercent, unit, true, curve)
+	if ok then return value end
+	return nil
+end
+
+function Utils.GetUnitPowerPercentSafe(unit)
+	local curve = CurveConstants and CurveConstants.ScaleTo100
+	if type(UnitPowerPercent) ~= "function" or not curve then return nil end
+	local ok, value = pcall(UnitPowerPercent, unit, nil, false, curve)
+	if ok then return value end
+	return nil
+end
 
 local function GetSecondsFormatterFactory()
 	return C_StringUtil and C_StringUtil.CreateSecondsFormatter or CreateSecondsFormatter
@@ -516,6 +532,46 @@ function Utils.GetSpecializationSafe()
 	return F and F:GetSpecializationSafe()
 end
 
+-- Resolve the player's secondary resource from public class/spec/form identity.
+-- Current power is deliberately not used to decide whether the resource exists.
+function Utils.GetPlayerClassPowerTypeSafe()
+	local _, class = UnitClass("player")
+	if Utils.IsValueSecret(class) or type(class) ~= "string" then return nil, false end
+	local powers = Enum.PowerType
+	local pType
+	if class == "ROGUE" then
+		pType = powers.ComboPoints
+	elseif class == "DRUID" then
+		local activePower = UnitPowerType("player")
+		if Utils.IsValueSecret(activePower) or type(activePower) ~= "number" then return nil, false end
+		if activePower ~= powers.Energy then return nil, true end
+		pType = powers.ComboPoints
+	elseif class == "PALADIN" then
+		pType = powers.HolyPower
+	elseif class == "WARLOCK" then
+		pType = powers.SoulShards
+	elseif class == "EVOKER" then
+		pType = powers.Essence
+	elseif class == "DEATHKNIGHT" then
+		pType = powers.Runes
+	elseif class == "MAGE" or class == "MONK" then
+		local spec = Utils.GetSpecializationSafe()
+		if Utils.IsValueSecret(spec) or type(spec) ~= "number" then return nil, false end
+		if class == "MAGE" and spec == 1 then
+			pType = powers.ArcaneCharges
+		elseif class == "MONK" and spec == 3 then
+			pType = powers.Chi
+		end
+	end
+	if not pType then return nil, true end
+	if type(UnitHasPowerType) == "function" then
+		local ok, hasPower = pcall(UnitHasPowerType, "player", pType)
+		if not ok or Utils.IsValueSecret(hasPower) or type(hasPower) ~= "boolean" then return nil, false end
+		if not hasPower then return nil, true end
+	end
+	return pType, true
+end
+
 --------------------------------------------------------------------------------
 -- UI Utilities
 --------------------------------------------------------------------------------
@@ -584,7 +640,7 @@ function Utils.GetUnitHealsSafe(unit, calculator)
 		local ok = pcall(UnitGetDetailedHealPrediction, unit, "player", calculator)
 		if ok then
 			local h1, h2, h3, h4 = calculator:GetIncomingHeals()
-			local abs = calculator.GetTotalAbsorbs and calculator:GetTotalAbsorbs()
+			local abs = calculator.GetTotalDamageAbsorbs and calculator:GetTotalDamageAbsorbs()
 			return Pass(h1), Pass(h2), Pass(h3), Pass(h4), Pass(abs)
 		end
 	end
@@ -649,7 +705,7 @@ function Utils.GetUnitColor(unit, barType, mult)
 		end
 		return 0, 0.8 * mult, 0
 	elseif barType == "POWER" or barType == "MANA" then
-		local pType, pToken, altR, altG, altB = UnitPowerType(unit)
+		local _, pToken, altR, altG, altB = UnitPowerType(unit)
 		local info
 		if not Utils.IsValueSecret(pToken) then
 			info = PowerBarColor[pToken]
@@ -680,7 +736,7 @@ function Utils.GetTotemDataForSpellID(spellID)
 	end
 
 	for slot = 1, MAX_TOTEMS or 4 do
-		local haveTotem, totemName, startTime, duration, icon = GetTotemInfo(slot)
+		local haveTotem, _, startTime, duration, icon = GetTotemInfo(slot)
 		if haveTotem and duration and duration > 0 then
 			if icon == spellTexture then
 				totemDataCache.expirationTime = startTime + duration

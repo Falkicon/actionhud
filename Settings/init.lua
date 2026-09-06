@@ -4,7 +4,6 @@
 local addonName, ns = ...
 local L = LibStub("AceLocale-3.0"):GetLocale("ActionHud")
 local ActionHud = LibStub("AceAddon-3.0"):GetAddon("ActionHud")
-local LSM = LibStub("LibSharedMedia-3.0")
 
 -- Initialize Settings namespace
 ns.Settings = {}
@@ -91,17 +90,14 @@ function ns.Settings.BuildGeneralOptions(self)
 			readme = {
 				type = "description",
 				name = string.format(
-					"|cff33ff99%s|r\n\n%s\n\n|cffffcc00%s|r\n%s\n\n%s\n  - |cffffffff%s|r %s\n  - |cffffffff%s|r %s\n  \n%s",
+					"|cff33ff99%s|r\n\n%s\n\n|cffffcc00%s|r\n%s\n\n%s\n  - |cffffffff%s|r %s",
 					"ActionHud " .. version,
 					L["A minimalist HUD mirroring Action Bars 1 & 2 in a 6x4 grid."],
 					L["Required Setup:"],
 					L["Click the button below to open WoW's Gameplay Enhancements settings."],
-					L["Enable these options:"],
+					L["Enable this option:"],
 					L["Assisted Highlight"],
-					L["(rotation glows)"],
-					L["Enable Cooldown Manager"],
-					L["(tracked cooldowns)"],
-					L["Use Advanced Cooldown Settings to configure which spells are tracked."]
+					L["(rotation glows)"]
 				),
 				fontSize = "medium",
 				order = 11,
@@ -120,14 +116,13 @@ function ns.Settings.BuildGeneralOptions(self)
 			helpCommands = {
 				type = "description",
 				name = string.format(
-					"|cffffcc00%s|r\n  - |cffffffff%s|r\n  - |cffffffff%s|r\n  - |cffffffff%s|r\n  - |cffffffff%s|r\n\n|cffffcc00%s|r\n%s",
+					"|cffffcc00%s|r\n  - |cffffffff%s|r\n  - |cffffffff%s|r\n  - |cffffffff%s|r\n\n|cffffcc00%s|r\n%s",
 					L["Slash Commands:"],
 					L["/ah: Open settings."],
 					L["/ah debug: Toggle debug recording."],
 					L["/ah clear: Clear debug buffer."],
-					L["/ah dump: Dump tracked spell info to chat."],
 					L["Debugging & Layout:"],
-					L["Use the Layout tab to enable Show Layout Outlines. This helps position frames when they are empty or out of combat."]
+					L["Use the Layout tab to enable Unlock Module Positions. This shows colored overlays that can be dragged to reposition."]
 				),
 				fontSize = "medium",
 				order = 21,
@@ -149,11 +144,13 @@ function ActionHud:SetupOptions()
 	-- local trackedOptions = ns.Settings.BuildTrackedOptions(self)
 	local customUfOptions = ns.Settings.BuildUnitFramesOptions(self)
 	local trinketOptions = ns.Settings.BuildTrinketsOptions(self)
+	local consumableOptions = ns.Settings.BuildConsumablesOptions(self)
+	local playerBuffOptions = ns.Settings.BuildPlayerBuffsOptions(self)
 	local GetLayoutOptions = ns.Settings.BuildLayoutOptions(self)
 
 	-- Register all options with AceConfig
 	LibStub("AceConfig-3.0"):RegisterOptionsTable("ActionHud", generalOptions)
-	self.optionsFrame = LibStub("AceConfigDialog-3.0"):AddToBlizOptions("ActionHud", "ActionHud")
+	self.optionsFrame, self.optionsCategoryID = LibStub("AceConfigDialog-3.0"):AddToBlizOptions("ActionHud", "ActionHud")
 
 	-- 2. Layout (Stack Order)
 	LibStub("AceConfig-3.0"):RegisterOptionsTable("ActionHud_Layout", GetLayoutOptions)
@@ -187,6 +184,21 @@ function ActionHud:SetupOptions()
 
 	LibStub("AceConfig-3.0"):RegisterOptionsTable("ActionHud_Trinkets", trinketOptions)
 	LibStub("AceConfigDialog-3.0"):AddToBlizOptions("ActionHud_Trinkets", L["Trinket Bar"], "ActionHud")
+
+	LibStub("AceConfig-3.0"):RegisterOptionsTable("ActionHud_Consumables", consumableOptions)
+	local consumablePanel = LibStub("AceConfigDialog-3.0"):AddToBlizOptions("ActionHud_Consumables", L["Consumables"], "ActionHud")
+	consumablePanel:HookScript("OnShow", function() ns.Settings.RefreshConsumablesPicker() end)
+
+	LibStub("AceConfig-3.0"):RegisterOptionsTable("ActionHud_PlayerBuffs", playerBuffOptions)
+	local playerBuffPanel = LibStub("AceConfigDialog-3.0"):AddToBlizOptions("ActionHud_PlayerBuffs", L["Player Buffs"], "ActionHud")
+	playerBuffPanel:HookScript("OnShow", function() ns.RecentPlayerBuffs:Refresh() end)
+	-- Invalidate the catalog once per settings visit; Recent Buffs collects asynchronously.
+	playerBuffPanel:HookScript("OnHide", function() ns.BlizzardBuffCatalog:Refresh() end)
+	self:RegisterMessage("ACTIONHUD_RECENT_BUFFS_CHANGED", function()
+		if playerBuffPanel:IsShown() then
+			LibStub("AceConfigRegistry-3.0"):NotifyChange("ActionHud_PlayerBuffs")
+		end
+	end)
 
 	-- 9-10. Meta settings
 	local profiles = LibStub("AceDBOptions-3.0"):GetOptionsTable(self.db)

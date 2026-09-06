@@ -19,10 +19,9 @@ local ns = {
 	},
 }
 
-local actionHud = {}
-function actionHud:NewModule()
-	return {}
-end
+local actionHud = { unitFrames = {} }
+function actionHud:NewModule() return self.unitFrames end
+function actionHud:GetModule() return self.unitFrames end
 
 LibStub = function(name)
 	if name == "AceAddon-3.0" then
@@ -118,23 +117,23 @@ PowerBarColor = {
 	MANA = { r = 0, g = 0, b = 1 },
 }
 
-local function readUnitFrames()
-	local path = "UnitFrames/UnitFrames.lua"
+local sources = {}
+for _, fileName in ipairs({ "Identity.lua", "UnitFrames.lua", "Layout.lua", "Rendering.lua" }) do
+	local path = "UnitFrames/" .. fileName
 	local file = io.open(path, "r")
 	if not file then
-		path = "../UnitFrames/UnitFrames.lua"
+		path = "../" .. path
 		file = assert(io.open(path, "r"))
 	end
-	local source = file:read("*a")
+	local fileSource = file:read("*a")
 	file:close()
-	return path, source
+	sources[#sources + 1] = fileSource
+	local loadChunk = loadstring or load
+	local chunk, loadError = loadChunk(fileSource, path)
+	assert(chunk, loadError)
+	chunk("ActionHud", ns)
 end
-
-local path, source = readUnitFrames()
-local loadChunk = loadstring or load
-local chunk, loadError = loadChunk(source, path)
-assert(chunk, loadError)
-chunk("ActionHud", ns)
+local source = table.concat(sources, "\n")
 
 local IdentitySafety = assert(ns.UnitFrameIdentitySafety)
 
@@ -246,20 +245,21 @@ assertEqual(true, showReady, "unrestricted ready-check state must still show")
 assertContains(readyTexture, "NotReady", "not-ready texture changed")
 
 resetApiValues()
-apiValues.powerToken = "MANA"
+ns.Utils.GetPlayerClassPowerTypeSafe = function() return nil, true end
 local hasSecondary, powerAvailable = IdentitySafety.HasSecondaryPower("player")
-assertEqual(false, hasSecondary, "primary resources must not create a class bar")
-assertEqual(true, powerAvailable, "unrestricted power tokens must remain available")
+assertEqual(false, hasSecondary, "classes without a secondary resource must not create a class bar")
+assertEqual(true, powerAvailable, "known unsupported classes remain available")
 
-apiValues.powerToken = "COMBO_POINTS"
+ns.Utils.GetPlayerClassPowerTypeSafe = function() return 4, true end
 hasSecondary, powerAvailable = IdentitySafety.HasSecondaryPower("player")
 assertEqual(true, hasSecondary, "secondary resources must still create a class bar")
 assertEqual(true, powerAvailable, "unrestricted secondary resources must remain available")
+assertEqual(false, IdentitySafety.HasSecondaryPower("target"), "secondary resources are player-only")
 
-apiValues.powerToken = secretValue
+ns.Utils.GetPlayerClassPowerTypeSafe = function() return nil, false end
 hasSecondary, powerAvailable = IdentitySafety.HasSecondaryPower("player")
-assertEqual(false, hasSecondary, "restricted power tokens must not create a class bar")
-assertEqual(false, powerAvailable, "restricted power tokens must be marked unavailable")
+assertEqual(false, hasSecondary, "unavailable resources must not create a class bar")
+assertEqual(false, powerAvailable, "helper availability must be preserved")
 
 resetApiValues()
 apiValues.isPlayer = true

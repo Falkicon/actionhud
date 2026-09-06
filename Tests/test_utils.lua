@@ -232,4 +232,52 @@ FenUtils:SetCooldownSafe(cooldownFrame, secretValue, secretValue)
 assertEqual(secretValue, cooldownFrame.start, "Restricted cooldown start was not passed through")
 assertEqual(secretValue, cooldownFrame.duration, "Restricted cooldown duration was not passed through")
 
+-- Match the native calculator contract: absorbs use GetTotalDamageAbsorbs,
+-- and the fourth incoming-heal result is a clamping flag, not an amount.
+local healAmount = secretValue
+local absorbAmount = {}
+secretValues[absorbAmount] = true
+local calculator = {
+	GetIncomingHeals = function()
+		return healAmount, nil, 12, false
+	end,
+	GetTotalDamageAbsorbs = function()
+		return absorbAmount
+	end,
+}
+local predictionCalls = 0
+UnitGetDetailedHealPrediction = function(unit, healer, passedCalculator)
+	assertEqual("target", unit, "Prediction received the wrong unit")
+	assertEqual("player", healer, "Prediction received the wrong healer")
+	assertTrue(rawequal(calculator, passedCalculator), "Prediction received the wrong calculator")
+	predictionCalls = predictionCalls + 1
+end
+UnitGetIncomingHeals = function()
+	error("Native calculator results must not require the legacy heal API")
+end
+UnitGetTotalAbsorbs = function()
+	error("Native calculator results must not require the legacy absorb API")
+end
+local heals, playerHeals, otherHeals, clamped, absorbs = Utils.GetUnitHealsSafe("target", calculator)
+assertEqual(1, predictionCalls, "Native prediction was not refreshed")
+assertTrue(rawequal(healAmount, heals), "Restricted incoming heals were not passed through")
+assertEqual(0, playerHeals, "Nil incoming heals were not normalized")
+assertEqual(12, otherHeals, "Other incoming heals changed")
+assertEqual(false, clamped, "The native clamping flag was lost")
+assertTrue(rawequal(absorbAmount, absorbs), "Native total damage absorbs were not passed through")
+
+calculator.GetTotalDamageAbsorbs = function() return nil end
+local _, _, _, _, emptyAbsorbs = Utils.GetUnitHealsSafe("target", calculator)
+assertEqual(0, emptyAbsorbs, "Nil native absorbs were not normalized")
+
+UnitGetIncomingHeals = function() return healAmount end
+UnitGetTotalAbsorbs = function() return absorbAmount end
+UnitGetDetailedHealPrediction = function() error("Prediction unavailable") end
+local fallbackHeals, _, _, _, fallbackAbsorbs = Utils.GetUnitHealsSafe("target", calculator)
+assertTrue(rawequal(healAmount, fallbackHeals), "Failed prediction lost fallback heals")
+assertTrue(rawequal(absorbAmount, fallbackAbsorbs), "Failed prediction lost fallback absorbs")
+local missingHeals, _, _, _, missingAbsorbs = Utils.GetUnitHealsSafe("target", nil)
+assertTrue(rawequal(healAmount, missingHeals), "Missing calculator lost fallback heals")
+assertTrue(rawequal(absorbAmount, missingAbsorbs), "Missing calculator lost fallback absorbs")
+
 print("SUCCESS: Utils module verified!")

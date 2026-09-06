@@ -6,12 +6,10 @@ local Utils = ns.Utils
 
 -- Local upvalues for performance (hot-path optimization)
 local ipairs = ipairs
-local GetTime = GetTime
 local GetActionBarPage = Utils.GetActionBarPageSafe -- @scan-ignore: midnight-normalized
 local GetBonusBarOffset = Utils.GetBonusBarOffsetSafe -- @scan-ignore: midnight-normalized
 local GetActionInfo = Utils.GetActionInfoSafe -- @scan-ignore: midnight-normalized
 local GetActionTexture = Utils.GetActionTextureSafe -- @scan-ignore: midnight-normalized
-local GetActionCooldown = Utils.GetActionCooldownSafe -- @scan-ignore: midnight-normalized
 local GetActionCount = Utils.GetActionDisplayCountSafe -- @scan-ignore: midnight-normalized
 local GetMacroSpell = GetMacroSpell
 local IsUsableAction = Utils.IsUsableActionSafe -- @scan-ignore: midnight-normalized
@@ -122,7 +120,26 @@ function AB:ClearLayoutCache()
 	wipe(layoutCache)
 end
 
+function AB:ApplyEnabledState()
+	self._desiredEnabled = ActionHud.db.profile.actionBarsEnabled ~= false
+	if InCombatLockdown() then
+		self._pendingEnabledState = true
+		self:UpdateLayout()
+		return
+	end
+	self._pendingEnabledState = nil
+	if not self._desiredEnabled then self:Disable(); return end
+	if not self:IsEnabled() then self:Enable(); return end
+	self:StartRuntime()
+end
+
 function AB:OnEnable()
+	self:ApplyEnabledState()
+end
+
+function AB:StartRuntime()
+	if self._runtimeActive then self:UpdateLayout(); return end
+	self.refreshGeneration = (self.refreshGeneration or 0) + 1
 	-- Create container frame
 	local parent = ActionHud.frame
 	if not parent then
@@ -132,6 +149,8 @@ function AB:OnEnable()
 	if not container then
 		container = CreateFrame("Frame", "ActionHudActionBars", parent)
 	end
+
+	self._runtimeActive = true
 
 	-- Create Buttons if not already existing
 	if #buttons == 0 then
@@ -154,9 +173,7 @@ function AB:OnEnable()
 	self:RegisterEvent("EDIT_MODE_LAYOUTS_UPDATED", function()
 		-- Clear cache and delay update to ensure Blizzard's internal state is fully saved
 		AB:ClearLayoutCache()
-		C_Timer.After(0.5, function()
-			AB:UpdateLayout()
-		end)
+		AB:UpdateLayout()
 	end)
 	self:RegisterEvent("ACTIONBAR_SLOT_CHANGED")
 	self:RegisterEvent("ACTIONBAR_PAGE_CHANGED", "RefreshAll")
@@ -182,10 +199,13 @@ function AB:OnEnable()
 	self:RegisterEvent("PLAYER_REGEN_ENABLED", "UpdateCombatVisibility") -- left combat
 
 	-- Hook Edit Mode exit to force a layout refresh
-	if EditModeManagerFrame then
+	if EditModeManagerFrame and not self.editModeHooked then
+		self.editModeHooked = true
 		hooksecurefunc(EditModeManagerFrame, "ExitEditMode", function()
-			AB:ClearLayoutCache()
-			AB:UpdateLayout()
+			if AB:IsEnabled() then
+				AB:ClearLayoutCache()
+				AB:UpdateLayout()
+			end
 		end)
 	end
 
@@ -207,7 +227,6 @@ function AB:OnEnable()
 	end
 
 	self:UpdateLayout()
-	self:RefreshAll()
 end
 
 -- Get container frame
@@ -258,6 +277,10 @@ function AB:ApplyLayoutPosition()
 	if not container then
 		return
 	end
+	if not self:IsEnabled() then
+		container:Hide()
+		return
+	end
 	local LM = ActionHud:GetModule("LayoutManager", true)
 	if not LM then
 		return
@@ -295,43 +318,17 @@ function AB:ApplyLayoutPosition()
 		if DraggableContainer then
 			-- Setup draggable if not already
 			if not container._db then
-				container._db = ActionHud.db
-				container._xKey = "actionBarsXOffset"
-				container._yKey = "actionBarsYOffset"
-				container._defaultX = 0
-				container._defaultY = 0
-				container.moduleId = "actionbars"
-				container:SetMovable(true)
-				container:SetClampedToScreen(true)
-
-				if not container.overlay then
-					container.overlay = container:CreateTexture(nil, "OVERLAY")
-					container.overlay:SetAllPoints()
-					container.overlay:SetColorTexture(1, 0.5, 0, 0.4)
-					container.overlay:Hide()
-				end
-				if not container.label then
-					container.label = container:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-					container.label:SetPoint("CENTER")
-					container.label:SetText("Action Bars")
-					container.label:Hide()
-				end
-
-				container:SetScript("OnDragStart", function(self)
-					if DraggableContainer:IsUnlocked(self._db) then
-						self:StartMoving()
-					end
-				end)
-				container:SetScript("OnDragStop", function(self)
-					self:StopMovingOrSizing()
-					local cx, cy = self:GetCenter()
-					local px, py = main:GetCenter()
-					self._db.profile[self._xKey] = cx - px
-					self._db.profile[self._yKey] = cy - py
-					if LibStub("AceConfigRegistry-3.0", true) then
-						LibStub("AceConfigRegistry-3.0"):NotifyChange("ActionHud")
-					end
-				end)
+				DraggableContainer:Create({
+					frame = container,
+					moduleId = "actionBars",
+					parent = main,
+					db = ActionHud.db,
+					xKey = "actionBarsXOffset",
+					yKey = "actionBarsYOffset",
+					defaultX = 0,
+					defaultY = 0,
+					size = { width = self:GetLayoutWidth(), height = self:CalculateHeight() },
+				})
 			end
 			DraggableContainer:UpdatePosition(container)
 			DraggableContainer:UpdateOverlay(container)
@@ -345,7 +342,7 @@ function AB:ApplyLayoutPosition()
 	end
 
 	container:Show()
-	ActionHud:Log(string.format("ActionBars positioned: inStack=%s", tostring(inStack)), "layout")
+	ActionHud:Logf("layout", "ActionBars positioned: inStack=%s", inStack and "true" or "false")
 end
 
 function AB:CreateButtons(parent)
@@ -396,8 +393,7 @@ function AB:CreateButtons(parent)
 				return
 			end
 
-			local b = buttonsByActionID[targetID]
-			if b then
+			for _, b in ipairs(buttonsByActionID[targetID] or {}) do
 				if not b.assistGlow then
 					b.assistGlow = CreateFrame("Frame", nil, b, "BackdropTemplate")
 					b.assistGlow:SetAllPoints()
@@ -420,15 +416,10 @@ function AB:CreateButtons(parent)
 	end
 end
 
-local lastUpdate = 0
-function AB:UpdateLayout()
-	-- Throttle updates to once per frame max, and avoid during sensitive Edit Mode events if possible
-	local now = GetTime()
-	if now == lastUpdate then
+function AB:PrepareLayout()
+	if not self:IsEnabled() then
 		return
 	end
-	lastUpdate = now
-
 	local p = ActionHud.db.profile
 	if not container then
 		return
@@ -446,10 +437,7 @@ function AB:UpdateLayout()
 	local bar1 = self:GetEditModeSettings(1)
 	local bar6 = self:GetEditModeSettings(2)
 
-	ActionHud:Log(
-		string.format("Layout Sync: Bar1(%dx%d) Bar6(%dx%d)", bar1.numIcons, bar1.numRows, bar6.numIcons, bar6.numRows),
-		"layout"
-	)
+	ActionHud:Logf("layout", "Layout Sync: Bar1(%dx%d) Bar6(%dx%d)", bar1.numIcons, bar1.numRows, bar6.numIcons, bar6.numRows)
 
 	local blocks = {}
 	if p.barPriority == "bar6" then
@@ -462,18 +450,6 @@ function AB:UpdateLayout()
 
 	local totalHeight = self:CalculateHeight()
 	local contentWidth = self:GetLayoutWidth()
-
-	-- Report height to LayoutManager - only when in stack
-	local LM = ActionHud:GetModule("LayoutManager", true)
-	local inStack = LM and LM:IsModuleInStack("actionBars")
-	if LM then
-		if inStack then
-			LM:SetModuleHeight("actionBars", totalHeight)
-		else
-			-- Release height reservation when not in stack
-			LM:SetModuleHeight("actionBars", 0)
-		end
-	end
 
 	-- Get container width - use own content width for tight fit
 	-- Row Alignment handles centering bar blocks within this container
@@ -551,14 +527,16 @@ function AB:UpdateLayout()
 		currentY = currentY + blockHeight + gapBetweenBlocks
 	end
 
-	-- Update action data for all shown buttons
+end
+
+function AB:UpdateLayout()
+	local manager = ActionHud:GetModule("LayoutManager", true)
+	if manager then manager:RequestLayout("action bars") end
+end
+
+function AB:RenderLayout()
 	self:RefreshAll()
 	self:UpdateOpacity()
-
-	-- Trigger LayoutManager to reposition other modules if our height changed
-	if LM then
-		LM:TriggerLayoutUpdate()
-	end
 end
 
 function AB:UpdateOpacity()
@@ -596,6 +574,11 @@ function AB:UpdateCombatVisibility(event)
 end
 
 function AB:OnDisable()
+	self._runtimeActive = false
+	self._pendingEnabledState = nil
+	self.refreshGeneration = (self.refreshGeneration or 0) + 1
+	self:UnregisterAllEvents()
+	wipe(buttonsByActionID)
 	if container then
 		container:Hide()
 	end
@@ -607,6 +590,7 @@ function AB:OnDisable()
 		AB.rangeTicker:Hide()
 	end
 	self:ClearRangeRegistrations()
+	self:UpdateLayout()
 end
 
 function AB:ClearRangeRegistrations()
@@ -652,7 +636,12 @@ function AB:RebuildButtonIndex()
 	wipe(buttonsByActionID)
 	for _, btn in ipairs(buttons) do
 		if btn.hasAction and btn:IsShown() then
-			buttonsByActionID[btn.actionID] = btn
+			local matches = buttonsByActionID[btn.actionID]
+			if not matches then
+				matches = {}
+				buttonsByActionID[btn.actionID] = matches
+			end
+			matches[#matches + 1] = btn
 		end
 	end
 end
@@ -776,9 +765,11 @@ function AB:ACTION_USABLE_CHANGED(event, changes)
 	end
 	for _, change in ipairs(changes) do
 		local slot = change.slot
-		local btn = not Utils.IsValueSecret(slot) and buttonsByActionID[slot]
-		if btn then
-			self:UpdateUsability(btn)
+		local matches = not Utils.IsValueSecret(slot) and buttonsByActionID[slot]
+		if matches then
+			for _, btn in ipairs(matches) do
+				self:UpdateUsability(btn)
+			end
 		end
 	end
 end
@@ -788,8 +779,7 @@ function AB:ACTION_RANGE_CHECK_UPDATE(event, action, inRange, checksRange)
 	if Utils.IsValueSecret(action) then
 		return
 	end
-	local btn = buttonsByActionID[action]
-	if btn then
+	for _, btn in ipairs(buttonsByActionID[action] or {}) do
 		btn._checksRange = checksRange
 		btn._inRange = inRange
 		self:ApplyIconColor(btn)
@@ -932,7 +922,7 @@ function AB:UpdateIcon(btn)
 
 	btn.hasAction = false
 	btn.icon:Hide()
-	btn.cd:Hide()
+	self:UpdateCooldown(btn)
 	btn.count:SetText("")
 	btn._countText = ""
 	btn.glow:Hide()
@@ -994,7 +984,7 @@ local function SelectRestrictedCooldownType(cooldownInfo, chargeInfo, lossOfCont
 	return nil
 end
 
-local function GetRestrictedCooldownDuration(actionID, cooldownType)
+local function GetRestrictedCooldownDuration(actionID, cooldownType, ignoreGCD)
 	if not C_ActionBar then
 		return nil
 	end
@@ -1012,7 +1002,12 @@ local function GetRestrictedCooldownDuration(actionID, cooldownType)
 		return nil
 	end
 
-	local ok, durationObject = pcall(getter, actionID)
+	local ok, durationObject
+	if cooldownType == "normal" then
+		ok, durationObject = pcall(getter, actionID, ignoreGCD == true)
+	else
+		ok, durationObject = pcall(getter, actionID)
+	end
 	if ok then
 		return durationObject
 	end
@@ -1043,8 +1038,33 @@ local function TryApplyDurationObjectCooldown(cooldownFrame, durationObject, dra
 	return ok
 end
 
+local function ApplyCountdownThreshold(cooldownFrame, threshold)
+	if cooldownFrame and cooldownFrame.SetCountdownMillisecondsThreshold then
+		cooldownFrame:SetCountdownMillisecondsThreshold(threshold)
+	end
+end
+
+local function EnsureChargeCooldown(btn, threshold)
+	if not btn.chargeCooldown then
+		btn.chargeCooldown = CreateFrame("Cooldown", nil, btn, "CooldownFrameTemplate")
+		btn.chargeCooldown:SetHideCountdownNumbers(true)
+		btn.chargeCooldown:SetDrawSwipe(false)
+		btn.chargeCooldown:SetAllPoints(btn.cd)
+		btn.chargeCooldown:SetFrameLevel(btn:GetFrameLevel())
+		ApplyCountdownThreshold(btn.chargeCooldown, threshold)
+	end
+	return btn.chargeCooldown
+end
+
 function AB:UpdateCooldown(btn)
+	local profile = ActionHud.db.profile
+	local threshold = profile.cooldownDecimalThreshold or 3
+	local ignoreGCD = profile.showGlobalCooldown == false
+	ApplyCountdownThreshold(btn.cd, threshold)
+	ApplyCountdownThreshold(btn.chargeCooldown, threshold)
 	if not btn.hasAction then
+		ClearCooldownDisplay(btn.cd)
+		ClearCooldownDisplay(btn.chargeCooldown)
 		return
 	end
 
@@ -1089,21 +1109,27 @@ function AB:UpdateCooldown(btn)
 	-- for actions whose charge info reports zero charges. Always provide the
 	-- secondary frame or ActionButton_ApplyCooldown aborts the entire refresh.
 	if ActionButton_ApplyCooldown and not hasSecretCooldownValues then
-		if not btn.chargeCooldown then
-			btn.chargeCooldown = CreateFrame("Cooldown", nil, btn, "CooldownFrameTemplate")
-			btn.chargeCooldown:SetHideCountdownNumbers(true)
-			btn.chargeCooldown:SetDrawSwipe(false)
-			btn.chargeCooldown:SetAllPoints(btn.cd)
-			btn.chargeCooldown:SetFrameLevel(btn:GetFrameLevel())
-		end
+		EnsureChargeCooldown(btn, threshold)
 		ActionButton_ApplyCooldown(btn.cd, cooldownInfo, btn.chargeCooldown, chargeInfo, nil, lossOfControlInfo)
+		if ignoreGCD and SelectRestrictedCooldownType(cooldownInfo, chargeInfo, lossOfControlInfo) == "normal" then
+			-- Replace only the normal sweep; Blizzard retains charge and LoC composition.
+			local durationObject = GetRestrictedCooldownDuration(btn.actionID, "normal", true)
+			TryApplyDurationObjectCooldown(btn.cd, durationObject, true)
+		end
 		return
 	end
 
 	if hasSecretCooldownValues then
 		local cooldownType = SelectRestrictedCooldownType(cooldownInfo, chargeInfo, lossOfControlInfo)
-		local durationObject = GetRestrictedCooldownDuration(btn.actionID, cooldownType)
+		local durationObject = GetRestrictedCooldownDuration(btn.actionID, cooldownType, ignoreGCD)
 		ClearCooldownDisplay(btn.chargeCooldown)
+		if ignoreGCD and cooldownType == "normal" and chargeInfo.isActive then
+			-- A native zero-length normal duration can clear the GCD without hiding
+			-- an ongoing recharge. Keep the charge edge on a sibling cooldown frame.
+			local chargeFrame = EnsureChargeCooldown(btn, threshold)
+			local chargeDuration = GetRestrictedCooldownDuration(btn.actionID, "charge")
+			TryApplyDurationObjectCooldown(chargeFrame, chargeDuration, true)
+		end
 
 		if durationObject and TryApplyDurationObjectCooldown(btn.cd, durationObject, true) then
 			return
@@ -1111,6 +1137,13 @@ function AB:UpdateCooldown(btn)
 
 		ClearCooldownDisplay(btn.cd)
 		return
+	end
+
+	if ignoreGCD and SelectRestrictedCooldownType(cooldownInfo, chargeInfo, lossOfControlInfo) == "normal" then
+		local durationObject = GetRestrictedCooldownDuration(btn.actionID, "normal", true)
+		if TryApplyDurationObjectCooldown(btn.cd, durationObject, true) then
+			return
+		end
 	end
 
 	-- Fallback for pre-12.0: Direct passthrough
