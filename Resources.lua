@@ -394,12 +394,18 @@ local function UpdateBarColor(bar, unit)
 end
 
 local function SafeSetMinMax(targetBar, minVal, maxVal)
+	if Utils.IsValueSecret(maxVal) then
+		-- Keep the native range in the same units as the raw current value.
+		-- Opaque maxima cannot be normalized or compared with cached ranges.
+		targetBar._safeMin = nil
+		targetBar._safeMax = nil
+		targetBar:SetMinMaxValues(minVal, maxVal)
+		return
+	end
 	local normalizedMax = 1
-	if not Utils.IsValueSecret(maxVal) then
-		local numMax = tonumber(maxVal)
-		if numMax and numMax > 0 then
-			normalizedMax = numMax
-		end
+	local numMax = tonumber(maxVal)
+	if numMax and numMax > 0 then
+		normalizedMax = numMax
 	end
 	if targetBar._safeMin ~= minVal or targetBar._safeMax ~= normalizedMax then
 		targetBar._safeMin = minVal

@@ -19,6 +19,8 @@ These changes are in development and still require in-game combat validation. Th
 
 ### Fixed
 
+- Read total damage absorbs from the native heal prediction calculator using its documented getter, preserving restricted values for display.
+- Preserve protected maximum health/power values in HUD resource bar ranges, preventing target health from displaying only full or empty; apply the same range handling to heal prediction and absorbs.
 - Disabled modules reappearing during layout, inconsistent enablement persistence, and incomplete runtime event cleanup.
 - Repeated action-bar hooks and stale callbacks across disable/re-enable cycles.
 - Range, usability, and assist updates missing duplicate mirrored action slots; stale cooldown displays on empty slots.

@@ -582,7 +582,7 @@ function Utils.GetUnitHealsSafe(unit, calculator)
 		local ok = pcall(UnitGetDetailedHealPrediction, unit, "player", calculator)
 		if ok then
 			local h1, h2, h3, h4 = calculator:GetIncomingHeals()
-			local abs = calculator.GetTotalAbsorbs and calculator:GetTotalAbsorbs()
+			local abs = calculator.GetTotalDamageAbsorbs and calculator:GetTotalDamageAbsorbs()
 			return Pass(h1), Pass(h2), Pass(h3), Pass(h4), Pass(abs)
 		end
 	end
