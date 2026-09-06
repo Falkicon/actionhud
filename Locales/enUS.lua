@@ -432,7 +432,7 @@ L["Enter up to 12 helpful aura spell IDs separated by commas or whitespace. Aura
 L["Enter only positive integer spell IDs separated by commas or whitespace."] = true
 L["Enter no more than 12 unique spell IDs."] = true
 L["Warrior Example"] = true
-L["Use Enraged Regeneration's aura spell ID (184364). This does not enable Player Buffs or cast the ability."] = true
+L["Use Spell Reflection's aura spell ID (23920). This does not enable Player Buffs or cast the ability."] = true
 L["Clear Spell IDs"] = true
 L["Clear the aura spell ID list without changing any other Player Buffs settings."] = true
 L["Size of Player Buffs icons."] = true

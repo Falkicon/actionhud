@@ -30,6 +30,7 @@ local api = C_AuraContainerUtil
 C_AuraContainerUtil = nil
 assert(options.enable.disabled())
 spells.warriorExample.func(); flush()
+assert(addon.db.profile.playerBuffsSpellIDs == "23920")
 assert(not addon.db.profile.playerBuffsEnabled and #native.containers == 0)
 enable(true)
 assert(buffs:GetStatus() == "unavailable" and not buffs._runtimeActive)

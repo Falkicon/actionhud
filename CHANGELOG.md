@@ -8,7 +8,7 @@ These changes are in development and still require in-game combat validation. Th
 
 - Optional native health and power percentage text for each custom unit frame, with individual position and style controls.
 - Action Bars cooldown controls for showing the global cooldown sweep and native decimal countdowns on action/trinket icons (default: final 3 seconds).
-- Optional **Player Buffs** display backed by WoW 12.1's native `CustomAuraContainer`: configure up to 12 ordered, unique helpful player aura spell IDs, with fixed slot footprints, native icons/timers/stacks, configurable icon size/columns/spacing, independent or HUD-stack positioning, and a Warrior Example for Enraged Regeneration (`184364`). It is disabled by default and does not read aura data, hook aura widgets, or poll.
+- Optional **Player Buffs** display backed by WoW 12.1's native `CustomAuraContainer`: configure up to 12 ordered, unique helpful player aura spell IDs, with fixed slot footprints, native icons/timers/stacks, configurable icon size/columns/spacing, independent or HUD-stack positioning, and a Warrior Example for Spell Reflection (`23920`). It is disabled by default and does not read aura data, hook aura widgets, or poll.
 - Opt-in `/ah perf on`, `off`, `reset`, and `report` commands with call counts and total, average, and peak timings; profiling also works without Mechanic.
 - Full-TOC integration tests using the embedded libraries, plus automated localization, manifest, package, and Luacheck checks.
 
@@ -22,6 +22,7 @@ These changes are in development and still require in-game combat validation. Th
 
 ### Fixed
 
+- `/ah`, `/actionhud`, and the Addon Compartment now open settings using the registered category ID instead of passing the canvas frame to Blizzard's navigation API.
 - Class-resource accuracy: use actual segment capacity and native restricted-value fills, keep depleted rows visible, select the correct secondary pool on custom player frames, and refresh on form/spec/rune changes.
 - Settings panels stopping at their first checkbox: updated the embedded AceGUI checkbox to upstream widget version 27, replacing the removed `SetDesaturation` global with native texture methods.
 - Read total damage absorbs from the native heal prediction calculator using its documented getter, preserving restricted values for display.

@@ -34,7 +34,7 @@ See the [quality review](docs/quality-review.md) for individual findings and [Pe
 
 The implementation pass on 2026-09-05 completed:
 
-- All 21 standalone Lua suites and seven Python validator tests passed with `lupa==2.8`.
+- All 22 standalone Lua suites and seven Python validator tests passed with `lupa==2.8`.
 - First-party Lua compilation and TOC/XML, localization, and package checks passed.
 - Luacheck 1.2.0 reported zero warnings/errors across 24 active first-party Lua files.
 - Git whitespace checks passed.
@@ -46,7 +46,8 @@ These are results for the development worktree, not certification of live-client
 - Install the worktree for testing and verify stance/form changes, spell overrides, duplicate slots, range feedback, and charge cooldowns in-game.
 - Exercise profile changes, module toggles, stack inclusion, scaled dragging, and combat-interrupted dragging.
 - Verify secure unit-frame geometry, restricted health/heal prediction, and maximum-health updates in instanced combat.
-- Validate PlayerBuffs in-game: `/reload`, open **Player Buffs**, use the **Warrior Example**, enable it, and confirm the Enraged Regeneration icon appears, its native countdown expires, and inactive configured slots remain reserved. Change icon size, columns, spacing, and independent position. Include the module in the HUD stack and confirm buffs appearing or expiring do not shift other stack modules; toggling stack inclusion should update the stack layout as expected. Repeat the enable/configuration flow during combat and check for Lua errors. Live combat validation is pending; this worktree has not been verified in-game.
+- PlayerBuffs smoke test: the user confirmed that a manually configured Spell Reflection entry shows the native icon and countdown. Expiration behavior, early removal when a reflection is consumed, instanced-combat behavior, and geometry remain pending.
+- Validate PlayerBuffs in-game: `/reload`, open **Player Buffs**, use the **Warrior Example**, enable it, and confirm the countdown expires normally or ends early when a reflection is consumed, and inactive configured slots remain reserved. Change icon size, columns, spacing, and independent position. Include the module in the HUD stack and confirm buffs appearing or expiring do not shift other stack modules; toggling stack inclusion should update the stack layout as expected. Repeat the enable/configuration flow during combat and check for Lua errors. Live combat validation is pending; this worktree has not been verified in-game.
 - Collect comparable performance recordings before claiming performance gains.
 - Align legacy in-game debug help and position diagnostics with the implemented slash commands and current profile keys. The top-level command documentation reflects `SlashHandler`; legacy `debug`, `record`, and `clear` subcommands are not implemented.
 

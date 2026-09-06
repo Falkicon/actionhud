@@ -299,9 +299,9 @@ function ActionHud:OpenSettings(categoryName)
 		local targetName = categoryName or "ActionHud"
 		local categoryID
 
-		if self.optionsFrame then
-			categoryID = self.optionsFrame
-		end
+		-- AceConfig returns the canvas frame and the registered category ID.
+		-- Retail navigation accepts the ID; passing the canvas silently fails.
+		categoryID = self.optionsCategoryID
 
 		if not categoryID and SettingsPanel and SettingsPanel.GetAllCategories then
 			local categories = SettingsPanel:GetAllCategories()
@@ -343,7 +343,7 @@ function ActionHud:OpenSettings(categoryName)
 	if InterfaceOptionsFrame_OpenToCategory then
 		pcall(InterfaceOptionsFrame_OpenToCategory, self.optionsFrame or categoryName or "ActionHud")
 	elseif Settings and Settings.OpenToCategory then
-		pcall(Settings.OpenToCategory, self.optionsFrame or categoryName or "ActionHud")
+		pcall(Settings.OpenToCategory, self.optionsCategoryID or categoryName or "ActionHud")
 	end
 end
 

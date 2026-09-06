@@ -149,7 +149,7 @@ function ActionHud:SetupOptions()
 
 	-- Register all options with AceConfig
 	LibStub("AceConfig-3.0"):RegisterOptionsTable("ActionHud", generalOptions)
-	self.optionsFrame = LibStub("AceConfigDialog-3.0"):AddToBlizOptions("ActionHud", "ActionHud")
+	self.optionsFrame, self.optionsCategoryID = LibStub("AceConfigDialog-3.0"):AddToBlizOptions("ActionHud", "ActionHud")
 
 	-- 2. Layout (Stack Order)
 	LibStub("AceConfig-3.0"):RegisterOptionsTable("ActionHud_Layout", GetLayoutOptions)

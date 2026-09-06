@@ -200,11 +200,11 @@ function ns.Settings.BuildPlayerBuffsOptions(self)
 					},
 					warriorExample = {
 						name = L["Warrior Example"],
-						desc = L["Use Enraged Regeneration's aura spell ID (184364). This does not enable Player Buffs or cast the ability."],
+						desc = L["Use Spell Reflection's aura spell ID (23920). This does not enable Player Buffs or cast the ability."],
 						type = "execute",
 						order = 2,
 						func = function()
-							ApplySpellIDs(self, "184364")
+							ApplySpellIDs(self, "23920")
 						end,
 					},
 					clearSpellIDs = {
