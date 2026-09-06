@@ -32,7 +32,7 @@ Custom aura buttons provide presentation methods for icons, cooldowns, duration 
 
 **Architecture constraint:** native aura layout can be secret, and the implementation deliberately restricts size-change observation. Do not derive HUD stack height from active aura count, inspect restricted visibility, or use `OnSizeChanged` to infer activity. Reserve configured space or keep the new module independently positioned. [Container implementation](https://github.com/Gethe/wow-ui-source/blob/8ea15b61e45c0ed4eba01439c90757f86eb78d34/Interface/AddOns/Blizzard_AuraContainer/Blizzard_CustomAuraContainer.lua), [container layout and restrictions](https://github.com/Gethe/wow-ui-source/blob/8ea15b61e45c0ed4eba01439c90757f86eb78d34/Interface/AddOns/Blizzard_AuraContainer/Blizzard_AuraContainerShared.lua)
 
-This changes the old conclusion from “no supported buff display” to “a native-owned display is worth prototyping.” It does not authorize arbitrary aura analysis or enemy defensive cooldown inference.
+This changes the old conclusion from “no supported buff display” to “a native-owned display is worth prototyping.” It does not authorize arbitrary aura analysis or enemy defensive cooldown inference. ActionHud's current implementation progress below uses this route for selected player `HELPFUL` auras; the older `Cooldowns/TrackedBuffs.lua` and `TrackedDefensives.lua` remain dormant and excluded.
 
 ### 2. Keep dormant aura scanning disabled: 12.1 tightened access
 
@@ -101,10 +101,10 @@ I did not find a generic `C_Item.GetItemCooldownDuration` in the inspected curre
 1. Fix the calculator getter mismatch and add its missing contract test; finish validating the already-pending target-health range correction separately.
 2. Add native decimal countdown formatting and an explicit GCD policy.
 3. Prototype optional percentage text, then accurate class-resource display.
-4. Build an isolated fixed-footprint player buff/defensive prototype with 12.1 aura containers.
+4. Build an isolated fixed-footprint player buff/defensive prototype with 12.1 aura containers. **Implemented offline as PlayerBuffs; live combat validation remains pending.**
 5. Evaluate consumables/pings only after confirming their value alongside ActionHud's display-only action mirrors.
 
-The initial research pass changed no runtime code. Implementation progress is recorded below; no dormant module has been enabled.
+The initial research pass changed no runtime code. Implementation progress is recorded below. The active PlayerBuffs route uses native aura containers; no dormant module under `Cooldowns/` has been enabled.
 
 ## Implementation progress
 
@@ -149,3 +149,15 @@ The user subsequently supplied screenshots showing changing player health/power,
 - In-game checks: Warrior should not gain a class row. On a supported class, build and spend the resource and verify empty/full/intermediate values against Blizzard's display. Check maximum-changing talents, Arcane versus other Mage specs, Windwalker versus other Monk specs, Druid Cat versus Bear/caster form, Destruction partial shards, and rune count on spending/recovery. Repeat in instanced combat; test custom player frames with **Enable Class Bar** as well as the HUD resource row.
 - Native secret rendering and Death Knight ready-rune count remain pending live verification. Offline mocks cover explicit pool selection and event routing but cannot certify native rune semantics.
 - Offline validation: all 20 Lua suites and 7 Python tests pass; runtime lint has zero warnings/errors. The new class-resource regressions include forbidden protected arithmetic, public capacities of 4/6/7, fractional shard units, empty resources, and capacity changes deferred during combat.
+
+The user reported that the Warrior path is working. Other class checks were deliberately deferred at the user's request; this step is complete for now, with broader live-client validation still pending.
+
+### Step 4: fixed-footprint native PlayerBuffs
+
+- Added an optional **Player Buffs** module backed by WoW 12.1's native `CustomAuraContainer` for the `player` unit and `HELPFUL` auras. It is disabled by default.
+- The settings accept up to 12 ordered, unique aura spell IDs separated by commas or whitespace. **Warrior Example** sets `184364`, Enraged Regeneration's aura spell ID; it does not enable PlayerBuffs or cast the ability.
+- Blizzard's native aura container and button delegates own aura data, icon, native countdown, and application stacks. The addon creates each native child only in the one-time initialization callback, then retains public wrapper and slot anchors for later movement. It performs no aura data reads, aura-widget hooks, or polling.
+- Icon size, columns, and spacing define a fixed reserved footprint. Configured slots remain reserved and inactive icons stay invisible when an aura is absent. The module is independently positioned at `(0, -100)` by default, can join the HUD stack, and can be dragged while independent through **Layout → Unlock Module Positions**.
+- The native PlayerBuffs timer uses a fixed 3-second threshold and does not share the Action Bars/Trinkets countdown threshold. Configuration and protected native enable/disable changes defer until combat ends.
+- Offline implementation coverage is recorded by the PlayerBuffs regression and full-TOC checks. The native container's aura matching, rendering, taint behavior, and combat behavior still require live-client validation.
+- In-game checklist: `/reload`, open **Player Buffs**, use **Warrior Example**, enable the module, and verify the Enraged Regeneration icon appears, its countdown expires, and inactive configured slots remain invisible without shifting. Change icon size, columns, and spacing, and move the independent position. Include the module in the HUD stack and confirm buffs appearing or expiring do not shift other stack modules; toggling stack inclusion should update the stack layout as expected. Repeat configuration and enablement during combat and check for Lua errors. Do not treat this worktree as live-verified.

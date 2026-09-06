@@ -13,10 +13,11 @@ This page describes the current development worktree. [ActionHud.toc](ActionHud.
 | Resources | Player/target health and power, plus player class resources |
 | UnitFrames | Optional custom secure frames for Player, Target, Target of Target, and Focus |
 | Trinkets | Equipped on-use trinket display and cooldowns |
+| PlayerBuffs | Optional WoW 12.1 native `CustomAuraContainer` display for selected helpful player auras; disabled by default |
 | LayoutManager | Queued lifecycle reconciliation, stack measurement, positioning, and rendering with combat deferral |
 | Performance | Optional call counts and total/average/peak timings through `/ah perf` and Mechanic integration |
 
-Custom unit frames are disabled by default. They support value text and optional native health/power percentages, which default to off. Runtime source responsibilities and load order are mapped in [README.md](README.md#development) and [Runtime lifecycle and layout](docs/runtime-layout.md).
+Custom unit frames are disabled by default. They support value text and optional native health/power percentages, which default to off. PlayerBuffs is also disabled by default; it uses a fixed public footprint for up to 12 selected `HELPFUL` player aura IDs and can be independent or part of the HUD stack. Runtime source responsibilities and load order are mapped in [README.md](README.md#development) and [Runtime lifecycle and layout](docs/runtime-layout.md).
 
 ## Recent Improvements
 
@@ -25,7 +26,7 @@ Custom unit frames are disabled by default. They support value text and optional
 - Extracted shared defaults and split UnitFrames into identity, lifecycle, layout, and rendering files.
 - Added a full-TOC integration host, repository validators, standalone lint configuration, and CI checks.
 - Added opt-in profiling and lazy debug-log formatting. No in-game speedup is claimed without measurements.
-- Corrected protected resource ranges and native absorb prediction; added decimal countdown/GCD controls and optional native unit-frame percentages. See the [API upgrade progress](docs/blizzard-api-review-2026-09.md#implementation-progress) for test notes.
+- Corrected protected resource ranges and native absorb prediction; added decimal countdown/GCD controls, optional native unit-frame percentages, and the optional native PlayerBuffs display. See the [API upgrade progress](docs/blizzard-api-review-2026-09.md#implementation-progress) for test notes.
 
 See the [quality review](docs/quality-review.md) for individual findings and [Performance profiling](docs/performance.md) for measurement guidance.
 
@@ -33,9 +34,9 @@ See the [quality review](docs/quality-review.md) for individual findings and [Pe
 
 The implementation pass on 2026-09-05 completed:
 
-- All 20 standalone Lua suites and seven Python validator tests passed with `lupa==2.8`.
+- All 21 standalone Lua suites and seven Python validator tests passed with `lupa==2.8`.
 - First-party Lua compilation and TOC/XML, localization, and package checks passed.
-- Luacheck 1.2.0 reported zero warnings/errors across 22 active first-party Lua files.
+- Luacheck 1.2.0 reported zero warnings/errors across 24 active first-party Lua files.
 - Git whitespace checks passed.
 
 These are results for the development worktree, not certification of live-client behavior. The host does not model native taint, secret values, or rendering. Repeat the commands in [CONTRIBUTING.md](CONTRIBUTING.md#local-checks) after runtime changes.
@@ -45,6 +46,7 @@ These are results for the development worktree, not certification of live-client
 - Install the worktree for testing and verify stance/form changes, spell overrides, duplicate slots, range feedback, and charge cooldowns in-game.
 - Exercise profile changes, module toggles, stack inclusion, scaled dragging, and combat-interrupted dragging.
 - Verify secure unit-frame geometry, restricted health/heal prediction, and maximum-health updates in instanced combat.
+- Validate PlayerBuffs in-game: `/reload`, open **Player Buffs**, use the **Warrior Example**, enable it, and confirm the Enraged Regeneration icon appears, its native countdown expires, and inactive configured slots remain reserved. Change icon size, columns, spacing, and independent position. Include the module in the HUD stack and confirm buffs appearing or expiring do not shift other stack modules; toggling stack inclusion should update the stack layout as expected. Repeat the enable/configuration flow during combat and check for Lua errors. Live combat validation is pending; this worktree has not been verified in-game.
 - Collect comparable performance recordings before claiming performance gains.
 - Align legacy in-game debug help and position diagnostics with the implemented slash commands and current profile keys. The top-level command documentation reflects `SlashHandler`; legacy `debug`, `record`, and `clear` subcommands are not implemented.
 

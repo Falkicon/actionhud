@@ -35,6 +35,7 @@ UnitFrames\UnitFrames.lua
 UnitFrames\Layout.lua
 UnitFrames\Rendering.lua
 Trinkets.lua
+PlayerBuffs.lua
 Settings\init.lua
 Settings\ActionBars.lua
 Settings\Resources.lua
@@ -44,5 +45,6 @@ Settings\Resources.lua
 # Settings\Tracked.lua
 Settings\UnitFrames.lua
 Settings\Trinkets.lua
+Settings\PlayerBuffs.lua
 Settings\Layout.lua
 Mechanic.lua

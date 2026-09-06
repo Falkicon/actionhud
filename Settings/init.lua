@@ -144,6 +144,7 @@ function ActionHud:SetupOptions()
 	-- local trackedOptions = ns.Settings.BuildTrackedOptions(self)
 	local customUfOptions = ns.Settings.BuildUnitFramesOptions(self)
 	local trinketOptions = ns.Settings.BuildTrinketsOptions(self)
+	local playerBuffOptions = ns.Settings.BuildPlayerBuffsOptions(self)
 	local GetLayoutOptions = ns.Settings.BuildLayoutOptions(self)
 
 	-- Register all options with AceConfig
@@ -182,6 +183,9 @@ function ActionHud:SetupOptions()
 
 	LibStub("AceConfig-3.0"):RegisterOptionsTable("ActionHud_Trinkets", trinketOptions)
 	LibStub("AceConfigDialog-3.0"):AddToBlizOptions("ActionHud_Trinkets", L["Trinket Bar"], "ActionHud")
+
+	LibStub("AceConfig-3.0"):RegisterOptionsTable("ActionHud_PlayerBuffs", playerBuffOptions)
+	LibStub("AceConfigDialog-3.0"):AddToBlizOptions("ActionHud_PlayerBuffs", L["Player Buffs"], "ActionHud")
 
 	-- 9-10. Meta settings
 	local profiles = LibStub("AceDBOptions-3.0"):GetOptionsTable(self.db)

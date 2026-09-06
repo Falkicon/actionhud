@@ -15,14 +15,33 @@ Each pass runs these phases for stack and independent modules:
 
 1. Reconcile pending lifecycle transitions against the current profile.
 2. `PrepareLayout()` updates the content needed to measure it. Action bars lay
-   out their buttons, resources apply their configuration, and trinkets discover
-   equipped on-use items.
+   out their buttons, resources apply their configuration, trinkets discover
+   equipped on-use items, and PlayerBuffs applies its public slot footprint and
+   native aura candidate filters.
 3. Measure stack heights and widths into a complete manager-owned snapshot.
 4. Size the root and call `ApplyLayoutPosition()` on active modules.
-5. `RenderLayout()` refreshes icons, resource values, cooldowns, and unit frames.
+5. `RenderLayout()` refreshes icons, resource values, cooldowns, native aura
+   widgets, and unit frames.
 
 UnitFrames participates as an auxiliary module outside the stack. Its secure
 geometry changes use the same combat deferral as the main HUD.
+
+PlayerBuffs is an optional stack participant and is disabled by default. It
+tracks up to 12 ordered, unique `HELPFUL` aura spell IDs on `player` through
+WoW 12.1's native `CustomAuraContainer`. The configured icon size, columns, and
+spacing define a fixed public footprint; configured slots stay reserved while
+their native icons are inactive and invisible. Outside the stack, its default
+draggable position is `(0, -100)`; **Layout → Unlock Module Positions** controls
+dragging. It can also be included in the vertical HUD stack.
+
+The addon does not read aura data, hook native aura widgets, or poll for aura
+state. Native child widgets are initialized once from the container's
+`initializeFrame` callback. Later layout passes move only ordinary public slot
+anchors and the wrapper; the native container and buttons retain responsibility
+for aura data, icon, timer, and application-count rendering. The buff timer uses
+a fixed native 3-second threshold, independent of the Action Bars/Trinkets
+countdown threshold. Slot configuration and native enable/disable changes defer
+until combat ends.
 
 ## UnitFrames source map
 

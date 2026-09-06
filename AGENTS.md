@@ -6,7 +6,7 @@ For shared patterns, library references, and development guides, also read the s
 
 ## Project Intent
 
-ActionHud is a compact display overlay for Blizzard Action Bars 1 and 2, with resource bars, equipped trinkets, and optional custom secure unit frames. The action icons do not handle clicks. The target interface is declared in [ActionHud.toc](ActionHud.toc): WoW Retail 12.1 (`120100`).
+ActionHud is a compact display overlay for Blizzard Action Bars 1 and 2, with resource bars, equipped trinkets, optional custom secure unit frames, and an optional native display for selected player buffs. The action icons do not handle clicks. The target interface is declared in [ActionHud.toc](ActionHud.toc): WoW Retail 12.1 (`120100`).
 
 - Edit Mode determines mirrored button counts and rows. This is not a fixed 6×4 grid.
 - Action Bar 2 uses action slots 61–72. Internal `bar6` identifiers refer to this bar; user-facing documentation should call it Action Bar 2.
@@ -38,12 +38,13 @@ The TOC/XML manifests define the runtime. `.pkgmeta` defines package exclusions.
 | `ActionBars.lua` | Mirrored buttons, page/slot resolution, cooldowns, usability, range, and glows |
 | `Resources.lua` | Player/target health and power, plus player class resources |
 | `Trinkets.lua` | Equipped on-use trinket display and cooldowns |
+| `PlayerBuffs.lua` | Optional fixed-footprint native display for selected helpful player auras |
 | `UnitFrames/Identity.lua` | Restricted identity normalization, colors, status icon decisions, and value formatting |
 | `UnitFrames/UnitFrames.lua` | Ace module creation, lifecycle, events, and layout requests |
 | `UnitFrames/Layout.lua` | Custom frame construction, styling, and geometry |
 | `UnitFrames/Rendering.lua` | Unit values, prediction, text, icons, and final rendering |
 | `Settings/init.lua` | Settings helpers and AceConfig registration |
-| Other active files in `Settings/` | Action Bars, Resources, Unit Frames, Trinkets, and Layout options |
+| Other active files in `Settings/` | Action Bars, Resources, Unit Frames, Trinkets, Player Buffs, and Layout options |
 | `Locales/enUS.lua` | Base AceLocale strings |
 | `Mechanic.lua` | Optional Mechanic tools, diagnostics, and performance rows |
 | `Tests/` | Python repository checks, Lua regressions, and full-TOC integration host |
@@ -68,9 +69,15 @@ Runtime modules expose:
 | `_runtimeActive` | Frames and runtime subscriptions have started |
 | `_pendingEnabledState` | Lifecycle or secure geometry reconciliation is pending |
 
-`ApplyEnabledState()` records intent and reconciles outside combat. `StartRuntime()` is idempotent; stop paths release event subscriptions and hide frames when allowed. ActionBars and Trinkets use Ace enable/disable; Resources and UnitFrames keep their Ace modules available while their features are off. Use `_runtimeActive` when checking whether a feature is running; Ace `IsEnabled()` alone is insufficient.
+`ApplyEnabledState()` records intent and reconciles outside combat. `StartRuntime()` is idempotent; stop paths release event subscriptions and hide frames when allowed. ActionBars and Trinkets use Ace enable/disable; Resources and UnitFrames keep their Ace modules available while their features are off. Use `_runtimeActive` when checking whether a feature is running; Ace `IsEnabled()` alone is insufficient. PlayerBuffs also uses `_runtimeActive` for its native container lifecycle.
 
-Resources, Action Bars, and Trinkets can participate in the HUD stack. Independent positions use the shared draggable-container behavior. Preserve scale-correct center offsets and combat deferral when changing drag or profile code.
+Resources, Action Bars, Trinkets, and PlayerBuffs can participate in the HUD stack. PlayerBuffs is independently positioned by default and uses the shared draggable-container behavior when it is outside the stack. Preserve scale-correct center offsets and combat deferral when changing drag or profile code.
+
+### Player Buffs
+
+PlayerBuffs is disabled by default. It accepts up to 12 ordered, unique positive aura spell IDs from `playerBuffsSpellIDs`, separated by commas or whitespace. The **Warrior Example** sets `184364` (Enraged Regeneration's aura); it does not enable the feature or cast the ability. The runtime creates a WoW 12.1 `CustomAuraContainerTemplate` for the `player` unit and registers `HELPFUL` slots filtered by those IDs. `Icon Size`, `Columns`, and `Spacing` determine the public fixed footprint; configured slots remain reserved when inactive, with invisible native icons. The default independent position is `(0, -100)`; the module can be added to the HUD stack, or dragged with **Layout → Unlock Module Positions** when independent.
+
+Native aura data stays inside Blizzard's container and button delegates. Initialize native child widgets only from the container's one-time `initializeFrame` callback. After initialization, retain only the public wrapper anchors and container methods for later layout; do not inspect aura children, read aura data, hook aura widgets, or add polling. Configuration and protected enable/disable changes defer until combat ends. PlayerBuffs uses a fixed 3-second native buff-timer threshold, independent of the Action Bars/Trinkets countdown setting.
 
 ## Action Updates
 
@@ -125,6 +132,8 @@ Debug logging requires `profile.debugDiscovery` and an active MechanicLib sink. 
 ## Dormant Source and Libraries
 
 `Cooldowns/` contains Essential/Utility Cooldown Manager, TrackedBuffs, TrackedDefensives, and DefensiveTracker experiments. The directory and associated `Settings/EssentialCooldowns.lua`, `Settings/UtilityCooldowns.lua`, and `Settings/Tracked.lua` are neither loaded nor packaged. Re-enabling requires target-build API validation, TOC/package updates, and tests.
+
+The active `PlayerBuffs.lua` route uses the native aura container and does not re-enable or replace the dormant source under `Cooldowns/`. Keep the dormant directory and its associated settings excluded from the active TOC and release package.
 
 `Core/FenCoreCompat.lua`, `Core/init.lua`, `Core/StackContainer.lua`, and `Core/utils_spec.lua` are retained reference/test source outside the runtime and package. First-party reference Lua must remain explicitly excluded from packaging.
 

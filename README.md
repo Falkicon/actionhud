@@ -1,6 +1,6 @@
 # ActionHud
 
-A compact action bar HUD for World of Warcraft Retail. It mirrors your primary action bars and combines cooldown feedback, resource bars, optional custom unit frames, and equipped trinkets.
+A compact action bar HUD for World of Warcraft Retail. It mirrors your primary action bars and combines cooldown feedback, resource bars, optional custom unit frames, equipped trinkets, and selected player buffs.
 
 ![WoW Version](https://img.shields.io/badge/WoW-12.1-blue)
 ![Interface](https://img.shields.io/badge/Interface-120100-green)
@@ -26,6 +26,7 @@ Check out these complementary addons to round out your interface:
 - **Resource bars** — Player and target health/power, plus player class resources. Individual bars can be toggled and sized independently.
 - **Custom unit frames** — Optional secure frames for Player, Target, Target of Target, and Focus. Configure dimensions, backgrounds, borders, text, and status icons; optionally hide the corresponding Blizzard frames.
 - **Trinket bar** — Tracks equipped on-use trinkets and their cooldowns.
+- **Player Buffs** — Optional WoW 12.1 native display for up to 12 selected helpful player auras. Configured slots keep their footprint when an aura is inactive, so icons do not shift; the feature is disabled by default.
 - **Layout** — Reorder stack modules, adjust gaps, or position modules independently with draggable overlays.
 - **Profiles** — Create, switch, copy, delete, and reset settings profiles through AceDB.
 - **Addon Compartment** — Opens ActionHud settings from the compartment menu.
@@ -47,7 +48,7 @@ Ace3 and the required support libraries are embedded. FenCore and !Mechanic are 
 1. Configure **Action Bar 1** and **Action Bar 2** in Blizzard's Edit Mode. Place the abilities you want to monitor on those bars.
 2. Open `/ah` outside combat. In **Action Bars**, use **Top Bar Priority** to choose which mirrored bar appears first, then adjust icon dimensions and visibility.
 3. In **Layout**, enable **Unlock Module Positions**. Drag the HUD stack or the overlays for independently positioned modules. Disable the toggle when finished.
-4. Use the Layout arrows and **Gap After** controls to arrange stack modules. The **Action Bars**, **Resource Bars**, and **Trinket Bar** settings control each module's stack inclusion; custom unit frames are positioned independently.
+4. Use the Layout arrows and **Gap After** controls to arrange stack modules. The **Action Bars**, **Resource Bars**, **Trinket Bar**, and **Player Buffs** settings control each module's stack inclusion; custom unit frames are positioned independently.
 
 Layout and secure-frame changes requested during combat wait until combat ends.
 
@@ -61,11 +62,14 @@ Layout and secure-frame changes requested during combat wait until combat ends.
 | Resource Bars | Health/power/class bar visibility, dimensions, prediction, and positioning |
 | Unit Frames | Master and per-unit toggles, dimensions, text, status icons, and Blizzard-frame visibility |
 | Trinket Bar | Equipped trinket display, sizing, stack inclusion, and positioning |
+| Player Buffs | Selected helpful aura IDs, enablement, icon sizing, columns, spacing, stack inclusion, and positioning |
 | Profiles | Create, switch, copy, delete, and reset profiles |
 
 Custom unit frames support value text and optional whole-number health/power percentages. Enable percentages under **Unit Frames → [frame] → Typography & Text → Health Percent / Power Percent**. They default to off and use Blizzard's native percentage calculations for protected values. Each text element has its own position and style controls.
 
 Class-resource rows show the player's secondary resource, such as combo points, Holy Power, shards, runes, Chi, Arcane Charges, or Essence. Availability follows class, specialization, and form. The HUD keeps empty segments visible at zero and uses the actual readable maximum; if that maximum is restricted, it displays a continuous bar. Destruction shards use native raw units for fractional progress. Essence includes readable partial progress and otherwise displays whole points. Rune bars show available count, without individual recharge animations. The custom player frame uses a continuous bar for its secondary resource.
+
+Player Buffs is disabled by default. Under **Player Buffs → Aura Spell IDs**, enter up to 12 ordered, unique aura spell IDs separated by commas or whitespace. The **Warrior Example** fills in `184364`, Enraged Regeneration's aura ID; it does not enable Player Buffs or cast the ability. The display provides native icons, timers, and application stacks. Set **Icon Size**, **Columns**, and **Spacing** to define the fixed slot footprint. Inactive configured slots stay reserved and their icons remain invisible. The module is independently positioned at `(0, -100)` by default; enable **Include in HUD Stack** to place it in the vertical HUD stack, or use **Layout → Unlock Module Positions** to drag it while independent. Its buff timer uses a fixed 3-second threshold, separate from the Action Bars and Trinket Bar countdown threshold. Configuration changes requested during combat wait until combat ends.
 
 ## Slash Commands
 
@@ -103,8 +107,9 @@ The runner checks manifests, packaging, and localization; compiles first-party L
 | [Utils.lua](Utils.lua) | API wrappers, restricted-value guards, fonts, and library fallbacks |
 | [LayoutManager.lua](LayoutManager.lua) | Queued layout, lifecycle reconciliation, measurements, and positioning |
 | [ActionBars.lua](ActionBars.lua), [Resources.lua](Resources.lua), [Trinkets.lua](Trinkets.lua) | HUD modules |
+| [PlayerBuffs.lua](PlayerBuffs.lua) | Optional fixed-footprint native player-aura display |
 | [UnitFrames/](UnitFrames/) | Custom unit-frame identity, lifecycle, layout, and rendering |
-| [Settings/](Settings/), [Locales/enUS.lua](Locales/enUS.lua) | AceConfig options and UI strings |
+| [Settings/](Settings/), [Locales/enUS.lua](Locales/enUS.lua) | AceConfig options, including Player Buffs, and UI strings |
 | [Mechanic.lua](Mechanic.lua) | Optional Mechanic tools, logging settings, and performance integration |
 
 Read [Runtime lifecycle and layout](docs/runtime-layout.md) before changing module lifecycle or geometry. The [quality review](docs/quality-review.md) records the recent fixes and their verification limits.

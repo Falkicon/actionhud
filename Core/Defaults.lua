@@ -538,6 +538,16 @@ ns.defaults = {
 		trinketsTimerFontSize = "medium",
 		trinketsGrowDirection = "RIGHT", -- LEFT or RIGHT
 
+		-- Player Buffs Module
+		playerBuffsEnabled = false,
+		playerBuffsIncludeInStack = false,
+		playerBuffsXOffset = 0,
+		playerBuffsYOffset = -100,
+		playerBuffsSpellIDs = "",
+		playerBuffsIconSize = 28,
+		playerBuffsColumns = 4,
+		playerBuffsSpacing = 2,
+
 		-- Module Stack Inclusion (managed by LayoutManager)
 		resourcesIncludeInStack = true,
 		cooldownsIncludeInStack = true,

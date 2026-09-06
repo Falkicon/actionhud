@@ -17,6 +17,7 @@ local MODULE_COLORS = {
 	essentialCooldowns = { r = 0, g = 0.5, b = 1 }, -- Blue
 	utilityCooldowns = { r = 0.5, g = 0, b = 0.8 }, -- Deep Purple
 	trinkets = { r = 0.8, g = 0, b = 1 }, -- Purple
+	playerBuffs = { r = 0, g = 0.85, b = 0.85 }, -- Teal
 	buffs = { r = 0, g = 1, b = 1 }, -- Cyan
 	ufPlayer = { r = 0, g = 0.8, b = 0.3 }, -- Green
 	ufTarget = { r = 1, g = 0.2, b = 0.2 }, -- Red
@@ -33,6 +34,7 @@ local MODULE_LABELS = {
 	essentialCooldowns = L["Essential Cooldowns"],
 	utilityCooldowns = L["Utility Cooldowns"],
 	trinkets = L["Trinkets"],
+	playerBuffs = L["Player Buffs"],
 	buffs = L["Tracked Buffs"],
 	ufPlayer = L["Player Frame"],
 	ufTarget = L["Target Frame"],

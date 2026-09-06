@@ -415,6 +415,31 @@ L["Trinket Bar"] = true
 L["Enable the sidecar Trinket module."] = true
 L["Sizing & Positioning"] = true
 
+-- Settings UI - Player Buffs
+L["Player Buffs"] = true
+L["Track selected helpful player buffs and defensives in fixed positions. Configured slots stay reserved while inactive, so icons do not shift."] = true
+L["Enable Player Buffs"] = true
+L["Show the configured helpful auras on the player."] = true
+L["Player Buffs requires WoW 12.1's native aura container API, which is unavailable on this client."] = true
+L["Player Buffs is disabled."] = true
+L["Enter at least one aura spell ID to display Player Buffs."] = true
+L["The saved aura spell ID list is invalid. Edit it below."] = true
+L["Player Buffs is waiting until combat ends to create its display."] = true
+L["Player Buffs is active."] = true
+L["Player Buffs could not create its native aura display."] = true
+L["Aura Spell IDs"] = true
+L["Enter up to 12 helpful aura spell IDs separated by commas or whitespace. Aura spell IDs can differ from the spells you cast."] = true
+L["Enter only positive integer spell IDs separated by commas or whitespace."] = true
+L["Enter no more than 12 unique spell IDs."] = true
+L["Warrior Example"] = true
+L["Use Enraged Regeneration's aura spell ID (184364). This does not enable Player Buffs or cast the ability."] = true
+L["Clear Spell IDs"] = true
+L["Clear the aura spell ID list without changing any other Player Buffs settings."] = true
+L["Size of Player Buffs icons."] = true
+L["Maximum number of Player Buffs icons per row."] = true
+L["Spacing"] = true
+L["Space between Player Buffs icons."] = true
+
 -- Settings UI - Layout
 L["Layout"] = true
 L["HUD Stack Order"] = true

@@ -41,6 +41,12 @@ local MODULE_REGISTRY = {
 		profileKey = "trinketsIncludeInStack",
 		moduleName = "Trinkets",
 	},
+	playerBuffs = {
+		displayName = L["Player Buffs"],
+		defaultInStack = false,
+		profileKey = "playerBuffsIncludeInStack",
+		moduleName = "PlayerBuffs",
+	},
 	-- trackedBuffs = {
 	-- 	displayName = L["Tracked Buffs"],
 	-- 	defaultInStack = false,

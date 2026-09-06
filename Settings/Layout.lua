@@ -70,6 +70,8 @@ local function BuildLayoutArgs()
 			isEnabled = ActionHud.db.profile.actionBarsEnabled ~= false
 		elseif moduleId == "trinkets" then
 			isEnabled = ActionHud.db.profile.trinketsEnabled
+		elseif moduleId == "playerBuffs" then
+			isEnabled = m and m._runtimeActive == true
 		elseif moduleId == "cooldowns" then
 			local cooldowns = ActionHud:GetModule("Cooldowns", true)
 			isEnabled = ActionHud.db.profile.cdEnabled and cooldowns and cooldowns:IsEnabled()
