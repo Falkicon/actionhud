@@ -5,17 +5,9 @@ local Utils = ns.Utils
 
 local MAX_SPELLS = 12
 
--- Verified cast-to-aura exceptions, not a catalog of trackable spells.
--- Rallying Cry: SimulationCraft's Midnight warrior rallying_cry_t uses aura
--- 97463 and reads the cast's health effect from 97462 (reviewed 2026-09-06).
--- https://github.com/simulationcraft/simc/blob/midnight/engine/class_modules/sc_warrior.cpp
-local AURA_SPELL_IDS = {
-	[97462] = 97463,
-}
-
--- Call only with validated public configuration or spellbook IDs.
+-- Call only with validated public configuration or catalog IDs.
 function PlayerBuffs:ResolveAuraSpellID(spellID)
-	return AURA_SPELL_IDS[spellID] or spellID
+	return ns.BlizzardBuffCatalog:ResolveAuraSpellID(spellID)
 end
 
 -- Only saved public configuration is parsed here. Aura identities and values

@@ -15,14 +15,27 @@ local MAX_CATEGORY_ITEMS, MAX_LINKED_IDS = 512, 32
 -- https://github.com/Gethe/wow-ui-source/blob/8ea15b61e45c0ed4eba01439c90757f86eb78d34/Interface/AddOns/Blizzard_APIDocumentationGenerated/CooldownViewerDocumentation.lua
 -- https://github.com/Gethe/wow-ui-source/blob/8ea15b61e45c0ed4eba01439c90757f86eb78d34/Interface/AddOns/Blizzard_APIDocumentationGenerated/CooldownViewerConstantsDocumentation.lua
 -- https://github.com/Gethe/wow-ui-source/blob/8ea15b61e45c0ed4eba01439c90757f86eb78d34/Interface/AddOns/Blizzard_CooldownViewer/CooldownViewerItemData.lua
--- For each season/expansion, revalidate categories, selfAura/hasAura/isKnown,
+-- https://github.com/Gethe/wow-ui-source/blob/8ea15b61e45c0ed4eba01439c90757f86eb78d34/Interface/AddOns/Blizzard_CooldownViewer/CooldownViewerSettingsDataProvider.lua
+-- User's live warrior catalog dump (2026-09-06) includes known self auras
+-- with hasAura=false: Spell Reflection, Shield Wall, and Ignore Pain. Shield
+-- Block has selfAura=false in Essential but true in TrackedBar. Only tracked
+-- categories describe eligible buffs; hasAura is not an eligibility gate.
+-- For each season/expansion, revalidate categories, selfAura/isKnown,
 -- and GetAssociatedAuraSpellPriority in these files against the target build.
 -- The latter accepts linked, tooltip override, override, and base spell IDs;
 -- linkedSpellIDs[1] is NOT an authoritative aura replacement for the cast ID.
 -- GroupBuff/equipment entries have separate item/slot semantics and are omitted.
 local CATEGORY_NAMES = {
-	"Essential", "Utility", "TrackedBuff", "TrackedBar",
-	"SpecAgnosticEssential", "SpecAgnosticTracked",
+	"TrackedBuff", "TrackedBar", "SpecAgnosticTracked",
+}
+
+-- Verified cast-to-aura exceptions, not a catalog of trackable spells.
+-- Rallying Cry: SimulationCraft's Midnight warrior rallying_cry_t uses aura
+-- 97463 and reads the cast's health effect from 97462 (reviewed 2026-09-06).
+-- https://github.com/simulationcraft/simc/blob/midnight/engine/class_modules/sc_warrior.cpp
+-- The live dump above marks its tracked entry selfAura=false, hasAura=true.
+local AURA_SPELL_IDS = {
+	[97462] = 97463,
 }
 
 local function IsSecret(value)
@@ -63,6 +76,11 @@ local function CanRefresh()
 	return PublicBoolean(SafeCall(InCombatLockdown), false)
 end
 
+function Catalog:ResolveAuraSpellID(spellID)
+	if not IsInteger(spellID, 1, MAX_ID) then return nil end
+	return AURA_SPELL_IDS[spellID] or spellID
+end
+
 function Catalog:IsAvailable()
 	return PublicTable(C_CooldownViewer)
 		and type(C_CooldownViewer.GetCooldownViewerCategorySet) == "function"
@@ -95,12 +113,14 @@ local function AddCandidate(candidates, id)
 end
 
 local function AddInfo(entries, byID, info)
-	if not PublicTable(info) or not PublicBoolean(info.selfAura, true)
-		or not PublicBoolean(info.hasAura, true) or not PublicBoolean(info.isKnown, true)
+	if not PublicTable(info) or not PublicBoolean(info.isKnown, true)
 		or not PublicBoolean(info.isInvisible, false) or not IsInteger(info.spellID, 1, MAX_ID)
 	then return end
 
 	local id = info.spellID
+	if not PublicBoolean(info.selfAura, true)
+		and not (PublicBoolean(info.selfAura, false) and AURA_SPELL_IDS[id])
+	then return end
 	local candidates = byID[id]
 	if not candidates then
 		candidates = {}
