@@ -43,7 +43,8 @@ These are results for the development worktree, not certification of live-client
 
 ## Pending Validation and Follow-Up
 
-- Validate the new spellbook picker: search by name/ID, hover for tooltips, page results, include passives, remove/reorder selections, and check the preview. Verify Advanced ID edits and profile switching preserve selections. Picker UI rendering has not yet been tested in-game.
+- The initial spellbook picker rendered in-game, but its oversized buttons and truncated reorder labels needed refinement. Validate the compact rows, Add/Added state, tooltips, paging, passive filtering, reorder/remove controls, and preview. Verify Advanced ID edits and profile switching preserve selections.
+- Rallying Cry did not appear when selected from the spellbook. Its cast ID now resolves to the buff ID, including existing selections; after `/reload`, cast it and confirm the icon/countdown appears and disappears when the buff ends. This fix still needs in-game validation.
 
 - Install the worktree for testing and verify stance/form changes, spell overrides, duplicate slots, range feedback, and charge cooldowns in-game.
 - Exercise profile changes, module toggles, stack inclusion, scaled dragging, and combat-interrupted dragging.

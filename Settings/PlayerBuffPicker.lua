@@ -3,11 +3,16 @@ local L = LibStub("AceLocale-3.0"):GetLocale("ActionHud")
 
 function ns.Settings.BuildPlayerBuffPickerOptions(addon)
 	local book = ns.PlayerBuffSpellbook
+	local playerBuffs = addon:GetModule("PlayerBuffs")
 	local query, includePassive, page = "", false, 1
 	local resultEntries, resultQuery, resultPassives, resultCache
 	local PAGE_SIZE = 8
 	local function ids()
-		return addon:GetModule("PlayerBuffs"):ParseSpellIDs(addon.db.profile.playerBuffsSpellIDs or "")
+		return playerBuffs:ParseSpellIDs(addon.db.profile.playerBuffsSpellIDs or "")
+	end
+	local function resolve(id)
+		if not id then return nil end
+		return playerBuffs:ResolveAuraSpellID(id)
 	end
 	local function save(list)
 		local values = {}
@@ -32,15 +37,26 @@ function ns.Settings.BuildPlayerBuffPickerOptions(addon)
 		return results()[(page - 1) * PAGE_SIZE + index]
 	end
 	local function canAdd(id)
+		id = resolve(id)
 		local list = ids()
 		if not id or not list or #list >= 12 then return false end
 		for _, selected in ipairs(list) do if selected == id then return false end end
 		return true
 	end
-	local function add(id)
-		if not canAdd(id) then return end
+	local function isSelected(id)
+		id = resolve(id)
 		local list = ids()
-		list[#list + 1] = id
+		if not id or not list then return false end
+		for _, selectedID in ipairs(list) do
+			if selectedID == id then return true end
+		end
+		return false
+	end
+	local function add(id)
+		local auraID = resolve(id)
+		if not auraID or not canAdd(id) then return end
+		local list = ids()
+		list[#list + 1] = auraID
 		save(list)
 	end
 	local function selected(index)
@@ -57,15 +73,17 @@ function ns.Settings.BuildPlayerBuffPickerOptions(addon)
 		type = "group", name = L["Spellbook"], inline = true, order = 10,
 		args = {
 			note = { type = "description", order = 0,
-				name = L["Add spells from your current spellbook. An ability may create a buff with a different spell ID, or no buff at all. Use Advanced: Spell IDs if it does not appear when active."] },
+				name = L["Choose a spell to track its buff. Known spell-to-buff mappings are applied automatically; use Advanced: Spell IDs if one does not appear."] },
 			search = { type = "input", name = L["Search spells"], order = 1, width = "full",
 				desc = L["Search by spell name or ID, then press Enter."],
 				get = function() return query end,
 				set = function(_, value) query = value:sub(1, 100); page = 1 end },
 			passives = { type = "toggle", name = L["Include passive spells"], order = 2,
+				width = "relative", relWidth = 0.75,
 				get = function() return includePassive end,
 				set = function(_, value) includePassive = value; page = 1 end },
-			refresh = { type = "execute", name = L["Refresh spellbook"], order = 3,
+			refresh = { type = "execute", name = L["Refresh"], order = 3,
+				desc = L["Refresh spellbook"], width = "relative", relWidth = 0.25,
 				disabled = function() return InCombatLockdown() end,
 				func = function() book:Refresh(); page = 1 end },
 			status = { type = "description", order = 4, name = function()
@@ -76,24 +94,38 @@ function ns.Settings.BuildPlayerBuffPickerOptions(addon)
 				if not list then return L["Fix the saved spell ID list under Advanced: Spell IDs before editing selected buffs."] end
 				return string.format(L["%d matching spells. %d of 12 buffs selected."], #results(), #list)
 			end },
-			previous = { type = "execute", name = L["Previous page"], order = 30,
+			previous = { type = "execute", name = L["Previous"], order = 30,
+				desc = L["Previous page"], width = "relative", relWidth = 0.2,
 				disabled = function() return page <= 1 end,
 				func = function() page = math.max(1, page - 1) end },
-			next = { type = "execute", name = L["Next page"], order = 31,
+			page = { type = "description", order = 31, width = "relative", relWidth = 0.6,
+				name = function() return string.format(L["Page %d of %d"], math.min(page, pageCount()), pageCount()) end },
+			next = { type = "execute", name = L["Next"], order = 32,
+				desc = L["Next page"], width = "relative", relWidth = 0.2,
 				disabled = function() return page >= pageCount() end,
 				func = function() page = math.min(pageCount(), page + 1) end },
-			page = { type = "description", order = 32,
-				name = function() return string.format(L["Page %d of %d"], math.min(page, pageCount()), pageCount()) end },
 		},
 	}
 	for index = 1, PAGE_SIZE do
+		browser.args["spellLabel" .. index] = {
+			type = "description", dialogControl = "InteractiveLabel",
+			order = 9 + index * 2, width = "relative", relWidth = 0.82,
+			hidden = function() return not result(index) end,
+			name = function()
+				local entry = result(index)
+				return entry and entry.name or ""
+			end,
+			image = function() local entry = result(index); return entry and entry.icon end,
+			imageWidth = 24, imageHeight = 24,
+			tooltipHyperlink = function() local entry = result(index); return entry and "spell:" .. entry.id end,
+		}
 		browser.args["spell" .. index] = {
-			type = "execute", order = 10 + index, width = "full",
+			type = "execute", order = 10 + index * 2, width = "relative", relWidth = 0.18,
 			hidden = function() return not result(index) end,
 			name = function()
 				local entry = result(index)
 				if not entry then return "" end
-				return string.format("|T%d:18:18|t %s", entry.icon, string.format(L["Add %s"], entry.name))
+				return isSelected(entry.id) and L["Added"] or L["Add"]
 			end,
 			tooltipHyperlink = function() local entry = result(index); return entry and "spell:" .. entry.id end,
 			disabled = function() local entry = result(index); return not canAdd(entry and entry.id) end,
@@ -110,15 +142,18 @@ function ns.Settings.BuildPlayerBuffPickerOptions(addon)
 			hidden = function() return not selected(index) end,
 			args = {
 				label = { type = "description", dialogControl = "InteractiveLabel", order = 0,
+					width = "relative", relWidth = 0.6,
 					name = function() local id = selected(index); return id and string.format("%d. %s", index, book:Describe(id).name) or "" end,
 					image = function() local id = selected(index); return id and book:Describe(id).icon end,
 					imageWidth = 24, imageHeight = 24,
 					tooltipHyperlink = function() local id = selected(index); return id and "spell:" .. id end },
-				up = { type = "execute", name = L["Move Up"], order = 1, width = "half",
+				up = { type = "execute", name = L["Up"], order = 1, width = "relative", relWidth = 0.1,
+					desc = L["Move Up"],
 					disabled = function() return index == 1 end, func = function() move(index, -1) end },
-				down = { type = "execute", name = L["Move Down"], order = 2, width = "half",
+				down = { type = "execute", name = L["Down"], order = 2, width = "relative", relWidth = 0.12,
+					desc = L["Move Down"],
 					disabled = function() return not selected(index + 1) end, func = function() move(index, 1) end },
-				remove = { type = "execute", name = L["Remove"], order = 3, width = "half",
+				remove = { type = "execute", name = L["Remove"], order = 3, width = "relative", relWidth = 0.18,
 					func = function() local list = ids(); if list and list[index] then table.remove(list, index); save(list) end end },
 			},
 		}

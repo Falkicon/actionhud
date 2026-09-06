@@ -15,6 +15,9 @@ assert(buffs:GetStatus() == "disabled" and not buffs._runtimeActive)
 assert(not buffs:GetContainer() and #native.containers == 0, "disabled defaults must create no native frames")
 local parsed = assert(buffs:ParseSpellIDs("184364, 871\n184364\t12975"))
 assert(#parsed == 3 and parsed[1] == 184364 and parsed[2] == 871 and parsed[3] == 12975)
+parsed = assert(buffs:ParseSpellIDs("97462,23920,97463,97462"))
+assert(#parsed == 2 and parsed[1] == 97463 and parsed[2] == 23920,
+	"cast aliases must resolve before deduplication, preserving first-slot order")
 assert(#buffs:ParseSpellIDs(" \n") == 0)
 for _, input in ipairs({ "0", "-1", "1.5", "abc", ",,", "2147483648" }) do
 	local ids, err = buffs:ParseSpellIDs(input)
@@ -50,6 +53,15 @@ end
 assert(buffs:GetLayoutWidth() == 58 and buffs:CalculateHeight() == 28)
 assert(container:IsShown() and not manager:IsModuleInStack("playerBuffs"))
 
+-- Existing saved cast IDs and explicit aura IDs select the same native buff.
+setIDs("97462,23920,97463")
+assert(addon.db.profile.playerBuffsSpellIDs == "97462,23920,97463", "reads must not migrate saved text")
+assert(state.slots.selected1.filters.includeSpellIDs[97463])
+assert(not state.slots.selected1.filters.includeSpellIDs[97462])
+assert(state.slots.selected2.filters.includeSpellIDs[23920] and #native.slots == 2)
+setIDs("97463,23920")
+assert(state.slots.selected1.filters.includeSpellIDs[97463])
+
 -- Aura activity never invokes addon layout or queries native widget visibility.
 local writes = native.writes
 host:Fire("UNIT_AURA", "player"); flush()
@@ -73,7 +85,7 @@ host:SetCombat(true)
 writes = native.writes
 local frames = #host.frames
 local oldWidth = container:GetWidth()
-setIDs("1 2 3")
+setIDs("97462 2 3")
 sizing.iconSize.set(nil, 40)
 options.resetPosition.func()
 enable(false)
@@ -84,6 +96,7 @@ host:SetCombat(false)
 assert(buffs:GetStatus() == "active" and #native.slots == 3)
 assert(buffs:GetLayoutWidth() == 40 and buffs:CalculateHeight() == 124)
 assert(state.slots.selected3.filters.includeSpellIDs[3])
+assert(state.slots.selected1.filters.includeSpellIDs[97463], "deferred filters must resolve cast IDs too")
 enable(false)
 assert(not state.enabled and not container:IsShown() and buffs:CalculateHeight() == 0)
 enable(true)

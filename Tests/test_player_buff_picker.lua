@@ -5,15 +5,21 @@ local book = ns.PlayerBuffSpellbook
 local entries = {}
 for id = 1, 10 do entries[id] = { id = id, name = "Ability " .. id, icon = 134400 } end
 local reflection = { id = 23920, name = "Spell Reflection", icon = 135453 }
+local rallying = { id = 97462, name = "Rallying Cry", icon = 132333 }
 function book:IsAvailable() return true end
 function book:GetEntries() return entries end
 function book:Search(query, passive)
 	if query == "reflection" then return { reflection } end
+	if query == "rallying" then return { rallying } end
 	if query == "no matches" then return {} end
 	if passive then return { { id = 99, name = "Passive", icon = 134400 } } end
 	return entries
 end
-function book:Describe(id) return id == 23920 and reflection or { id = id, name = "Ability " .. id, icon = 134400 } end
+function book:Describe(id)
+	if id == 23920 then return reflection end
+	if id == 97462 or id == 97463 then return { id = id, name = "Rallying Cry", icon = rallying.icon } end
+	return { id = id, name = "Ability " .. id, icon = 134400 }
+end
 local options = ns.Settings.BuildPlayerBuffsOptions(addon).args
 local browser, selected = options.browser.args, options.selected.args
 local function flush() host:Flush(); host:AssertNoErrors() end
@@ -22,19 +28,39 @@ LibStub("AceConfigRegistry-3.0"):ValidateOptionsTable({ name = "picker", type = 
 assert(options.spellIDsGroup.hidden())
 options.advanced.set(nil, true)
 assert(not options.spellIDsGroup.hidden())
-assert(browser.spell1.name():find("Ability 1", 1, true))
+assert(browser.spellLabel1.name() == "Ability 1")
+assert(browser.spellLabel1.image() == 134400)
+assert(browser.spellLabel1.tooltipHyperlink() == "spell:1")
+assert(browser.spellLabel1.width == "relative" and browser.spellLabel1.relWidth == 0.82)
+assert(browser.spell1.name() == "Add" and browser.spell1.relWidth == 0.18)
 assert(browser.spell1.tooltipHyperlink() == "spell:1")
+browser.search.set(nil, "rallying")
+browser.spell1.func(); flush()
+assert(addon.db.profile.playerBuffsSpellIDs == "97463", "spellbook selections must save the resolved aura ID")
+assert(browser.spell1.disabled() and browser.spell1.name() == "Added")
+assert(#native.containers == 0, "adding a mapped buff must not enable the feature")
+addon.db.profile.playerBuffsSpellIDs = "97462"
+assert(browser.spell1.disabled() and browser.spell1.name() == "Added", "legacy cast IDs must match their resolved aura")
+browser.spell1.func()
+assert(addon.db.profile.playerBuffsSpellIDs == "97462", "a duplicate selection must not rewrite the profile")
+addon.db.profile.playerBuffsSpellIDs = ""
+browser.search.set(nil, "")
 browser.next.func()
-assert(browser.spell1.name():find("Ability 9", 1, true) and browser.spell3.hidden())
+assert(browser.spellLabel1.name() == "Ability 9" and browser.spellLabel3.hidden() and browser.spell3.hidden())
 browser.previous.func()
 browser.search.set(nil, "reflection")
-assert(browser.spell2.hidden() and not browser.spell1.disabled())
+assert(browser.spellLabel2.hidden() and browser.spell2.hidden() and not browser.spell1.disabled())
 browser.spell1.func(); flush()
-assert(values()[1] == 23920 and browser.spell1.disabled())
+assert(values()[1] == 23920 and browser.spell1.disabled() and browser.spell1.name() == "Added")
 browser.spell1.func(); flush()
 assert(#values() == 1 and #native.containers == 0, "adding must deduplicate without enabling the feature")
 assert(selected.slot1.args.label.name():find("Spell Reflection", 1, true))
 assert(selected.slot1.args.label.tooltipHyperlink() == "spell:23920")
+assert(selected.slot1.args.label.relWidth == 0.6)
+assert(selected.slot1.args.up.name == "Up" and selected.slot1.args.up.relWidth == 0.1)
+assert(selected.slot1.args.down.name == "Down" and selected.slot1.args.down.relWidth == 0.12)
+assert(selected.slot1.args.remove.name == "Remove" and selected.slot1.args.remove.relWidth == 0.18)
+assert(browser.previous.relWidth + browser.page.relWidth + browser.next.relWidth == 1)
 assert(options.preview.args.icons.name():find("135453", 1, true))
 browser.search.set(nil, "")
 browser.spell1.func(); browser.spell2.func(); flush()
@@ -51,7 +77,7 @@ browser.search.set(nil, "no matches")
 assert(browser.spell1.hidden())
 browser.search.set(nil, "")
 browser.passives.set(nil, true)
-assert(browser.spell1.name():find("Passive", 1, true))
+assert(browser.spellLabel1.name():find("Passive", 1, true))
 browser.passives.set(nil, false)
 
 -- Mutations always read the latest profile; stale UI closures must not overwrite

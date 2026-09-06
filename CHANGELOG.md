@@ -16,6 +16,7 @@ These changes are in development and still require in-game combat validation. Th
 
 ### Changed
 
+- Compact Player Buffs spellbook rows with separate Add/Added controls, smaller paging controls, and selected-buff names and reorder/remove actions on one row.
 - Centralized layout requests into one queued LayoutManager pass with shared lifecycle reconciliation and combat deferral.
 - Moved profile defaults into `Core/Defaults.lua` and separated UnitFrames identity, lifecycle, layout, and rendering responsibilities.
 - Avoid eager debug-log formatting when logging is disabled.
@@ -24,6 +25,7 @@ These changes are in development and still require in-game combat validation. Th
 
 ### Fixed
 
+- Rallying Cry selections now resolve the ability ID to its buff ID, including previously saved selections. Cast and buff IDs are deduplicated into the same slot.
 - `/ah`, `/actionhud`, and the Addon Compartment now open settings using the registered category ID instead of passing the canvas frame to Blizzard's navigation API.
 - Class-resource accuracy: use actual segment capacity and native restricted-value fills, keep depleted rows visible, select the correct secondary pool on custom player frames, and refresh on form/spec/rune changes.
 - Settings panels stopping at their first checkbox: updated the embedded AceGUI checkbox to upstream widget version 27, replacing the removed `SetDesaturation` global with native texture methods.
