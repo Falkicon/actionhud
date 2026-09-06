@@ -8,8 +8,8 @@ local ActionHud = LibStub("AceAddon-3.0"):GetAddon("ActionHud")
 local STATUS_TEXT = {
 	disabled = L["Player Buffs is disabled."],
 	unavailable = L["Player Buffs requires WoW 12.1's native aura container API, which is unavailable on this client."],
-	empty = L["Enter at least one aura spell ID to display Player Buffs."],
-	invalid = L["The saved aura spell ID list is invalid. Edit it below."],
+	empty = L["Add at least one spell to display Player Buffs."],
+	invalid = L["Fix the saved spell ID list under Advanced: Spell IDs before editing selected buffs."],
 	pending = L["Player Buffs is waiting until combat ends to create its display."],
 	active = L["Player Buffs is active."],
 	error = L["Player Buffs could not create its native aura display."],
@@ -86,11 +86,21 @@ local function GetStatusText()
 end
 
 function ns.Settings.BuildPlayerBuffsOptions(self)
+	local advanced = false
+	local browser, selected, preview = ns.Settings.BuildPlayerBuffPickerOptions(self)
 	return {
 		name = L["Player Buffs"],
 		handler = ActionHud,
 		type = "group",
 		args = {
+			browser = browser,
+			selected = selected,
+			preview = preview,
+			advanced = {
+				type = "toggle", name = L["Advanced: Spell IDs"], order = 30, width = "full",
+				get = function() return advanced end,
+				set = function(_, value) advanced = value end,
+			},
 			intro = {
 				name = L["Track selected helpful player buffs and defensives in fixed positions. Configured slots stay reserved while inactive, so icons do not shift."],
 				type = "description",
@@ -176,10 +186,11 @@ function ns.Settings.BuildPlayerBuffsOptions(self)
 				end,
 			},
 			spellIDsGroup = {
-				name = L["Aura Spell IDs"],
+				name = L["Advanced: Spell IDs"],
 				type = "group",
 				inline = true,
-				order = 10,
+				order = 31,
+				hidden = function() return not advanced end,
 				args = {
 					spellIDs = {
 						name = L["Aura Spell IDs"],
@@ -196,15 +207,6 @@ function ns.Settings.BuildPlayerBuffsOptions(self)
 						end,
 						validate = function(info, value)
 							return ValidateSpellIDs(value)
-						end,
-					},
-					warriorExample = {
-						name = L["Warrior Example"],
-						desc = L["Use Spell Reflection's aura spell ID (23920). This does not enable Player Buffs or cast the ability."],
-						type = "execute",
-						order = 2,
-						func = function()
-							ApplySpellIDs(self, "23920")
 						end,
 					},
 					clearSpellIDs = {

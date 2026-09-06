@@ -185,7 +185,9 @@ function ActionHud:SetupOptions()
 	LibStub("AceConfigDialog-3.0"):AddToBlizOptions("ActionHud_Trinkets", L["Trinket Bar"], "ActionHud")
 
 	LibStub("AceConfig-3.0"):RegisterOptionsTable("ActionHud_PlayerBuffs", playerBuffOptions)
-	LibStub("AceConfigDialog-3.0"):AddToBlizOptions("ActionHud_PlayerBuffs", L["Player Buffs"], "ActionHud")
+	local playerBuffPanel = LibStub("AceConfigDialog-3.0"):AddToBlizOptions("ActionHud_PlayerBuffs", L["Player Buffs"], "ActionHud")
+	-- Rebuild once on the next visit, rather than on every option activation.
+	playerBuffPanel:HookScript("OnHide", function() ns.PlayerBuffSpellbook:Refresh() end)
 
 	-- 9-10. Meta settings
 	local profiles = LibStub("AceDBOptions-3.0"):GetOptionsTable(self.db)

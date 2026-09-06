@@ -29,7 +29,7 @@ assert(spells.spellIDs.validate(nil, "184364 871") == true)
 local api = C_AuraContainerUtil
 C_AuraContainerUtil = nil
 assert(options.enable.disabled())
-spells.warriorExample.func(); flush()
+spells.spellIDs.set(nil, "23920"); flush()
 assert(addon.db.profile.playerBuffsSpellIDs == "23920")
 assert(not addon.db.profile.playerBuffsEnabled and #native.containers == 0)
 enable(true)

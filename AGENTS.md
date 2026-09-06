@@ -44,6 +44,8 @@ The TOC/XML manifests define the runtime. `.pkgmeta` defines package exclusions.
 | `UnitFrames/Layout.lua` | Custom frame construction, styling, and geometry |
 | `UnitFrames/Rendering.lua` | Unit values, prediction, text, icons, and final rendering |
 | `Settings/init.lua` | Settings helpers and AceConfig registration |
+| `Settings/PlayerBuffSpellbook.lua` | Bounded cached spellbook enumeration, public metadata, search, and combat refresh deferral |
+| `Settings/PlayerBuffPicker.lua` | In-settings search, paging, selected-list mutations, tooltips, and public preview |
 | Other active files in `Settings/` | Action Bars, Resources, Unit Frames, Trinkets, Player Buffs, and Layout options |
 | `Locales/enUS.lua` | Base AceLocale strings |
 | `Mechanic.lua` | Optional Mechanic tools, diagnostics, and performance rows |
@@ -75,7 +77,7 @@ Resources, Action Bars, Trinkets, and PlayerBuffs can participate in the HUD sta
 
 ### Player Buffs
 
-PlayerBuffs is disabled by default. It accepts up to 12 ordered, unique positive aura spell IDs from `playerBuffsSpellIDs`, separated by commas or whitespace. The **Warrior Example** sets `23920` (Spell Reflection's aura); it does not enable the feature or cast the ability. The runtime creates a WoW 12.1 `CustomAuraContainerTemplate` for the `player` unit and registers `HELPFUL` slots filtered by those IDs. `Icon Size`, `Columns`, and `Spacing` determine the public fixed footprint; configured slots remain reserved when inactive, with invisible native icons. The default independent position is `(0, -100)`; the module can be added to the HUD stack, or dragged with **Layout → Unlock Module Positions** when independent.
+PlayerBuffs is disabled by default. It accepts up to 12 ordered, unique positive aura spell IDs from `playerBuffsSpellIDs`, separated by commas or whitespace. The in-settings spellbook picker searches learned spells from the active specialization, with optional passive results. It does not maintain a curated list or infer cast-to-aura mappings. Advanced ID editing preserves the existing storage format. The runtime creates a WoW 12.1 `CustomAuraContainerTemplate` for the `player` unit and registers `HELPFUL` slots filtered by those IDs. `Icon Size`, `Columns`, and `Spacing` determine the public fixed footprint; configured slots remain reserved when inactive, with invisible native icons. The default independent position is `(0, -100)`; the module can be added to the HUD stack, or dragged with **Layout → Unlock Module Positions** when independent.
 
 Native aura data stays inside Blizzard's container and button delegates. Initialize native child widgets only from the container's one-time `initializeFrame` callback. After initialization, retain only the public wrapper anchors and container methods for later layout; do not inspect aura children, read aura data, hook aura widgets, or add polling. Configuration and protected enable/disable changes defer until combat ends. PlayerBuffs uses a fixed 3-second native buff-timer threshold, independent of the Action Bars/Trinkets countdown setting.
 

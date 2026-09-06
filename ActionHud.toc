@@ -45,6 +45,8 @@ Settings\Resources.lua
 # Settings\Tracked.lua
 Settings\UnitFrames.lua
 Settings\Trinkets.lua
+Settings\PlayerBuffSpellbook.lua
+Settings\PlayerBuffPicker.lua
 Settings\PlayerBuffs.lua
 Settings\Layout.lua
 Mechanic.lua

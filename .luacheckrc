@@ -55,6 +55,7 @@ read_globals = {
 	"C_Item",
 	"C_Secrets",
 	"C_Spell",
+	"C_SpellBook",
 	"C_StringUtil",
 	"C_Timer",
 	"C_UnitAuras",
