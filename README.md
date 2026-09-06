@@ -124,6 +124,10 @@ The runner checks manifests, packaging, and localization; compiles first-party L
 
 Read [Runtime lifecycle and layout](docs/runtime-layout.md) before changing module lifecycle or geometry. The [quality review](docs/quality-review.md) records the recent fixes and their verification limits.
 
+## Planned features
+
+The [accessible displays and guided buff setup PRD](docs/prds/accessibility-and-buff-setup.md) proposes optional aura sounds, expanded styling, presets, and clearer buff selection guidance. These features are planned, not part of the current release.
+
 ## Credits
 
 A special thanks to the authors of:
