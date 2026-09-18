@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [2.14.1] - 2026-09-18
+
+### Changed
+
+- Added the WoW Forever client (1.60.1, interface `16001`) to the TOC alongside Retail 12.1 (`120100`). The runtime still targets Retail APIs and has not been tested on Forever.
+
 ## [2.14.0] - 2026-09-06
 
 Adds optional Player Buffs and Consumables displays, improves resource accuracy and settings access, and strengthens runtime lifecycle and layout handling. Warrior smoke tests passed; broader class/spec and combat checks remain documented in STATUS.md.
