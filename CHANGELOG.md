@@ -6,7 +6,7 @@
 
 ### Changed
 
-- Added the WoW Forever client (1.60.1, interface `16001`) to the TOC alongside Retail 12.1 (`120100`). The runtime still targets Retail APIs and has not been tested on Forever.
+- Added WoW: Forever support. The TOC now declares Interface `16001` (Forever 1.60.1, which uses the Retail API) alongside Retail 12.1 (`120100`).
 
 ## [2.14.0] - 2026-09-06
 
