@@ -161,6 +161,11 @@ loadFromRoot("Utils.lua", "ActionHud", ns)
 local Utils = ns.Utils
 
 print("Running Utils tests...")
+assertEqual("GameFontHighlightSmallOutline", Utils.GetTimerFont("small"), "small timer font")
+assertEqual("GameFontHighlightOutline", Utils.GetTimerFont("medium"), "medium timer font")
+assertEqual("GameFontNormalLargeOutline", Utils.GetTimerFont("large"), "large timer font")
+assertEqual("GameFontHighlightHugeOutline", Utils.GetTimerFont("huge"), "huge timer font")
+assertEqual("GameFontHighlightOutline", Utils.GetTimerFont(nil), "unset timer size falls back to medium")
 assertTrue(Utils.IS_MIDNIGHT, "ActionHud did not inherit Midnight state")
 assertTrue(Utils.Cap.HasSecondsFormatter, "ActionHud did not inherit formatter capability")
 

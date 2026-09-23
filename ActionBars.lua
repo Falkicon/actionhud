@@ -20,6 +20,11 @@ local buttons = {}
 local buttonsByActionID = {}
 local registeredRangeActions = {}
 local desiredRangeActions = {}
+-- Range results are pushed per action ID and only when they change, so they are
+-- kept per action rather than per button: a refresh, page swap, or override
+-- that reassigns a button must not discard a still-valid out-of-range state.
+local actionInRange = {}
+local actionChecksRange = {}
 local container = nil -- ActionBars container frame
 local layoutCache = {} -- Cache for Edit Mode settings to avoid frequent API calls
 
@@ -594,6 +599,8 @@ function AB:OnDisable()
 end
 
 function AB:ClearRangeRegistrations()
+	wipe(actionInRange)
+	wipe(actionChecksRange)
 	if not (C_ActionBar and C_ActionBar.EnableActionRangeCheck) then
 		wipe(registeredRangeActions)
 		return
@@ -602,6 +609,20 @@ function AB:ClearRangeRegistrations()
 		pcall(C_ActionBar.EnableActionRangeCheck, actionID, false)
 	end
 	wipe(registeredRangeActions)
+end
+
+-- Reads the current range state for a newly tracked action. Range events only
+-- report changes, so an action that becomes visible needs an initial value.
+local function SeedRange(actionID)
+	local inRange
+	if C_ActionBar and C_ActionBar.IsActionInRange then
+		local ok, value = pcall(C_ActionBar.IsActionInRange, actionID, "target")
+		if ok and not Utils.IsValueSecret(value) and type(value) == "boolean" then
+			inRange = value
+		end
+	end
+	actionInRange[actionID] = inRange
+	actionChecksRange[actionID] = inRange ~= nil
 end
 
 function AB:RefreshRangeRegistrations()
@@ -620,6 +641,8 @@ function AB:RefreshRangeRegistrations()
 		if not desiredRangeActions[actionID] then
 			pcall(C_ActionBar.EnableActionRangeCheck, actionID, false)
 			registeredRangeActions[actionID] = nil
+			actionInRange[actionID] = nil
+			actionChecksRange[actionID] = nil
 		end
 	end
 	for actionID in pairs(desiredRangeActions) do
@@ -627,6 +650,13 @@ function AB:RefreshRangeRegistrations()
 			local ok = pcall(C_ActionBar.EnableActionRangeCheck, actionID, true)
 			if ok then
 				registeredRangeActions[actionID] = true
+				SeedRange(actionID)
+				local matches = buttonsByActionID[actionID]
+				if matches then
+					for _, btn in ipairs(matches) do
+						self:ApplyIconColor(btn)
+					end
+				end
 			end
 		end
 	end
@@ -693,8 +723,9 @@ function AB:SPELL_UPDATE_ICON()
 		if btn:IsShown() and self:UpdateIcon(btn) then
 			-- The slot now points at a different spell: cooldown, charges, and
 			-- range all belong to the new one.
-			btn._inRange = nil
-			btn._checksRange = nil
+			if registeredRangeActions[btn.actionID] then
+				SeedRange(btn.actionID)
+			end
 			self:UpdateCooldown(btn)
 			self:UpdateState(btn)
 		end
@@ -779,10 +810,13 @@ function AB:ACTION_RANGE_CHECK_UPDATE(event, action, inRange, checksRange)
 	if Utils.IsValueSecret(action) then
 		return
 	end
-	for _, btn in ipairs(buttonsByActionID[action] or {}) do
-		btn._checksRange = checksRange
-		btn._inRange = inRange
-		self:ApplyIconColor(btn)
+	actionInRange[action] = inRange
+	actionChecksRange[action] = checksRange
+	local matches = buttonsByActionID[action]
+	if matches then
+		for _, btn in ipairs(matches) do
+			self:ApplyIconColor(btn)
+		end
 	end
 end
 
@@ -800,11 +834,9 @@ function AB:UpdateRange()
 			else
 				inRange = IsActionInRange(btn.actionID) -- @scan-ignore: midnight-normalized
 			end
-			-- Compare directly against _inRange (the value UpdateState reads)
-			-- to avoid desync when ACTION_RANGE_CHECK_UPDATE sets _inRange
-			-- without updating _outOfRange
-			if inRange ~= btn._inRange then
-				btn._inRange = inRange
+			if inRange ~= actionInRange[btn.actionID] then
+				actionInRange[btn.actionID] = inRange
+				actionChecksRange[btn.actionID] = inRange ~= nil
 				self:ApplyIconColor(btn)
 			end
 		end
@@ -815,10 +847,15 @@ end
 -- out from under a slot without changing the slot itself, so it must be re-read
 -- rather than cached across events.
 local function ResolveSpellID(actionID)
-	local actionType, id = GetActionInfo(actionID) -- @scan-ignore: midnight-normalized
+	local actionType, id, subType = GetActionInfo(actionID) -- @scan-ignore: midnight-normalized
 	if actionType == "spell" then
 		return id
 	elseif actionType == "macro" then
+		-- Retail reports a macro's current spell as ("macro", spellID, "spell");
+		-- only other macro subtypes carry a macro index.
+		if subType == "spell" then
+			return id
+		end
 		return GetMacroSpell(id)
 	end
 	return nil
@@ -882,10 +919,6 @@ function AB:UpdateAction(btn)
 	end
 
 	btn.actionID = actionID
-
-	-- Clear stale range state when the action changes so UpdateState
-	-- doesn't apply a red tint from the previous spell
-	btn._inRange = nil
 
 	self:UpdateIcon(btn)
 end
@@ -1111,7 +1144,14 @@ function AB:UpdateCooldown(btn)
 	if ActionButton_ApplyCooldown and not hasSecretCooldownValues then
 		EnsureChargeCooldown(btn, threshold)
 		ActionButton_ApplyCooldown(btn.cd, cooldownInfo, btn.chargeCooldown, chargeInfo, nil, lossOfControlInfo)
-		if ignoreGCD and SelectRestrictedCooldownType(cooldownInfo, chargeInfo, lossOfControlInfo) == "normal" then
+		local cooldownType = SelectRestrictedCooldownType(cooldownInfo, chargeInfo, lossOfControlInfo)
+		if cooldownType == "lossOfControl" then
+			-- Blizzard clears the normal and charge sweeps when a lockout replaces
+			-- them and draws the lockout only on a dedicated frame. Mirror the
+			-- restricted path and show it on the primary sweep instead.
+			local durationObject = GetRestrictedCooldownDuration(btn.actionID, "lossOfControl")
+			TryApplyDurationObjectCooldown(btn.cd, durationObject, true)
+		elseif ignoreGCD and cooldownType == "normal" then
 			-- Replace only the normal sweep; Blizzard retains charge and LoC composition.
 			local durationObject = GetRestrictedCooldownDuration(btn.actionID, "normal", true)
 			TryApplyDurationObjectCooldown(btn.cd, durationObject, true)
@@ -1272,8 +1312,9 @@ function AB:ApplyIconColor(btn)
 		colorMode = "mana"
 	end
 
-	local inRange = btn._inRange
-	local checksRange = btn._checksRange
+	local actionID = btn.actionID
+	local inRange = actionID and actionInRange[actionID]
+	local checksRange = actionID and actionChecksRange[actionID]
 	local hasValidRangeResult = not Utils.IsValueSecret(checksRange) and checksRange ~= false
 	if hasValidRangeResult and inRange ~= nil and not Utils.IsValueSecret(inRange) and inRange == false then
 		if colorMode == "unusable" then

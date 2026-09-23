@@ -93,8 +93,9 @@ local function ApplyTextStyle(fontString, config, unit, frameFont)
 		return
 	end
 
-	-- Use frame-level font if set, otherwise fall back to element config, then default
-	local fontName = frameFont or config.font or "Arial Narrow"
+	-- Each text element has its own Font setting; the frame-level font (no
+	-- setting of its own) is only a fallback for configs without one.
+	local fontName = config.font or frameFont or "Arial Narrow"
 	local fontPath = LSM:Fetch("font", fontName) or "Fonts\\ARIALN.TTF"
 	local fontSize = config.size or config.fontSize or 11 -- Default to 11
 	local outline = config.outline or config.fontOutline or "NONE"
@@ -131,11 +132,12 @@ function UnitFrames:CreateFrames()
 	local DraggableContainer = ns.DraggableContainer
 
 	local units = {
-		player = { unit = "player", moduleId = "ufPlayer", defaultX = -200, defaultY = 50 },
-		target = { unit = "target", moduleId = "ufTarget", defaultX = 200, defaultY = 50 },
-		targettarget = { unit = "targettarget", moduleId = "ufTargettarget", defaultX = 370, defaultY = 50 },
-		focus = { unit = "focus", moduleId = "ufFocus", defaultX = 200, defaultY = -50 },
+		player = { unit = "player", moduleId = "ufPlayer" },
+		target = { unit = "target", moduleId = "ufTarget" },
+		targettarget = { unit = "targettarget", moduleId = "ufTargettarget" },
+		focus = { unit = "focus", moduleId = "ufFocus" },
 	}
+	local defaults = self.db.defaults.profile
 
 	self.containers = self.containers or {}
 
@@ -149,14 +151,15 @@ function UnitFrames:CreateFrames()
 		-- Create draggable container anchored to HUD
 		local container
 		if DraggableContainer then
+			local xKey, yKey = self:GetPositionKeys(frameId)
 			container = DraggableContainer:Create({
 				moduleId = config.moduleId,
 				parent = main,
 				db = self.db,
-				xKey = "uf" .. frameId:sub(1, 1):upper() .. frameId:sub(2) .. "XOffset",
-				yKey = "uf" .. frameId:sub(1, 1):upper() .. frameId:sub(2) .. "YOffset",
-				defaultX = config.defaultX,
-				defaultY = config.defaultY,
+				xKey = xKey,
+				yKey = yKey,
+				defaultX = defaults[xKey],
+				defaultY = defaults[yKey],
 				size = { width = db.width or 180, height = db.height or 40 },
 			})
 		end

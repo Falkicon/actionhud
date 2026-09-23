@@ -3,6 +3,12 @@ local addonName, ns = ...
 local ActionHud = LibStub("AceAddon-3.0"):GetAddon("ActionHud")
 local UnitFrames = ActionHud:NewModule("UnitFrames", "AceEvent-3.0")
 
+-- Frame positions are stored in top-level profile keys such as ufPlayerXOffset.
+function UnitFrames:GetPositionKeys(frameId)
+	local prefix = "uf" .. frameId:sub(1, 1):upper() .. frameId:sub(2)
+	return prefix .. "XOffset", prefix .. "YOffset"
+end
+
 function UnitFrames:OnInitialize()
 	self.db = ActionHud.db
 	self.frames = {}

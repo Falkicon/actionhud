@@ -93,6 +93,10 @@ function DraggableContainer:Create(opts)
 	container:SetScript("OnDragStart", function(self)
 		if not InCombatLockdown() and DraggableContainer:IsUnlocked(db) then
 			self:StartMoving()
+			-- PLAYER_REGEN_DISABLED fires before lockdown begins, so a drag that
+			-- is still active when combat starts can finish (and save) normally
+			-- instead of following the cursor for the whole fight.
+			self:RegisterEvent("PLAYER_REGEN_DISABLED")
 		end
 	end)
 
@@ -101,6 +105,7 @@ function DraggableContainer:Create(opts)
 			self:RegisterEvent("PLAYER_REGEN_ENABLED")
 			return
 		end
+		self:UnregisterEvent("PLAYER_REGEN_DISABLED")
 		self:UnregisterEvent("PLAYER_REGEN_ENABLED")
 		self:StopMovingOrSizing()
 
@@ -123,7 +128,7 @@ function DraggableContainer:Create(opts)
 	end
 	container:SetScript("OnDragStop", StopDrag)
 	container:SetScript("OnEvent", function(self, event)
-		if event == "PLAYER_REGEN_ENABLED" then
+		if event == "PLAYER_REGEN_ENABLED" or event == "PLAYER_REGEN_DISABLED" then
 			StopDrag(self)
 		end
 	end)

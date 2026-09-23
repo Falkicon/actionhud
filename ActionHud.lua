@@ -212,11 +212,13 @@ function ActionHud:CreateMainFrame()
 	f:SetScript("OnDragStart", function(s)
 		if not InCombatLockdown() and not self.db.profile.locked then
 			s:StartMoving()
+			-- Finish an active drag when combat starts; PLAYER_REGEN_DISABLED
+			-- fires before lockdown, so the position still saves normally.
+			self:RegisterEvent("PLAYER_REGEN_DISABLED", "FinishRootDrag")
 		end
 	end)
 	f:SetScript("OnDragStop", function()
-		self._pendingDragStop = true
-		self:ApplyRootPosition()
+		self:FinishRootDrag()
 	end)
 
 	-- HUD background when layout unlocked (50% black for visibility)
@@ -226,6 +228,12 @@ function ActionHud:CreateMainFrame()
 	f.dragBg:Hide()
 
 	self.frame = f
+end
+
+function ActionHud:FinishRootDrag()
+	self:UnregisterEvent("PLAYER_REGEN_DISABLED")
+	self._pendingDragStop = true
+	self:ApplyRootPosition()
 end
 
 function ActionHud:ApplyRootPosition()

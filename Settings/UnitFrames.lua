@@ -401,10 +401,12 @@ function ns.Settings.BuildUnitFramesOptions(self)
 							type = "execute",
 							order = 4,
 							func = function()
-								local defaultConfig = self.db.defaults.profile.ufConfig[frameId]
-								self.db.profile.ufConfig[frameId].xOffset = defaultConfig.xOffset
-								self.db.profile.ufConfig[frameId].yOffset = defaultConfig.yOffset
-								ActionHud:GetModule("UnitFrames"):UpdateLayout()
+								local unitFrames = ActionHud:GetModule("UnitFrames")
+								local xKey, yKey = unitFrames:GetPositionKeys(frameId)
+								local defaults = self.db.defaults.profile
+								self.db.profile[xKey] = defaults[xKey]
+								self.db.profile[yKey] = defaults[yKey]
+								unitFrames:UpdateLayout()
 							end,
 						},
 					},

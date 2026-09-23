@@ -128,8 +128,6 @@ ns.defaults = {
 				enabled = true,
 				width = 150,
 				height = 50,
-				xOffset = -189,
-				yOffset = 13,
 				font = "Arial Narrow", -- Top-level font for all text elements
 				bgColor = { r = 0, g = 0, b = 0 },
 				bgOpacity = 0.4,
@@ -226,8 +224,6 @@ ns.defaults = {
 				enabled = true,
 				width = 150,
 				height = 50,
-				xOffset = 210,
-				yOffset = 13,
 				font = "Arial Narrow", -- Top-level font for all text elements
 				bgColor = { r = 0, g = 0, b = 0 },
 				bgOpacity = 0.4,
@@ -324,8 +320,6 @@ ns.defaults = {
 				enabled = false,
 				width = 150,
 				height = 35,
-				xOffset = -353,
-				yOffset = 19,
 				font = "Arial Narrow", -- Top-level font for all text elements
 				bgColor = { r = 0, g = 0, b = 0 },
 				bgOpacity = 0.4,
@@ -422,8 +416,6 @@ ns.defaults = {
 				enabled = false,
 				width = 150,
 				height = 50,
-				xOffset = 370,
-				yOffset = 13,
 				font = "Arial Narrow",
 				bgColor = { r = 0, g = 0, b = 0 },
 				bgOpacity = 0.4,

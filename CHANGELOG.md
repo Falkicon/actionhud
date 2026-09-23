@@ -2,6 +2,20 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- Acquiring or clearing a target during combat now shows or hides the target half of the resource bar immediately instead of after combat.
+- Druids who shift into Cat Form during combat now see combo points. Druids keep a reserved class-resource row, so form changes no longer shift the HUD stack.
+- Custom unit-frame class bars use the correct colours: combo points no longer use Chi's colour, and Chi, Arcane Charges and Essence are no longer grey.
+- Macros now show proc glows. Retail macros report their spell directly; it was previously looked up as a macro index.
+- Proc glows no longer miss or linger when the proc event arrives in the same frame as an earlier refresh.
+- The out-of-range tint now survives layout refreshes, Edit Mode changes, bar paging, and spell overrides. Range state is kept per action, and newly shown actions start with their current range.
+- Interrupt lockouts show a cooldown sweep outside restricted content, matching instanced behaviour.
+- Unit frame **Reset Position** now resets the position the frame actually uses.
+- Each unit-frame text element's **Font** setting now applies; the frame-level default no longer overrides it.
+- Trinkets **Timer Font Size** now changes the countdown font. Consumables and Player Buffs countdowns use their intended medium and small fonts.
+- Entering combat while dragging the HUD or a module now drops it where it is instead of leaving it attached to the cursor for the fight.
+
 ### Changed
 
 - Embedded libraries now ship exactly as committed. The release package previously replaced them with the latest Ace3/LibStub/LibSharedMedia trunk at packaging time, so released builds ran different library code than development and CI. The committed copies now match the libraries shipped in 2.14.1, and a repository check pins their versions.

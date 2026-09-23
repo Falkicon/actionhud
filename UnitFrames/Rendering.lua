@@ -205,10 +205,8 @@ function UnitFrames:UpdateFrameValues(f, updateKind)
 			local maxC = UnitPowerMax("player", powerType, true) -- @scan-ignore: midnight-player-only
 			f.class:SetMinMaxValues(0, Pass(maxC, 1))
 			f.class:SetValue(Pass(curC, 0))
-			local color = PowerBarColor[powerType]
-			if color then
-				f.class:SetStatusBarColor(color.r, color.g, color.b)
-			end
+			local color = Utils.GetClassPowerColor(powerType)
+			f.class:SetStatusBarColor(color.r, color.g, color.b)
 		else
 			f.class:SetMinMaxValues(0, 1)
 			f.class:SetValue(0)

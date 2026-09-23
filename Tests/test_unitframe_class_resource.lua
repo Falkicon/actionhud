@@ -29,6 +29,14 @@ host:Flush()
 local uf = addon:GetModule("UnitFrames")
 local frame = uf.frames.player
 local config = addon.db.profile.ufConfig.player
+-- Blizzard's numeric PowerBarColor fallback maps index 4 to Chi's colour.
+PowerBarColor = PowerBarColor or {}
+PowerBarColor[4] = { r = 0.71, g = 1, b = 0.92 }
+frame.class.SetStatusBarColor = function(self, r, g, b) self.color = { r, g, b } end
+local function assertColor(r, g, b, message)
+	local color = frame.class.color
+	assert(color and color[1] == r and color[2] == g and color[3] == b, message)
+end
 local function assertPool(powerType)
 	reads = {}
 	host:Fire("UNIT_POWER_UPDATE", "player")
@@ -41,6 +49,15 @@ local function assertPool(powerType)
 	end
 end
 assertPool(Enum.PowerType.ComboPoints)
+assertColor(0.9, 0.3, 0.3, "combo points must use the combo-point colour, not the numeric Chi fallback")
+
+-- Each text element's Font setting must reach its font string.
+local nameText = frame.healthElements.name.fontString
+nameText.SetFont = function(self, path) self.fontPath = path end
+config.healthText.name.font = "Friz Quadrata TT"
+addon:RefreshLayout()
+host:Flush()
+assert(nameText.fontPath and nameText.fontPath:find("FRIZQT", 1, true), "per-text font must override the frame default")
 current = 0
 assertPool(Enum.PowerType.ComboPoints)
 assert(frame._classHeight == config.classBarHeight, "depleted resource must retain its space")
@@ -78,6 +95,7 @@ spec = 1
 host:Fire("PLAYER_TALENT_UPDATE")
 host:Flush()
 assertPool(Enum.PowerType.ArcaneCharges)
+assertColor(0.3, 0.5, 0.9, "Arcane Charges must not fall back to grey")
 config.classBarEnabled = false
 addon:RefreshLayout()
 host:Flush()

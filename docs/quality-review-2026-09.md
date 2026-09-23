@@ -33,16 +33,16 @@ Status values: **open**, **fixed** (with commit), **deferred**, **won't fix**. F
 
 | ID | Sev | Finding | Where | Status |
 | --- | --- | --- | --- | --- |
-| B1 | P1 | The resource target split is only applied in `PrepareLayout`, which never runs in combat. Acquiring a target in combat leaves the target half hidden; clearing it leaves two empty half-width bars. Default settings (`resShowTarget = true`). | `Resources.lua:605`, `:811` | open |
-| B2 | P1 | `PrepareLayout` always clears the class bar's anchors but re-anchors only when class power is available. A Druid shifting to Cat in combat gets a shown, anchorless (invisible) combo-point row for the whole fight; out-of-combat form changes also shift the stack. | `Resources.lua:837`, `:900-913` | open |
-| B3 | P1 | Unit-frame class bar colour uses numeric `PowerBarColor[powerType]`: combo points (4) receive the Chi colour; Chi (12), Arcane Charges (16), Essence (19) stay grey. | `UnitFrames/Rendering.lua:208` | open |
-| B4 | P1 | `ResolveSpellID` calls `GetMacroSpell(id)` for macros, but on Retail `GetActionInfo` returns `("macro", spellID, "spell")`. Macro proc glows never show (and IDs ≤ 138 hit unrelated macros). | `ActionBars.lua:817` | open |
-| B5 | P1 | `UpdateAction` clears `_inRange` on every refresh and `SPELL_UPDATE_ICON` clears range state, while `ACTION_RANGE_CHECK_UPDATE` only fires on change. The out-of-range tint disappears after any layout pass, Edit Mode exit, stealth paging of bar 2, or spell override. | `ActionBars.lua:888`, `:696` | open, *in-game* |
-| B6 | P1 | The readable cooldown path passes `nil` as the loss-of-control frame to `ActionButton_ApplyCooldown`; when `shouldReplaceNormalCooldown` is true both normal and charge sweeps are cleared and nothing replaces them. The test asserts the gap. | `ActionBars.lua:1113` | open, *in-game* |
-| B7 | P1 | Unit Frames **Reset Position** writes `ufConfig[frameId].xOffset/yOffset`, which nothing reads; positions use `uf<Frame>XOffset/YOffset`. `Tests/test_settings.lua:135` asserts the dead key. | `Settings/UnitFrames.lua:403` | open |
-| B8 | P1 | Unit-frame per-text **Font** is ignored: `ApplyTextStyle` prefers the frame font, which always has the default. | `UnitFrames/Layout.lua:97` | open |
-| B9 | P1 | `Utils.GetTimerFont` falls back to a constant because embedded FenUI no longer defines `GetTimerFont`; Trinkets **Timer Font Size** has no effect. The runtime test stubs the function. | `Utils.lua:127` | open |
-| B10 | P1 | Combat-interrupted drag defers `StopMovingOrSizing` until `PLAYER_REGEN_ENABLED`; unprotected containers (and the root while unit frames are off) keep following the cursor all fight. | `Core/DraggableContainer.lua:99`, `ActionHud.lua:217` | open, *in-game* |
+| B1 | P1 | The resource target split is only applied in `PrepareLayout`, which never runs in combat. Acquiring a target in combat leaves the target half hidden; clearing it leaves two empty half-width bars. Default settings (`resShowTarget = true`). | `Resources.lua:605`, `:811` | fixed (phase 2) |
+| B2 | P1 | `PrepareLayout` always clears the class bar's anchors but re-anchors only when class power is available. A Druid shifting to Cat in combat gets a shown, anchorless (invisible) combo-point row for the whole fight; out-of-combat form changes also shift the stack. | `Resources.lua:837`, `:900-913` | fixed (phase 2) |
+| B3 | P1 | Unit-frame class bar colour uses numeric `PowerBarColor[powerType]`: combo points (4) receive the Chi colour; Chi (12), Arcane Charges (16), Essence (19) stay grey. | `UnitFrames/Rendering.lua:208` | fixed (phase 2) |
+| B4 | P1 | `ResolveSpellID` calls `GetMacroSpell(id)` for macros, but on Retail `GetActionInfo` returns `("macro", spellID, "spell")`. Macro proc glows never show (and IDs ≤ 138 hit unrelated macros). | `ActionBars.lua:817` | fixed (phase 2) |
+| B5 | P1 | `UpdateAction` clears `_inRange` on every refresh and `SPELL_UPDATE_ICON` clears range state, while `ACTION_RANGE_CHECK_UPDATE` only fires on change. The out-of-range tint disappears after any layout pass, Edit Mode exit, stealth paging of bar 2, or spell override. | `ActionBars.lua:888`, `:696` | fixed (phase 2), *in-game* |
+| B6 | P1 | The readable cooldown path passes `nil` as the loss-of-control frame to `ActionButton_ApplyCooldown`; when `shouldReplaceNormalCooldown` is true both normal and charge sweeps are cleared and nothing replaces them. The test asserts the gap. | `ActionBars.lua:1113` | fixed (phase 2), *in-game* |
+| B7 | P1 | Unit Frames **Reset Position** writes `ufConfig[frameId].xOffset/yOffset`, which nothing reads; positions use `uf<Frame>XOffset/YOffset`. `Tests/test_settings.lua:135` asserts the dead key. | `Settings/UnitFrames.lua:403` | fixed (phase 2) |
+| B8 | P1 | Unit-frame per-text **Font** is ignored: `ApplyTextStyle` prefers the frame font, which always has the default. | `UnitFrames/Layout.lua:97` | fixed (phase 2) |
+| B9 | P1 | `Utils.GetTimerFont` falls back to a constant because embedded FenUI no longer defines `GetTimerFont`; Trinkets **Timer Font Size** has no effect. The runtime test stubs the function. | `Utils.lua:127` | fixed (phase 2) |
+| B10 | P1 | Combat-interrupted drag defers `StopMovingOrSizing` until `PLAYER_REGEN_ENABLED`; unprotected containers (and the root while unit frames are off) keep following the cursor all fight. | `Core/DraggableContainer.lua:99`, `ActionHud.lua:217` | fixed (phase 2), *in-game* |
 
 ## Phase 3 — Protected calls reachable in combat
 
@@ -86,7 +86,7 @@ Status values: **open**, **fixed** (with commit), **deferred**, **won't fix**. F
 | K1 | P2 | Vehicle, override, temporary-shapeshift and possess bars are not mapped; pet battles show player actions. Use Blizzard's order and `C_ActionBar.GetBonusBarIndex`, and register the three bar events. | `ActionBars.lua:856-882` | open, *in-game* |
 | K2 | P2 | Restricted path selects one cooldown type and clears the charge frame: a 1/2-charge spell shows a full swipe in instanced combat, unlike the readable path. Unify on never-secret booleans plus duration objects (also fixes B6). | `ActionBars.lua:1122-1140` | open, *in-game* |
 | K3 | P2 | Edit Mode settings fall back to 2×12 after `/reload` or Edit Mode exit inside party/raid/arena instances. | `ActionBars.lua:31-43` | open |
-| K4 | P2 | FenUI's 16 ms `IsSpellOverlayed` cache can serve stale values to glow events in the same frame. | `Libs/FenUI/Utils/SafeAPI.lua:330` | open |
+| K4 | P2 | FenUI's 16 ms `IsSpellOverlayed` cache can serve stale values to glow events in the same frame. | `Libs/FenUI/Utils/SafeAPI.lua:330` | fixed (phase 2) |
 | K5 | P2 | One module's error aborts the whole layout pass (single `pcall`), can leave the HUD blank, and loses the stack trace. | `LayoutManager.lua:422-456` | open |
 | K6 | P2 | `IS_MIDNIGHT` is `interface >= 120000`, false on WoW Forever (16001, Retail API). Use feature detection. | `Libs/FenUI/Utils/Utils.lua:32` | open |
 | K7 | P2 | New and reset profiles run `MigrateOldSettings`: stale `cooldowns` stack entry, 1 px vs 4 px gap, hash-order append. | `LayoutManager.lua:532-577` | open |

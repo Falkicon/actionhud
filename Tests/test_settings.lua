@@ -22,6 +22,11 @@ local modules = {
 		IsEnabled = function() return true end,
 	},
 	UnitFrames = {
+		-- Mirrors UnitFrames:GetPositionKeys; the containers read these keys.
+		GetPositionKeys = function(_, frameId)
+			local prefix = "uf" .. frameId:sub(1, 1):upper() .. frameId:sub(2)
+			return prefix .. "XOffset", prefix .. "YOffset"
+		end,
 		UpdateLayout = function() calls.unitFramesUpdated = true end,
 		IsEnabled = function() return true end,
 	},
@@ -77,12 +82,10 @@ local defaults = {
 		actionBarsYOffset = 0,
 		trinketsXOffset = 80,
 		trinketsYOffset = 23,
-		ufConfig = {
-			player = { xOffset = -189, yOffset = 13 },
-			target = { xOffset = 210, yOffset = 13 },
-			targettarget = { xOffset = 370, yOffset = 13 },
-			focus = { xOffset = -353, yOffset = 19 },
-		},
+		ufPlayerXOffset = -189,
+		ufPlayerYOffset = 13,
+		ufFocusXOffset = -353,
+		ufFocusYOffset = 19,
 	},
 }
 
@@ -131,9 +134,10 @@ assert(profile.trinketsXOffset == 80 and profile.trinketsYOffset == 23,
 	"Trinkets reset must use profile defaults")
 
 local unitOptions = ns.Settings.BuildUnitFramesOptions(addon)
+profile.ufFocusXOffset, profile.ufFocusYOffset = 55, 66
 unitOptions.args.focus.args.dimensions.args.resetPosition.func()
-assert(profile.ufConfig.focus.xOffset == -353 and profile.ufConfig.focus.yOffset == 19,
-	"Unit frame reset must restore that frame's profile defaults")
+assert(profile.ufFocusXOffset == -353 and profile.ufFocusYOffset == 19,
+	"Unit frame reset must restore the position keys the frame actually uses")
 
 profile.actionBarsEnabled = true
 profile.trinketsEnabled = false
