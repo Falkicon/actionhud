@@ -68,6 +68,31 @@ class RepositoryQualityTests(unittest.TestCase):
         with self.assertRaisesRegex(QualityError, "Missing manifest dependency"):
             validate_repository(root)
 
+    def test_duplicate_localization_key_fails(self) -> None:
+        root = self.make_repo()
+        (root / "Locales" / "enUS.lua").write_text('L["Known"] = true\nL["Known"] = true\n', encoding="utf-8")
+        with self.assertRaisesRegex(QualityError, "Duplicate enUS localization keys"):
+            validate_repository(root)
+
+    def test_unsupported_interface_fails(self) -> None:
+        root = self.make_repo()
+        (root / "ActionHud.toc").write_text("## Interface: 120100, 110205\nLocales\\enUS.lua\nMain.lua\n", encoding="utf-8")
+        with self.assertRaisesRegex(QualityError, "Unsupported TOC Interface values: 110205"):
+            validate_repository(root)
+
+    def test_toc_version_must_match_changelog(self) -> None:
+        root = self.make_repo()
+        (root / "ActionHud.toc").write_text("## Version: 1.2.0\nLocales\\enUS.lua\nMain.lua\n", encoding="utf-8")
+        (root / "CHANGELOG.md").write_text("# Changelog\n\n## [Unreleased]\n\n## [1.1.0] - 2026-01-01\n", encoding="utf-8")
+        with self.assertRaisesRegex(QualityError, "TOC version 1.2.0 does not match latest CHANGELOG release 1.1.0"):
+            validate_repository(root)
+
+    def test_trailing_whitespace_fails(self) -> None:
+        root = self.make_repo()
+        (root / "Main.lua").write_text('print(L["Known"]) \n', encoding="utf-8")
+        with self.assertRaisesRegex(QualityError, "Trailing whitespace: Main.lua:1"):
+            validate_repository(root)
+
     def test_wrong_luacheck_version_fails(self) -> None:
         root = self.make_repo()
         with patch("quality.shutil.which", return_value=sys.executable):

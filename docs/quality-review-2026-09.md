@@ -57,14 +57,14 @@ Status values: **open**, **fixed** (with commit), **deferred**, **won't fix**. F
 
 | ID | Sev | Finding | Status |
 | --- | --- | --- | --- |
-| T1 | P2 | About 12 ad-hoc secret mocks; the shared host hardcodes `issecretvalue = false`. Add one shared secret factory and a restricted mode for the full-TOC host. | open |
-| T2 | P2 | The host models deprecated tuple-returning action globals, not the 12.1 table-returning `C_ActionBar` API. | open |
-| T3 | P2 | No regression tests for spell overrides (`SPELL_UPDATE_ICON`/`UpdateProc`), macro resolution, range persistence, combat target changes, Druid combat shift, unit-frame colours, or Blizzard frame hiding. | open |
+| T1 | P2 | About 12 ad-hoc secret mocks; the shared host hardcodes `issecretvalue = false`. Add one shared secret factory and a restricted mode for the full-TOC host. | fixed (phase 4) |
+| T2 | P2 | The host models deprecated tuple-returning action globals, not the 12.1 table-returning `C_ActionBar` API. | fixed (phase 4) |
+| T3 | P2 | No regression tests for spell overrides (`SPELL_UPDATE_ICON`/`UpdateProc`), macro resolution, range persistence, combat target changes, Druid combat shift, unit-frame colours, or Blizzard frame hiding. | fixed (phases 2-3) |
 | T4 | P2 | A combat sweep that calls every settings setter under `InCombatLockdown()` catches C1/C2; make it a permanent test. | fixed (phase 3) |
-| T5 | P3 | `quality.py` lacks unused/duplicate locale key checks, a TOC metadata allow-list, and a pinned library-version manifest. | open |
-| T6 | P3 | `.luacheckrc` ignores whitespace (611) on the assumption `git diff --check` runs in CI; it does not, and committed files contain trailing whitespace. No `.gitattributes`. | open |
+| T5 | P3 | `quality.py` lacks unused/duplicate locale key checks, a TOC metadata allow-list, and a pinned library-version manifest. | partly fixed (phase 4: duplicates, TOC metadata, library pins; unused keys with D3) |
+| T6 | P3 | `.luacheckrc` ignores whitespace (611) on the assumption `git diff --check` runs in CI; it does not, and committed files contain trailing whitespace. No `.gitattributes`. | fixed (phase 4) |
 | T7 | P3 | Consumables, Recent Buffs, the catalog, and most ActionBars handlers have no performance counters; `ActionBarsUpdate` conflates refresh and icon events. | open |
-| T8 | P3 | `run.py` stops at the first failing suite without a summary; `Core/utils_spec.lua` is never run. | open |
+| T8 | P3 | `run.py` stops at the first failing suite without a summary; `Core/utils_spec.lua` is never run. | fixed (phase 4; utils_spec removal is D1) |
 
 ## Phase 5 — Performance
 

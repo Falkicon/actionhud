@@ -52,7 +52,7 @@ local activeContainers = {}
 
 --[[
 	Create a draggable container for a module
-	
+
 	@param opts table
 		- moduleId: string (e.g., "resources", "cooldowns")
 		- parent: Frame (usually ActionHudFrame)
@@ -64,7 +64,7 @@ local activeContainers = {}
 		- size: table { width, height } (optional, default 40x40)
 		- frame: existing container frame to initialize (optional)
 		- overlayLevelOffset: number (optional, default 10; clears the known three-level addon widget nesting)
-		
+
 	@return Frame container
 ]]
 function DraggableContainer:Create(opts)

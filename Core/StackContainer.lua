@@ -39,14 +39,14 @@ local activeContainers = {}
 
 --[[
 	Create a stack container for a module
-	
+
 	@param opts table
 		- moduleId: string (e.g., "resources", "cooldowns")
 		- parent: Frame (usually ActionHudFrame)
 		- db: AceDB profile reference
 		- contentWidth: number (width of actual content, for alignment)
 		- contentHeight: number (height of content)
-		
+
 	@return Frame container
 ]]
 function StackContainer:Create(opts)

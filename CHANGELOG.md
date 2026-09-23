@@ -265,7 +265,7 @@ All notable changes to this project will be documented in this file.
 - **In-Game Help**: Added a new **Help & Slash Commands** section to the main settings page.
 
 ### Changed
-- **Slash Commands**: 
+- **Slash Commands**:
     - `/ah debug` now immediately toggles debug recording on/off with chat confirmation.
     - `/ah log` has been removed (logs are now integrated into the main settings).
     - `/ah clear` remains for clearing the buffer.
@@ -318,7 +318,7 @@ All notable changes to this project will be documented in this file.
     - Stack count automatically repositions to bottom-right when enabled.
 
 ### Changed
-- **Layout Manager Refinement**: 
+- **Layout Manager Refinement**:
     - Disabled modules are now hidden from the "HUD Stack Order" settings list.
     - Gaps between modules now automatically close when an intervening module is disabled.
 - **TrackedBuffs/TrackedBars Style-Only**: Simplified to style-only approach for Midnight (12.0) compatibility.

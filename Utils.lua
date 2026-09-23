@@ -145,7 +145,7 @@ function Utils.IsValueSecret(value)
 	if issecretvalue then
 		return issecretvalue(value) == true
 	end
-	
+
 	-- FenCore.Secrets fallback
 	if Secrets then
 		return Secrets.IsSecret(value)

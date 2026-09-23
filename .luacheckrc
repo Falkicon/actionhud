@@ -13,7 +13,7 @@ ignore = {
 	"212/self", -- Ace/WoW method callbacks retain their receiver.
 	"213/name", -- Diagnostic iteration preserves key/value loop shape.
 	"432/self", -- Event-script callbacks conventionally shadow their owning module.
-	"611", -- Whitespace is enforced separately by git diff --check.
+	"611", -- Whitespace is enforced separately by Tests/quality.py.
 }
 
 exclude_files = {

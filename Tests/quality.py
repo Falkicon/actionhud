@@ -45,6 +45,9 @@ PINNED_LIBRARIES = {
     "Libs/LibDataBroker-1.1/LibDataBroker-1.1.lua": ("LibDataBroker-1.1", 4),
 }
 LIBRARY_MINOR_RE = r'"{name}"\s*,\s*(\d+)'
+# Retail 12.1 and WoW: Forever 1.60.1 (Retail API).
+SUPPORTED_INTERFACES = {"120100", "16001"}
+WHITESPACE_CHECKED_SUFFIXES = {".lua", ".md", ".py", ".toc", ".xml", ".yml", ".json"}
 
 
 class QualityError(AssertionError):
@@ -178,7 +181,11 @@ def validate_localization(root: Path, manifest_files: set[Path]) -> None:
     if base_locale not in manifest_files:
         raise QualityError("Locales/enUS.lua is not loaded by ActionHud.toc")
 
-    defined = set(L_DEFINITION_RE.findall((root / base_locale).read_text(encoding="utf-8-sig")))
+    definitions = L_DEFINITION_RE.findall((root / base_locale).read_text(encoding="utf-8-sig"))
+    defined = set(definitions)
+    duplicates = sorted({key for key in definitions if definitions.count(key) > 1})
+    if duplicates:
+        raise QualityError("Duplicate enUS localization keys: " + ", ".join(repr(key) for key in duplicates))
 
     uses: dict[str, set[str]] = {}
     dynamic_lookups: list[str] = []
@@ -222,11 +229,50 @@ def validate_libraries(root: Path) -> None:
         raise QualityError("Embedded library versions differ from Tests/quality.py pins: " + "; ".join(problems))
 
 
+def validate_toc_metadata(root: Path) -> None:
+    """Keep TOC interfaces supported and the version in step with the changelog."""
+    toc = (root / "ActionHud.toc").read_text(encoding="utf-8-sig")
+    interface = re.search(r"^## Interface:\s*(.+)$", toc, re.MULTILINE)
+    if interface:
+        values = [value.strip() for value in interface.group(1).split(",")]
+        unsupported = [value for value in values if value not in SUPPORTED_INTERFACES]
+        if unsupported:
+            raise QualityError("Unsupported TOC Interface values: " + ", ".join(unsupported))
+    version = re.search(r"^## Version:\s*(\S+)\s*$", toc, re.MULTILINE)
+    changelog = root / "CHANGELOG.md"
+    if version and changelog.exists():
+        release = re.search(r"^## \[(\d[^\]]*)\]", changelog.read_text(encoding="utf-8"), re.MULTILINE)
+        if not release or release.group(1) != version.group(1):
+            found = release.group(1) if release else "none"
+            raise QualityError(f"TOC version {version.group(1)} does not match latest CHANGELOG release {found}")
+
+
+def validate_whitespace(root: Path) -> None:
+    """Reject trailing whitespace in first-party text files (vendored Libs are exempt)."""
+    offenders = []
+    for path in sorted(root.rglob("*")):
+        relative = path.relative_to(root)
+        if (
+            not path.is_file()
+            or path.suffix.lower() not in WHITESPACE_CHECKED_SUFFIXES
+            or relative.parts[0] in {"Libs", "_test_"}
+            or any(part.startswith(".") for part in relative.parts[:-1])
+        ):
+            continue
+        for number, line in enumerate(path.read_text(encoding="utf-8-sig", errors="replace").splitlines(), 1):
+            if line != line.rstrip(" \t"):
+                offenders.append(f"{relative.as_posix()}:{number}")
+    if offenders:
+        raise QualityError("Trailing whitespace: " + ", ".join(offenders[:20]))
+
+
 def validate_repository(root: Path) -> None:
     manifest_files = collect_manifest_files(root)
     validate_localization(root, manifest_files)
     validate_package_closure(root, manifest_files)
     validate_libraries(root)
+    validate_toc_metadata(root)
+    validate_whitespace(root)
 
 
 def active_first_party_lua(manifest_files: set[Path]) -> list[Path]:
@@ -271,7 +317,7 @@ def main() -> None:
     validate_repository(args.root)
     if args.lint:
         run_luacheck(args.root, args.luacheck)
-    result = "SUCCESS: manifest, localization, package closure, and library pins verified"
+    result = "SUCCESS: manifest, localization, package closure, library pins, TOC metadata, and whitespace verified"
     if args.lint:
         result += "; active first-party Lua lint passed"
     print(result)
