@@ -196,6 +196,10 @@ function DraggableContainer:UpdateOverlay(container)
 	if not container then
 		return
 	end
+	if InCombatLockdown() then
+		DraggableContainer:UpdateAllOverlays()
+		return
+	end
 
 	local isUnlocked = DraggableContainer:IsUnlocked(container._db)
 	container.overlayFrame:SetFrameLevel((container:GetFrameLevel() or 0) + container._overlayLevelOffset)
@@ -233,8 +237,22 @@ function DraggableContainer:ResetPosition(container)
 	end
 end
 
--- Update all container overlays (called when lock state changes)
+-- Update all container overlays (called when lock state changes). Containers
+-- that hold secure unit frames are protected, so overlay changes made during
+-- combat apply once it ends; dragging is unavailable in combat anyway.
+local overlayDeferFrame
 function DraggableContainer:UpdateAllOverlays()
+	if InCombatLockdown() then
+		if not overlayDeferFrame then
+			overlayDeferFrame = CreateFrame("Frame")
+			overlayDeferFrame:SetScript("OnEvent", function(frame)
+				frame:UnregisterEvent("PLAYER_REGEN_ENABLED")
+				DraggableContainer:UpdateAllOverlays()
+			end)
+		end
+		overlayDeferFrame:RegisterEvent("PLAYER_REGEN_ENABLED")
+		return
+	end
 	for _, container in pairs(activeContainers) do
 		DraggableContainer:UpdateOverlay(container)
 	end

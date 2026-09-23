@@ -15,6 +15,9 @@
 - Each unit-frame text element's **Font** setting now applies; the frame-level default no longer overrides it.
 - Trinkets **Timer Font Size** now changes the countdown font. Consumables and Player Buffs countdowns use their intended medium and small fonts.
 - Entering combat while dragging the HUD or a module now drops it where it is instead of leaving it attached to the cursor for the fight.
+- Toggling **Hide Blizzard Frames** or **Unlock Module Positions** during combat no longer touches protected frames; the change applies when combat ends.
+- **Hide Blizzard Frames** now hides each Blizzard frame only while its matching custom frame is enabled (for example, Blizzard's Focus frame stays visible while the custom Focus frame is off), and ActionHud no longer resets Blizzard frames it never hid.
+- Trinket cooldowns clear instead of passing restricted values to the cooldown sweep.
 
 ### Changed
 

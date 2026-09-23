@@ -48,10 +48,10 @@ Status values: **open**, **fixed** (with commit), **deferred**, **won't fix**. F
 
 | ID | Sev | Finding | Where | Status |
 | --- | --- | --- | --- | --- |
-| C1 | P2 | **Hide Blizzard Frames** calls `ApplyBlizzardFrameVisibility` directly; `PlayerFrame:EnableMouse` is blocked in combat. | `Settings/UnitFrames.lua:704` | open |
-| C2 | P2 | **Unlock Module Positions** calls `UpdateAllOverlays` directly; unit-frame containers are protected (secure children), so `EnableMouse`/`SetFrameStrata` are blocked. | `Settings/Layout.lua:32`, `Core/DraggableContainer.lua:190` | open |
-| C3 | P2 | Blizzard frame restore runs on every login/reconcile even when ActionHud never hid anything, forcing alpha and mouse on PlayerFrame/TargetFrame/FocusFrame/ToT and undoing other addons. | `UnitFrames/UnitFrames.lua:95`, `:132` | open |
-| C4 | P3 | Trinkets passes possibly-secret start/duration to `SetCooldown` (`AllowedWhenUntainted`); unreachable today, should fail closed like Consumables. | `Trinkets.lua:165` | open |
+| C1 | P2 | **Hide Blizzard Frames** calls `ApplyBlizzardFrameVisibility` directly; `PlayerFrame:EnableMouse` is blocked in combat. | `Settings/UnitFrames.lua:704` | fixed (phase 3) |
+| C2 | P2 | **Unlock Module Positions** calls `UpdateAllOverlays` directly; unit-frame containers are protected (secure children), so `EnableMouse`/`SetFrameStrata` are blocked. | `Settings/Layout.lua:32`, `Core/DraggableContainer.lua:190` | fixed (phase 3) |
+| C3 | P2 | Blizzard frame restore runs on every login/reconcile even when ActionHud never hid anything, forcing alpha and mouse on PlayerFrame/TargetFrame/FocusFrame/ToT and undoing other addons. | `UnitFrames/UnitFrames.lua:95`, `:132` | fixed (phase 3) |
+| C4 | P3 | Trinkets passes possibly-secret start/duration to `SetCooldown` (`AllowedWhenUntainted`); unreachable today, should fail closed like Consumables. | `Trinkets.lua:165` | fixed (phase 3) |
 
 ## Phase 4 — Tests and tooling
 
@@ -60,7 +60,7 @@ Status values: **open**, **fixed** (with commit), **deferred**, **won't fix**. F
 | T1 | P2 | About 12 ad-hoc secret mocks; the shared host hardcodes `issecretvalue = false`. Add one shared secret factory and a restricted mode for the full-TOC host. | open |
 | T2 | P2 | The host models deprecated tuple-returning action globals, not the 12.1 table-returning `C_ActionBar` API. | open |
 | T3 | P2 | No regression tests for spell overrides (`SPELL_UPDATE_ICON`/`UpdateProc`), macro resolution, range persistence, combat target changes, Druid combat shift, unit-frame colours, or Blizzard frame hiding. | open |
-| T4 | P2 | A combat sweep that calls every settings setter under `InCombatLockdown()` catches C1/C2; make it a permanent test. | open |
+| T4 | P2 | A combat sweep that calls every settings setter under `InCombatLockdown()` catches C1/C2; make it a permanent test. | fixed (phase 3) |
 | T5 | P3 | `quality.py` lacks unused/duplicate locale key checks, a TOC metadata allow-list, and a pinned library-version manifest. | open |
 | T6 | P3 | `.luacheckrc` ignores whitespace (611) on the assumption `git diff --check` runs in CI; it does not, and committed files contain trailing whitespace. No `.gitattributes`. | open |
 | T7 | P3 | Consumables, Recent Buffs, the catalog, and most ActionBars handlers have no performance counters; `ActionBarsUpdate` conflates refresh and icon events. | open |
@@ -90,7 +90,7 @@ Status values: **open**, **fixed** (with commit), **deferred**, **won't fix**. F
 | K5 | P2 | One module's error aborts the whole layout pass (single `pcall`), can leave the HUD blank, and loses the stack trace. | `LayoutManager.lua:422-456` | open |
 | K6 | P2 | `IS_MIDNIGHT` is `interface >= 120000`, false on WoW Forever (16001, Retail API). Use feature detection. | `Libs/FenUI/Utils/Utils.lua:32` | open |
 | K7 | P2 | New and reset profiles run `MigrateOldSettings`: stale `cooldowns` stack entry, 1 px vs 4 px gap, hash-order append. | `LayoutManager.lua:532-577` | open |
-| K8 | P2 | Hide Blizzard Frames uses alpha only: invisible target aura buttons still show tooltips, pet/totem frames become invisible but clickable, and focus/ToT hide even when their custom frames are off. | `UnitFrames/UnitFrames.lua:112-150` | open, *in-game* |
+| K8 | P2 | Hide Blizzard Frames uses alpha only: invisible target aura buttons still show tooltips, pet/totem frames become invisible but clickable, and focus/ToT hide even when their custom frames are off. | `UnitFrames/UnitFrames.lua:112-150` | partly fixed (phase 3: per-frame gating; child mouse handling open), *in-game* |
 | K9 | P2 | Unit-frame class/reaction text colours are applied only during layout and go stale after target/focus/ToT changes. | `UnitFrames/Layout.lua:91-123` | open |
 | K10 | P2 | Secret numbers are shown unabbreviated (`AbbreviateNumbers` accepts secrets); secret names are blanked; `GetUnitName` may error under restricted identity. | `UnitFrames/Identity.lua:201`, `Rendering.lua:256` | open, *in-game* |
 | K11 | P2 | Unit-frame heal prediction is hidden in instanced combat; Resources already has a calculator-based overlay. | `UnitFrames/Rendering.lua:237-251` | open |
