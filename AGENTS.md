@@ -170,7 +170,7 @@ python Tests/quality.py --lint
 The lint command requires Luacheck **1.2.0** (`1.2.0-1` in LuaRocks); use `--luacheck /path/to/luacheck` if it is not on PATH. See [CONTRIBUTING.md](CONTRIBUTING.md) for setup. CI runs the same checks on pull requests and pushes to main.
 
 - `Tests/run.py` validates TOC/XML, localization, and packaging; compiles first-party Lua with Lua 5.1 via pinned Lupa; and runs Python and Lua tests.
-- The integration host loads the full active TOC/XML graph with real embedded libraries. Its fake native API models timers, scoped events, and protected geometry, not native taint, secret values, or rendering.
+- The integration host loads the full active TOC/XML graph with real embedded libraries. Its fake native API models timers, scoped events, protected geometry, the 12.1 `C_ActionBar` table API, and secret combat values (`host:SetRestricted`, `Tests/support/secret.lua`); it does not model native taint or rendering. Use the shared secret factory for new secret-value tests instead of ad-hoc mocks.
 - Test protected API and secure-frame changes in-game after the automated checks. Follow the shared Mechanic workflow when collecting live output.
 - Add runtime files to the TOC/XML graph and keep package exclusions consistent. Do not suppress unknown globals merely to satisfy lint.
 - All UI strings must use literal `L["KEY"]` lookups and be defined in `Locales/enUS.lua` through AceLocale-3.0. Keep runtime and settings strings localized.

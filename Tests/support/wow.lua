@@ -1,6 +1,15 @@
 -- Deterministic host for the real addon and embedded libraries. This models
--- events, timers and protected geometry, not native taint or secret values.
-local host = { frames = {}, timers = {}, errors = {}, now = 1, combat = false, loggedIn = false }
+-- events, timers, protected geometry, the 12.1 C_ActionBar API, and (with
+-- host:SetRestricted) secret combat values. It does not model native taint.
+local host = { frames = {}, timers = {}, errors = {}, now = 1, combat = false, loggedIn = false,
+	restricted = false, actionCooldowns = {} }
+local Secret = assert(loadfile("Tests/support/secret.lua"))()
+host.Secret = Secret
+-- Values that become secret while restricted (instanced combat in the client).
+local function restricted(value)
+	if host.restricted then return Secret.new(value) end
+	return value
+end
 local noop = function() end
 local nativeXpcall = xpcall
 -- WoW extends Lua 5.1 xpcall with argument forwarding.
@@ -38,6 +47,9 @@ function host:Flush()
 		end
 		self:AssertNoErrors()
 	end
+end
+function host:SetRestricted(value)
+	self.restricted = value == true
 end
 function host:SetCombat(value)
 	self.combat = value
@@ -186,7 +198,7 @@ hooksecurefunc = function(target, method, callback)
 	target[method] = function(...) local result = { original(...) }; callback(...); return unpack(result) end
 end
 issecurevariable = function() return true end
-issecretvalue = function() return false end
+issecretvalue = Secret.is
 InCombatLockdown = function() return host.combat end
 IsLoggedIn = function() return host.loggedIn end
 GetTime = function() return host.now end
@@ -207,30 +219,26 @@ UnitClass = function() return "Warrior", "WARRIOR", 1 end
 UnitFactionGroup = function() return "Alliance" end
 UnitLevel = function() return 80 end
 UnitExists = function(unit) return unit == "player" or unit == "target" or unit == "targettarget" or unit == "focus" end
-UnitHealth = function() return 80 end
-UnitHealthMax = function() return 100 end
-UnitPower = function() return 30 end
-UnitPowerMax = function() return host.maxPower or 100 end
+UnitHealth = function() return restricted(80) end
+UnitHealthMax = function() return restricted(100) end
+UnitPower = function(_, powerType) return powerType == nil and restricted(30) or 30 end
+UnitPowerMax = function(_, powerType)
+	local maximum = host.maxPower or 100
+	return powerType == nil and restricted(maximum) or maximum
+end
 UnitPowerType = function() return 1, "RAGE" end
 UnitIsPlayer = function() return true end
 UnitIsEnemy = function() return false end
 UnitIsFriend = function() return true end
-UnitGetTotalAbsorbs = function() return 0 end
-UnitGetIncomingHeals = function() return 0 end
+UnitGetTotalAbsorbs = function() return restricted(0) end
+UnitGetIncomingHeals = function() return restricted(0) end
 UnitAffectingCombat = function() return host.combat end
 IsResting = function() return false end
 IsInInstance = function() return false, "none" end
 GetSpecialization = function() return 1 end
-GetActionBarPage = function() return host.actionPage or 1 end
-GetBonusBarOffset = function() return host.bonusOffset or 0 end
+-- 12.1 keeps GetActionInfo and HasAction as globals; the other action APIs
+-- live in C_ActionBar (defined below). Deprecated globals are not modeled.
 GetActionInfo = function(slot) return "spell", 1000 + slot end
-GetActionTexture = function() return 123 end
-GetActionDisplayCount = function() return "" end
-GetActionCount = function() return 0 end
-GetActionCooldown = function() return 0, 0, 1 end
-GetActionCharges = function() return nil end
-IsUsableAction = function() return true, false end
-IsActionInRange = function() return true end
 HasAction = function() return true end
 GetInventoryItemID = function(_, slot) return slot + 100 end
 GetInventoryItemCooldown = function() return 0, 0, 1 end
@@ -246,7 +254,36 @@ Enum = { PowerType = { Mana = 0, Rage = 1, Focus = 2, Energy = 3, ComboPoints = 
 C_AddOns = { GetAddOnMetadata = function() return "test" end, IsAddOnLoaded = function() return false end }
 C_Item = { GetItemIconByID = function() return 456 end, GetItemSpell = GetItemSpell }
 C_Spell = { IsSpellUsable = function() return true end }
-C_ActionBar = { EnableActionRangeCheck = noop }
+-- 12.1 C_ActionBar: info tables keep never-secret booleans public; timing and
+-- counts become secret while restricted. host.actionCooldowns[actionID] sets
+-- { startTime, duration } for an active cooldown.
+local function durationObject(kind, actionID) return { kind = kind, actionID = actionID } end
+C_ActionBar = {
+	EnableActionRangeCheck = noop,
+	GetActionBarPage = function() return host.actionPage or 1 end,
+	GetBonusBarOffset = function() return host.bonusOffset or 0 end,
+	GetActionTexture = function() return 123 end,
+	HasAction = function() return true, false end,
+	IsUsableAction = function() return true, false end,
+	IsActionInRange = function() return nil end,
+	GetActionDisplayCount = function() return restricted("") end,
+	GetActionCooldown = function(actionID)
+		local active = host.actionCooldowns[actionID]
+		return { startTime = restricted(active and active.startTime or 0), duration = restricted(active and active.duration or 0),
+			isEnabled = true, isActive = active ~= nil, modRate = restricted(1) }
+	end,
+	GetActionCharges = function()
+		return { currentCharges = restricted(0), maxCharges = 0, cooldownStartTime = restricted(0),
+			cooldownDuration = restricted(0), chargeModRate = restricted(1), isActive = false }
+	end,
+	GetActionLossOfControlCooldownInfo = function()
+		return { startTime = restricted(0), duration = restricted(0), modRate = restricted(1),
+			isActive = false, shouldReplaceNormalCooldown = false }
+	end,
+	GetActionCooldownDuration = function(actionID) return durationObject("normal", actionID) end,
+	GetActionChargeDuration = function(actionID) return durationObject("charge", actionID) end,
+	GetActionLossOfControlCooldownDuration = function(actionID) return durationObject("lossOfControl", actionID) end,
+}
 AssistedCombatManager = { SetAssistedHighlightFrameShown = noop }
 EditModeManagerFrame = { ExitEditMode = noop }
 wipe = function(tbl) for key in pairs(tbl) do tbl[key] = nil end; return tbl end

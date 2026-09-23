@@ -36,11 +36,11 @@ python -m venv _test_/venv
 .\_test_\venv\Scripts\python.exe Tests/run.py
 ```
 
-On other platforms, use the equivalent virtual-environment Python executable. If the environment is already active, `python Tests/run.py` is sufficient.
+On other platforms, use the equivalent virtual-environment Python executable. If the environment is already active, `python Tests/run.py` is sufficient. Keep the virtual environment at a short path on Windows: lupa's native module fails to load from long paths ("The filename or extension is too long").
 
-The runner validates the TOC/XML dependency graph, package exclusions, and literal localization keys; compiles first-party Lua with Lua 5.1; and runs Python validator tests plus Lua regression and integration suites.
+The runner validates the TOC/XML dependency graph, package exclusions, literal localization keys, and pinned library versions; compiles first-party Lua with Lua 5.1; and runs Python validator tests plus every Lua regression and integration suite, then prints a summary of failures. Pass name fragments to run only matching Lua suites, for example `python Tests/run.py restricted combat_safety`.
 
-The integration host loads every active TOC/XML script, including the real embedded AceAddon, AceDB, AceEvent, AceConfig, and FenUI libraries. It models timers, scoped events, and protected geometry. It does not reproduce native WoW taint, secret values, or visual rendering.
+The integration host (`Tests/support/wow.lua`) loads every active TOC/XML script, including the same embedded Ace3, LibSharedMedia, and FenUI libraries that ship in the package. It models timers, scoped events, protected geometry, and the 12.1 `C_ActionBar` table API (deprecated action globals are deliberately absent). `host:SetRestricted(true)` makes timing, counts, health, power, and prediction return secret tokens from `Tests/support/secret.lua`, which fail on Lua arithmetic, ordering, indexing, concatenation, or formatting. Lua 5.1 cannot detect `secret == value` or truthiness tests, and the host does not reproduce native taint or rendering, so combat testing in the client is still required.
 
 Install Luacheck **1.2.0** (the LuaRocks release is `1.2.0-1`) and run with your environment's Python:
 
