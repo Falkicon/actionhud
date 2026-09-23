@@ -5,7 +5,7 @@ local host = assert(loadfile("Tests/support/wow.lua"))()
 local boot = assert(loadfile("Tests/support/load_addon.lua"))()
 local Secret = host.Secret
 
-local addon = boot(host)
+local addon, ns = boot(host)
 local profile = addon.db.profile
 profile.ufEnabled = true
 profile.ufConfig.focus.enabled, profile.ufConfig.targettarget.enabled = true, true
@@ -60,7 +60,19 @@ Secret.AssertUntouched("secret values were used in Lua during layout")
 
 host:SetRestricted(false)
 host.actionCooldowns[1] = nil
+ns.Performance:SetEnabled(true)
+ns.Performance:Reset()
 burst()
+addon:RefreshLayout()
+host:Flush()
+ns.Performance:SetEnabled(false)
+local recorded = {}
+for _, metric in ipairs(ns.Performance:GetMetrics()) do recorded[metric.name] = metric.calls end
+for _, name in ipairs({ "ActionBarsState", "ActionBarsUsable", "ActionBarsCharges", "ActionBarsIcon",
+	"ActionBarsSlotChanged", "CooldownsUpdate", "ConsumablesRefresh",
+	"ResourcesUpdate", "UnitFramesUpdate", "TrinketsUpdate", "LayoutRecalc" }) do
+	assert(recorded[name], "profiling must record " .. name)
+end
 assert(not Secret.is(health.value), "readable health returns once restrictions lift")
 host:AssertNoErrors()
 print("SUCCESS: restricted combat values pass through every module without Lua inspection")

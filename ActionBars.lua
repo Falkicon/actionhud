@@ -697,6 +697,7 @@ function AB:RefreshAll()
 end
 
 function AB:ACTIONBAR_SLOT_CHANGED(event, arg1)
+	local perfStart = ns.RecordPerformance and debugprofilestop()
 	-- ActionHud:Log(string.format("ActionBars: %s (slot=%s)", event, tostring(arg1)), "events") -- Disabled: too verbose
 	for _, btn in ipairs(buttons) do
 		if
@@ -711,6 +712,7 @@ function AB:ACTIONBAR_SLOT_CHANGED(event, arg1)
 	end
 	self:RebuildButtonIndex()
 	self:RefreshRangeRegistrations()
+	if perfStart then ns.RecordPerformance("ActionBarsSlotChanged", perfStart) end
 end
 
 -- A spell override (Slam -> Heroic Strike, and similar proc swaps) replaces the
@@ -731,7 +733,7 @@ function AB:SPELL_UPDATE_ICON()
 		end
 	end
 	if perfStart then
-		ns.RecordPerformance("ActionBarsUpdate", perfStart)
+		ns.RecordPerformance("ActionBarsIcon", perfStart)
 	end
 end
 
@@ -749,29 +751,35 @@ function AB:SPELL_UPDATE_COOLDOWN()
 end
 
 function AB:UpdateStateAll()
+	local perfStart = ns.RecordPerformance and debugprofilestop()
 	-- Only update buttons with actions (skip empty slots to reduce overhead)
 	for _, btn in ipairs(buttons) do
 		if btn.hasAction then
 			self:UpdateState(btn)
 		end
 	end
+	if perfStart then ns.RecordPerformance("ActionBarsState", perfStart) end
 end
 
 function AB:UpdateUsabilityAll()
+	local perfStart = ns.RecordPerformance and debugprofilestop()
 	for _, btn in ipairs(buttons) do
 		if btn.hasAction then
 			self:UpdateUsability(btn)
 		end
 	end
+	if perfStart then ns.RecordPerformance("ActionBarsUsable", perfStart) end
 end
 
 function AB:UpdateChargesAll()
+	local perfStart = ns.RecordPerformance and debugprofilestop()
 	for _, btn in ipairs(buttons) do
 		if btn.hasAction then
 			self:UpdateCount(btn)
 			self:UpdateCooldown(btn)
 		end
 	end
+	if perfStart then ns.RecordPerformance("ActionBarsCharges", perfStart) end
 end
 
 -- Blizzard re-reads each button's action on these events rather than matching
@@ -781,11 +789,13 @@ end
 -- re-resolves the slot and early-outs when nothing changed, so refreshing every
 -- button here is cheap and cannot go stale.
 function AB:OnSpellActivationOverlay()
+	local perfStart = ns.RecordPerformance and debugprofilestop()
 	for _, btn in ipairs(buttons) do
 		if btn.hasAction then
 			self:UpdateProc(btn)
 		end
 	end
+	if perfStart then ns.RecordPerformance("ActionBarsOverlay", perfStart) end
 end
 
 -- Midnight 12.0+: Targeted usability update from push event

@@ -189,6 +189,7 @@ local function InitializeAuraFrame(auraFrame, anchor)
 end
 
 function PlayerBuffs:ConfigureSlots()
+	local perfStart = ns.RecordPerformance and debugprofilestop()
 	local p = self.db.profile
 	local size = PublicInteger(p.playerBuffsIconSize, 28, 16, 64)
 	local columns = PublicInteger(p.playerBuffsColumns, 4, 1, MAX_SPELLS)
@@ -235,6 +236,7 @@ function PlayerBuffs:ConfigureSlots()
 	for index = count + 1, #self.slots do
 		self.auraContainer:SetAuraSlotCandidateFilters(self.slots[index].key, { includeSpellIDs = {} })
 	end
+	if perfStart then ns.RecordPerformance("PlayerBuffsConfigure", perfStart) end
 end
 
 function PlayerBuffs:PrepareLayout()

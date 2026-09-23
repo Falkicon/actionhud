@@ -63,7 +63,7 @@ Status values: **open**, **fixed** (with commit), **deferred**, **won't fix**. F
 | T4 | P2 | A combat sweep that calls every settings setter under `InCombatLockdown()` catches C1/C2; make it a permanent test. | fixed (phase 3) |
 | T5 | P3 | `quality.py` lacks unused/duplicate locale key checks, a TOC metadata allow-list, and a pinned library-version manifest. | partly fixed (phase 4: duplicates, TOC metadata, library pins; unused keys with D3) |
 | T6 | P3 | `.luacheckrc` ignores whitespace (611) on the assumption `git diff --check` runs in CI; it does not, and committed files contain trailing whitespace. No `.gitattributes`. | fixed (phase 4) |
-| T7 | P3 | Consumables, Recent Buffs, the catalog, and most ActionBars handlers have no performance counters; `ActionBarsUpdate` conflates refresh and icon events. | open |
+| T7 | P3 | Consumables, Recent Buffs, the catalog, and most ActionBars handlers have no performance counters; `ActionBarsUpdate` conflates refresh and icon events. | fixed (phase 4) |
 | T8 | P3 | `run.py` stops at the first failing suite without a summary; `Core/utils_spec.lua` is never run. | fixed (phase 4; utils_spec removal is D1) |
 
 ## Phase 5 — Performance

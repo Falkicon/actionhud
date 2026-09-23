@@ -142,6 +142,7 @@ function Consumables:PrepareLayout()
 end
 
 function Consumables:RefreshValues()
+	local perfStart = ns.RecordPerformance and debugprofilestop()
 	for _, slot in ipairs(self.slots) do
 		if slot.itemID then
 			local info = Items:Describe(slot.itemID)
@@ -157,6 +158,7 @@ function Consumables:RefreshValues()
 			if available then slot.cooldown:SetCooldown(start, duration) else slot.cooldown:Clear() end
 		end
 	end
+	if perfStart then ns.RecordPerformance("ConsumablesRefresh", perfStart) end
 end
 
 function Consumables:ApplyLayoutPosition()
