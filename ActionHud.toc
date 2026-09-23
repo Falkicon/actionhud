@@ -5,7 +5,8 @@
 ## Version: 2.14.1
 ## X-License: GPL-3.0
 ## SavedVariables: ActionHudDB
-## OptionalDeps: !Mechanic, FenCore
+## OptionalDeps: !Mechanic, FenCore, WTFix
+## X-WTFix-Managed: 1
 
 embeds.xml
 Locales\enUS.lua
