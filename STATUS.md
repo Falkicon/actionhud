@@ -29,7 +29,7 @@ Custom unit frames are disabled by default. They support value text and optional
 - Added opt-in profiling and lazy debug-log formatting. No in-game speedup is claimed without measurements.
 - Corrected protected resource ranges and native absorb prediction; added decimal countdown/GCD controls, optional native unit-frame percentages, and the optional native PlayerBuffs display. See the [API upgrade progress](docs/blizzard-api-review-2026-09.md#implementation-progress) for test notes.
 
-See the [quality review](docs/quality-review.md) for individual findings and [Performance profiling](docs/performance.md) for measurement guidance.
+See the [2026-09 review](docs/quality-review-2026-09.md) for open findings by phase, the [earlier quality review](docs/quality-review.md) for past fixes, and [Performance profiling](docs/performance.md) for measurement guidance.
 
 ## Offline Verification
 

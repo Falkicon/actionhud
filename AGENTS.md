@@ -173,7 +173,7 @@ The lint command requires Luacheck **1.2.0** (`1.2.0-1` in LuaRocks); use `--lua
 - Add runtime files to the TOC/XML graph and keep package exclusions consistent. Do not suppress unknown globals merely to satisfy lint.
 - All UI strings must use literal `L["KEY"]` lookups and be defined in `Locales/enUS.lua` through AceLocale-3.0. Keep runtime and settings strings localized.
 
-See [STATUS.md](STATUS.md) and the [quality review](docs/quality-review.md) for current offline results and pending in-game checks.
+See [STATUS.md](STATUS.md) and the [2026-09 review](docs/quality-review-2026-09.md) for current findings, offline results, and pending in-game checks.
 
 ## CurseForge
 
