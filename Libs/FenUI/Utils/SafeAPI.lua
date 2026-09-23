@@ -3,7 +3,8 @@
 -- pcall-wrapped WoW API calls for Midnight and legacy compatibility.
 --------------------------------------------------------------------------------
 
-local Utils = FenUI.Utils
+local _, ns = ...
+local Utils = ns.FenUI.Utils
 
 -- Internal cache for performance
 local cooldownCache = {}

@@ -3,6 +3,8 @@
 -- Main namespace and loader for modular utilities.
 --------------------------------------------------------------------------------
 
+local _, ns = ...
+local FenUI = ns.FenUI
 FenUI.Utils = FenUI.Utils or {}
 local Utils = FenUI.Utils
 

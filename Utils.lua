@@ -6,7 +6,7 @@ local Utils = ns.Utils
 -- Delegation chain: FenCore.Secrets > FenUI.Utils > built-in fallback
 local Secrets = FenCore and FenCore.Secrets
 local Environment = FenCore and FenCore.Environment
-local F = FenUI and FenUI.Utils
+local F = ns.FenUI and ns.FenUI.Utils
 
 -- Local upvalues for performance
 local pcall = pcall

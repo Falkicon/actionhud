@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+### Changed
+
+- Embedded libraries now ship exactly as committed. The release package previously replaced them with the latest Ace3/LibStub/LibSharedMedia trunk at packaging time, so released builds ran different library code than development and CI. The committed copies now match the libraries shipped in 2.14.1, and a repository check pins their versions.
+- Replaced the modified AceEvent-3.0 (minor 9) with the unmodified upstream release. The modified copy never shipped, but on development clients it replaced AceEvent for every installed addon.
+- The embedded FenUI utilities now load into ActionHud's private namespace instead of a shared `FenUI` global that other addons (such as Mechanic) could overwrite.
+
 ## [2.14.1] - 2026-09-18
 
 ### Changed

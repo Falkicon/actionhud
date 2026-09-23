@@ -1,11 +1,9 @@
 --[[-----------------------------------------------------------------------------
 Icon Widget
 -------------------------------------------------------------------------------]]
-local Type, Version = "Icon", 21
+local Type, Version = "Icon", 22
 local AceGUI = LibStub and LibStub("AceGUI-3.0", true)
-if not AceGUI or (AceGUI:GetWidgetVersion(Type) or 0) >= Version then
-	return
-end
+if not AceGUI or (AceGUI:GetWidgetVersion(Type) or 0) >= Version then return end
 
 -- Lua APIs
 local select, pairs, print = select, pairs, print
@@ -69,6 +67,11 @@ local methods = {
 		end
 	end,
 
+	["SetImageByAtlas"] = function(self, atlasString)
+		local image = self.image
+		image:SetAtlas(atlasString)
+	end,
+
 	["SetImageSize"] = function(self, width, height)
 		self.image:SetWidth(width)
 		self.image:SetHeight(height)
@@ -91,7 +94,7 @@ local methods = {
 			self.label:SetTextColor(1, 1, 1)
 			self.image:SetVertexColor(1, 1, 1, 1)
 		end
-	end,
+	end
 }
 
 --[[-----------------------------------------------------------------------------
@@ -128,16 +131,13 @@ local function Constructor()
 		label = label,
 		image = image,
 		frame = frame,
-		type = Type,
+		type  = Type
 	}
 	for method, func in pairs(methods) do
 		widget[method] = func
 	end
 
-	widget.SetText = function(self, ...)
-		print("AceGUI-3.0-Icon: SetText is deprecated! Use SetLabel instead!")
-		self:SetLabel(...)
-	end
+	widget.SetText = function(self, ...) print("AceGUI-3.0-Icon: SetText is deprecated! Use SetLabel instead!"); self:SetLabel(...) end
 
 	return AceGUI:RegisterAsWidget(widget)
 end

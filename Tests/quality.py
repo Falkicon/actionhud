@@ -23,6 +23,30 @@ DEVELOPMENT_PACKAGE_EXCLUSIONS = (
 )
 
 
+# Embedded libraries ship exactly as committed (no .pkgmeta externals). Bump these
+# pins deliberately when updating a library so CI, the integration host, and the
+# released package always exercise the same library code.
+PINNED_LIBRARIES = {
+    "Libs/LibStub/LibStub.lua": ("LibStub", 2),
+    "Libs/CallbackHandler-1.0/CallbackHandler-1.0.lua": ("CallbackHandler-1.0", 8),
+    "Libs/AceAddon-3.0/AceAddon-3.0.lua": ("AceAddon-3.0", 13),
+    "Libs/AceConfig-3.0/AceConfig-3.0.lua": ("AceConfig-3.0", 3),
+    "Libs/AceConfig-3.0/AceConfigCmd-3.0/AceConfigCmd-3.0.lua": ("AceConfigCmd-3.0", 14),
+    "Libs/AceConfig-3.0/AceConfigDialog-3.0/AceConfigDialog-3.0.lua": ("AceConfigDialog-3.0", 93),
+    "Libs/AceConfig-3.0/AceConfigRegistry-3.0/AceConfigRegistry-3.0.lua": ("AceConfigRegistry-3.0", 22),
+    "Libs/AceConsole-3.0/AceConsole-3.0.lua": ("AceConsole-3.0", 7),
+    "Libs/AceDB-3.0/AceDB-3.0.lua": ("AceDB-3.0", 36),
+    "Libs/AceDBOptions-3.0/AceDBOptions-3.0.lua": ("AceDBOptions-3.0", 17),
+    "Libs/AceEvent-3.0/AceEvent-3.0.lua": ("AceEvent-3.0", 4),
+    "Libs/AceGUI-3.0/AceGUI-3.0.lua": ("AceGUI-3.0", 41),
+    "Libs/AceHook-3.0/AceHook-3.0.lua": ("AceHook-3.0", 9),
+    "Libs/AceLocale-3.0/AceLocale-3.0.lua": ("AceLocale-3.0", 6),
+    "Libs/LibSharedMedia-3.0/LibSharedMedia-3.0.lua": ("LibSharedMedia-3.0", 12000002),
+    "Libs/LibDataBroker-1.1/LibDataBroker-1.1.lua": ("LibDataBroker-1.1", 4),
+}
+LIBRARY_MINOR_RE = r'"{name}"\s*,\s*(\d+)'
+
+
 class QualityError(AssertionError):
     """Raised when the repository violates a checked invariant."""
 
@@ -178,10 +202,31 @@ def validate_localization(root: Path, manifest_files: set[Path]) -> None:
         raise QualityError("Missing enUS localization keys: " + details)
 
 
+def validate_libraries(root: Path) -> None:
+    pkgmeta = root / ".pkgmeta"
+    if pkgmeta.exists() and re.search(r"^externals\s*:", pkgmeta.read_text(encoding="utf-8"), re.MULTILINE):
+        raise QualityError(".pkgmeta externals would replace the tested Libs/ with unpinned upstream code")
+    if not (root / "Libs").is_dir():
+        return
+    problems = []
+    for relative, (name, expected) in PINNED_LIBRARIES.items():
+        path = root / relative
+        if not path.exists():
+            problems.append(f"{relative}: missing")
+            continue
+        match = re.search(LIBRARY_MINOR_RE.format(name=re.escape(name)), path.read_text(encoding="utf-8", errors="replace"))
+        found = int(match.group(1)) if match else None
+        if found != expected:
+            problems.append(f"{relative}: {name} minor {found}, pinned {expected}")
+    if problems:
+        raise QualityError("Embedded library versions differ from Tests/quality.py pins: " + "; ".join(problems))
+
+
 def validate_repository(root: Path) -> None:
     manifest_files = collect_manifest_files(root)
     validate_localization(root, manifest_files)
     validate_package_closure(root, manifest_files)
+    validate_libraries(root)
 
 
 def active_first_party_lua(manifest_files: set[Path]) -> list[Path]:
@@ -226,7 +271,7 @@ def main() -> None:
     validate_repository(args.root)
     if args.lint:
         run_luacheck(args.root, args.luacheck)
-    result = "SUCCESS: manifest, localization, and package closure verified"
+    result = "SUCCESS: manifest, localization, package closure, and library pins verified"
     if args.lint:
         result += "; active first-party Lua lint passed"
     print(result)

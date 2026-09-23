@@ -153,6 +153,8 @@ The active `PlayerBuffs.lua` route uses the native aura container and does not r
 
 Ace3 and required support libraries are embedded. FenCore and !Mechanic are optional dependencies. `Utils.lua` can delegate environment, secret, and table helpers to FenCore, with minimal embedded FenUI utilities or local fallbacks. Preserve these fallbacks.
 
+Embedded libraries ship exactly as committed: `.pkgmeta` has no `externals`, so CI, the integration host, and the release package run the same code. To update a library, replace its folder with an unmodified upstream copy and bump its entry in `PINNED_LIBRARIES` in `Tests/quality.py`. Do not fork shared libraries such as AceEvent; LibStub loads the highest minor version for every addon on the client. The embedded FenUI utilities load into the private `ns.FenUI` namespace; do not reintroduce a `FenUI` global, which other addons bundling FenUI would overwrite.
+
 [Aura API testing](docs/aura-api-testing.md) and [Skinning patterns](docs/skinning-patterns.md) describe historical experiments. Revalidate their observations before applying them to the current target build.
 
 ## Validation and Localization

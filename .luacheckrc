@@ -71,7 +71,6 @@ read_globals = {
 	"Enum",
 	"EditModeManagerFrame",
 	"FenCore",
-	"FenUI",
 	"FocusFrame",
 	"GameTooltip",
 	"GetActionCharges",

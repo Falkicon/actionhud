@@ -194,7 +194,10 @@ debugprofilestop = function() return host.now * 1000 end
 GetBuildInfo = function() return "12.1.0", "0", "", 120100 end
 GetLocale = function() return "enUS" end
 GetRealmName = function() return "Test Realm" end
+GetCurrentRegionName = function() return "US" end
 GetCurrentRegion = function() return 1 end
+C_UIFileAsset = { IsKnownFile = function() return true end }
+strlenutf8 = function(text) local count = 0 for i = 1, #text do local b = text:byte(i) if b < 128 or b > 191 then count = count + 1 end end return count end
 GetCVar = function() return "0" end
 GetCVarBool = function() return false end
 UnitName = function() return "Tester" end

@@ -22,6 +22,22 @@ class RepositoryQualityTests(unittest.TestCase):
     def test_valid_minimal_repository(self) -> None:
         validate_repository(self.make_repo())
 
+    def test_pkgmeta_externals_fail(self) -> None:
+        root = self.make_repo()
+        (root / ".pkgmeta").write_text(
+            "ignore:\n  - Tests\nexternals:\n  Libs/LibStub: https://example.invalid\n", encoding="utf-8"
+        )
+        with self.assertRaisesRegex(QualityError, "externals"):
+            validate_repository(root)
+
+    def test_library_version_drift_fails(self) -> None:
+        root = self.make_repo()
+        library = root / "Libs" / "AceEvent-3.0"
+        library.mkdir(parents=True)
+        (library / "AceEvent-3.0.lua").write_text('local MAJOR, MINOR = "AceEvent-3.0", 9\n', encoding="utf-8")
+        with self.assertRaisesRegex(QualityError, "AceEvent-3.0 minor 9, pinned 4"):
+            validate_repository(root)
+
     def test_missing_localization_key_fails(self) -> None:
         root = self.make_repo()
         (root / "Main.lua").write_text('print(L["Missing"])\n', encoding="utf-8")
