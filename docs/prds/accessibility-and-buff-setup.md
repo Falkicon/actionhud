@@ -1,6 +1,6 @@
 # PRD: Accessible displays and guided buff setup
 
-Status: Proposed; not implemented by this document.
+Status: Implemented in this branch (all four phases); native sound triggers, live style updates, and preset values still need in-game validation. See Implementation notes.
 
 Date: 2026-09-06
 
@@ -94,3 +94,11 @@ The [API review](../blizzard-api-review-2026-09.md) records the original researc
 - [Native custom aura button implementation](https://github.com/Gethe/wow-ui-source/blob/8ea15b61e45c0ed4eba01439c90757f86eb78d34/Interface/AddOns/Blizzard_AuraContainer/Blizzard_CustomAuraButton.lua).
 
 Resolve before the associated phase: supported live style-update methods; exact sound-trigger eligibility and candidate handling; final preset values; and the minimal per-character evidence schema. These are implementation investigations, not promises that the current APIs support every proposed variation.
+
+## Implementation notes
+
+- Evidence and setup check: `Core/BuffEvidence.lua`, `Settings/PlayerBuffPicker.lua`, `Settings/PlayerBuffSetup.lua`. Schema: `char.playerBuffSetup = { version = 1, tests = { [spellID] = { appearance, sound, class, client } }, order = { ... } }`, capped at 24 entries.
+- Live style updates: addon-owned Font objects referenced once by the native buttons plus public textures on the slot anchor. This is the proposed mechanism and needs in-game confirmation that the restricted widgets follow the Font objects.
+- Sounds: `C_UnitAuras.AddAuraSound(Enum.UnitAuraSoundTrigger.Added, { unitToken = "player", spellID, soundFileName })`, unit `player` only. Bundled sounds are Blizzard client files; their paths need in-game confirmation. Expiration and stack sounds remain a later phase.
+- Preset values in `Core/Presentation.lua` are starting points pending visual testing.
+- Not implemented: static per-slot name labels.

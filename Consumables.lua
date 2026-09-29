@@ -130,6 +130,8 @@ function Consumables:PrepareLayout()
 		slot.frame:SetSize(size, size)
 		slot.frame:SetPoint("TOPLEFT", self.container, "TOPLEFT",
 			((index - 1) % columns) * (size + spacing), -math.floor((index - 1) / columns) * (size + spacing))
+		slot.count:SetFont("Fonts\\ARIALN.TTF", Setting(p.consumablesCountFontSize, 12, 8, 32), "OUTLINE")
+		slot.cooldown:SetCountdownFont(Utils.GetTimerFont(p.consumablesTimerFontSize or "medium"))
 		if slot.cooldown.SetCountdownMillisecondsThreshold then
 			slot.cooldown:SetCountdownMillisecondsThreshold(Setting(p.cooldownDecimalThreshold, 3, 0, 60))
 		end

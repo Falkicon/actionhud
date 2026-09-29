@@ -41,6 +41,18 @@ local function PublicInteger(value, fallback, minimum, maximum)
 	return math.max(minimum, math.min(maximum, math.floor(value)))
 end
 
+-- Text style lives in addon-owned Font objects. The native buttons reference them
+-- once during their initializer, so later size/outline changes reach the
+-- restricted widgets without the addon ever touching those widgets again.
+local TIMER_FONT, COUNT_FONT = "ActionHudPlayerBuffTimerFont", "ActionHudPlayerBuffCountFont"
+local FONT_PATH = "Fonts\\ARIALN.TTF"
+
+function PlayerBuffs:EnsureFonts()
+	if self.timerFont then return end
+	self.timerFont = CreateFont(TIMER_FONT)
+	self.countFont = CreateFont(COUNT_FONT)
+end
+
 function PlayerBuffs:IsAvailable()
 	local api = _G["C_AuraContainerUtil"]
 	return type(api) == "table" and type(api.ProcessCustomAuraButtonApplicationCountOptions) == "function"
@@ -59,6 +71,8 @@ end
 
 function PlayerBuffs:OnInitialize()
 	self.db = addon.db
+	self:EnsureFonts()
+	self:ApplyStyle()
 	self.slots = {}
 	self.layoutWidth, self.layoutHeight = 0, 0
 end
@@ -83,6 +97,7 @@ end
 function PlayerBuffs:OnDisable()
 	self:UnregisterAllEvents()
 	self:StopRuntime()
+	if ns.AuraSounds then ns.AuraSounds:Sync() end
 end
 
 function PlayerBuffs:ApplyEnabledState()
@@ -101,6 +116,62 @@ function PlayerBuffs:ApplyEnabledState()
 	else
 		self:StopRuntime()
 	end
+	-- Sound rules follow the same lifecycle: retire on disable/profile change.
+	if ns.AuraSounds then ns.AuraSounds:Sync() end
+end
+
+-- Public style values only. Font objects are addon-owned, so updating them is
+-- safe at any time; nothing here touches native aura widgets.
+function PlayerBuffs:ApplyStyle()
+	self:EnsureFonts()
+	local p = self.db.profile
+	local flags = p.playerBuffsTextOutline == false and "" or "OUTLINE"
+	local count = PublicInteger(p.playerBuffsCountFontSize, 12, 8, 32)
+	self.countFont:SetFont(FONT_PATH, count, flags)
+	local timerSize = PublicInteger(p.playerBuffsTimerFontSize, 0, 0, 32)
+	if timerSize == 0 then
+		-- Native small timer font, exactly as before these options existed.
+		local name = Utils.GetTimerFont("small")
+		pcall(self.timerFont.SetFontObject, self.timerFont, _G[name] or name)
+	else
+		self.timerFont:SetFont(FONT_PATH, timerSize, flags)
+	end
+end
+
+local BORDER_EDGES = 4
+
+local function CreateDecoration(anchor)
+	local bg = anchor:CreateTexture(nil, "BACKGROUND")
+	bg:SetAllPoints(anchor)
+	-- Above the native child yet below the drag overlay's level offset.
+	local frame = CreateFrame("Frame", nil, anchor)
+	frame:SetAllPoints(anchor)
+	frame:EnableMouse(false)
+	frame:SetFrameLevel(anchor:GetFrameLevel() + 5)
+	local edges = {}
+	for index = 1, BORDER_EDGES do edges[index] = frame:CreateTexture(nil, "OVERLAY") end
+	return { background = bg, edges = edges }
+end
+
+-- Slot decoration is static and tied to the configured slot, not to whether a
+-- buff is active, so an inactive slot stays as visible as an active one.
+function PlayerBuffs:StyleSlot(slot)
+	local p = self.db.profile
+	slot.decoration = slot.decoration or CreateDecoration(slot.anchor)
+	local decoration = slot.decoration
+	local opacity = math.max(0, math.min(1, tonumber(p.playerBuffsBackgroundOpacity) or 0))
+	decoration.background:SetColorTexture(0, 0, 0, opacity)
+	local border = PublicInteger(p.playerBuffsBorderSize, 0, 0, 6)
+	local top, bottom, left, right = unpack(decoration.edges)
+	for _, edge in ipairs(decoration.edges) do
+		edge:SetColorTexture(1, 1, 1, 0.95)
+		if border > 0 then edge:Show() else edge:Hide() end
+	end
+	local thickness = math.max(border, 1)
+	top:ClearAllPoints(); top:SetPoint("TOPLEFT"); top:SetPoint("TOPRIGHT"); top:SetHeight(thickness)
+	bottom:ClearAllPoints(); bottom:SetPoint("BOTTOMLEFT"); bottom:SetPoint("BOTTOMRIGHT"); bottom:SetHeight(thickness)
+	left:ClearAllPoints(); left:SetPoint("TOPLEFT"); left:SetPoint("BOTTOMLEFT"); left:SetWidth(thickness)
+	right:ClearAllPoints(); right:SetPoint("TOPRIGHT"); right:SetPoint("BOTTOMRIGHT"); right:SetWidth(thickness)
 end
 
 function PlayerBuffs:CreateFrames()
@@ -179,11 +250,11 @@ local function InitializeAuraFrame(auraFrame, anchor)
 	cooldown:EnableMouse(false)
 	cooldown:SetDrawEdge(false)
 	cooldown:SetHideCountdownNumbers(false)
-	cooldown:SetCountdownFont(Utils.GetTimerFont("small"))
+	cooldown:SetCountdownFont(TIMER_FONT)
 	if cooldown.SetCountdownMillisecondsThreshold then cooldown:SetCountdownMillisecondsThreshold(3) end
 	auraFrame:SetDurationCooldown(cooldown)
 	local count = cooldown:CreateFontString(nil, "OVERLAY")
-	count:SetFont("Fonts\\ARIALN.TTF", 12, "OUTLINE")
+	count:SetFontObject(COUNT_FONT)
 	count:SetPoint("BOTTOMRIGHT", auraFrame, "BOTTOMRIGHT", -1, 1)
 	auraFrame:SetApplicationCount(count, {})
 end
@@ -193,6 +264,7 @@ function PlayerBuffs:ConfigureSlots()
 	local size = PublicInteger(p.playerBuffsIconSize, 28, 16, 64)
 	local columns = PublicInteger(p.playerBuffsColumns, 4, 1, MAX_SPELLS)
 	local spacing = PublicInteger(p.playerBuffsSpacing, 2, 0, 20)
+	self:ApplyStyle()
 	local count = #self.spellIDs
 	local usedColumns = math.min(columns, count)
 	local rows = math.ceil(count / columns)
@@ -216,6 +288,7 @@ function PlayerBuffs:ConfigureSlots()
 			if not initialized then error(initializationError or "Native aura initialization callback did not run") end
 			self.slots[index] = slot
 		end
+		self:StyleSlot(slot)
 		-- Slot placement and footprint depend exclusively on public settings.
 		-- The restricted child follows its anchors entirely within the engine.
 		slot.anchor:ClearAllPoints()

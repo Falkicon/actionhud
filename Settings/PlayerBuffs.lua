@@ -88,6 +88,7 @@ end
 function ns.Settings.BuildPlayerBuffsOptions(self)
 	local advanced = false
 	local browser, selected, preview = ns.Settings.BuildPlayerBuffPickerOptions(self)
+	local setupCheck, appearance, audio = ns.Settings.BuildPlayerBuffSetupOptions(self)
 	return {
 		name = L["Player Buffs"],
 		handler = ActionHud,
@@ -96,6 +97,9 @@ function ns.Settings.BuildPlayerBuffsOptions(self)
 			browser = browser,
 			selected = selected,
 			preview = preview,
+			setupCheck = setupCheck,
+			appearance = appearance,
+			audio = audio,
 			advanced = {
 				type = "toggle", name = L["Advanced: Spell IDs"], order = 30, width = "full",
 				get = function() return advanced end,

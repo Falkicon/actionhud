@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+### Added
+
+- **Accessibility** settings tab with Large Text, High Contrast, and Compact style presets. Each preset lists the exact settings it changes across Player Buffs, Action Bars, Trinket Bar, Consumables, and Unit Frames before you apply it, leaves selections, enablement, sounds, and positions alone, and can be undone (most recent application). Existing profiles keep their appearance; presets are never applied automatically.
+- Player Buffs presentation controls: countdown and stack text size, text outline, and a slot background and border that stay visible on inactive slots. A movable **sample** with invented timers and stacks previews the current settings or an unapplied preset.
+- Consumables count text size and timer font size.
+- Optional Player Buff **sounds** using Blizzard's native aura-sound rules: a bundled set (plus optional shared-media sounds with a bundled fallback), per-buff choice, preview, and mute, and a master switch that is off by default. Ambiguous catalog entries stay unresolved instead of double alerting. Only the application trigger is offered.
+- Picker **evidence** for each selected buff (seen on you, documented mapping, Blizzard Catalog, or unverified ID), plain-language mapping notes (for example Rallying Cry), and clearer wording when discovery is unavailable.
+- Guided **Setup Check** to record whether a buff appeared or sounded, kept separate from machine-observed data with class and client context, plus public diagnostics when a check fails.
+
 ## [2.14.1] - 2026-09-18
 
 ### Changed
