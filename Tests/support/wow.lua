@@ -246,6 +246,18 @@ C_Spell = { IsSpellUsable = function() return true end }
 C_ActionBar = { EnableActionRangeCheck = noop }
 AssistedCombatManager = { SetAssistedHighlightFrameShown = noop }
 EditModeManagerFrame = { ExitEditMode = noop }
+-- Addon-owned Font objects record what they were given; they do not render.
+host.fonts = {}
+CreateFont = function(name)
+	local font = { name = name }
+	function font:SetFont(path, size, flags) self.path, self.size, self.flags = path, size, flags end
+	function font:SetFontObject(object) self.parentObject = object end
+	host.fonts[name] = font
+	_G[name] = font
+	return font
+end
+host.playedSounds = {}
+PlaySoundFile = function(path, channel) host.playedSounds[#host.playedSounds + 1] = { path = path, channel = channel } end
 wipe = function(tbl) for key in pairs(tbl) do tbl[key] = nil end; return tbl end
 table.wipe = wipe
 CopyTable = function(tbl)

@@ -6,6 +6,9 @@ local _, ns = ...
 ns.defaults = {
 	char = {
 		playerBuffRecentIDs = {},
+		-- Player-confirmed setup checks. Bounded and versioned separately from
+		-- the machine-observed recent history above.
+		playerBuffSetup = { version = 1, tests = {} },
 	},
 	profile = {
 		locked = true,
@@ -548,6 +551,8 @@ ns.defaults = {
 		consumablesIconSize = 28,
 		consumablesColumns = 4,
 		consumablesSpacing = 2,
+		consumablesCountFontSize = 12,
+		consumablesTimerFontSize = "medium",
 		consumablesXOffset = 100,
 		consumablesYOffset = -60,
 
@@ -560,6 +565,15 @@ ns.defaults = {
 		playerBuffsIconSize = 28,
 		playerBuffsColumns = 4,
 		playerBuffsSpacing = 2,
+		-- Presentation. Defaults reproduce the appearance before these options existed.
+		playerBuffsTimerFontSize = 0, -- 0 keeps the native small timer font
+		playerBuffsCountFontSize = 12,
+		playerBuffsTextOutline = true,
+		playerBuffsBackgroundOpacity = 0,
+		playerBuffsBorderSize = 0,
+		-- Optional application sounds. Off unless the player opts in.
+		playerBuffsSoundEnabled = false,
+		playerBuffSounds = {}, -- ["spellID"] = { sound = "bundle:raid", mute = false }
 
 		-- Module Stack Inclusion (managed by LayoutManager)
 		resourcesIncludeInStack = true,

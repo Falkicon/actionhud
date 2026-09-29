@@ -38,6 +38,16 @@ local AURA_SPELL_IDS = {
 	[97462] = 97463,
 }
 
+-- Documentation for the exceptions above, surfaced to players in setup help.
+-- Every entry keeps its source and reviewed build; nothing here is inferred.
+local MAPPING_INFO = {
+	[97462] = {
+		castID = 97462, auraID = 97463,
+		source = "https://github.com/simulationcraft/simc/blob/midnight/engine/class_modules/sc_warrior.cpp",
+		reviewed = "2026-09-06", build = "12.1.0 (69587)",
+	},
+}
+
 local function IsSecret(value)
 	return Utils.IsValueSecret(value)
 end
@@ -79,6 +89,16 @@ end
 function Catalog:ResolveAuraSpellID(spellID)
 	if not IsInteger(spellID, 1, MAX_ID) then return nil end
 	return AURA_SPELL_IDS[spellID] or spellID
+end
+
+-- Returns documented cast-to-aura mapping details when the ID is either side of
+-- a verified exception. Other IDs, including catalog entries with several
+-- candidates, stay undocumented rather than guessed.
+function Catalog:GetMappingInfo(spellID)
+	if not IsInteger(spellID, 1, MAX_ID) then return nil end
+	for _, info in pairs(MAPPING_INFO) do
+		if info.castID == spellID or info.auraID == spellID then return info end
+	end
 end
 
 function Catalog:IsAvailable()

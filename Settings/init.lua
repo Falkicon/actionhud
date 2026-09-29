@@ -147,6 +147,7 @@ function ActionHud:SetupOptions()
 	local consumableOptions = ns.Settings.BuildConsumablesOptions(self)
 	local playerBuffOptions = ns.Settings.BuildPlayerBuffsOptions(self)
 	local GetLayoutOptions = ns.Settings.BuildLayoutOptions(self)
+	local accessibilityOptions = ns.Settings.BuildAccessibilityOptions(self)
 
 	-- Register all options with AceConfig
 	LibStub("AceConfig-3.0"):RegisterOptionsTable("ActionHud", generalOptions)
@@ -155,6 +156,9 @@ function ActionHud:SetupOptions()
 	-- 2. Layout (Stack Order)
 	LibStub("AceConfig-3.0"):RegisterOptionsTable("ActionHud_Layout", GetLayoutOptions)
 	LibStub("AceConfigDialog-3.0"):AddToBlizOptions("ActionHud_Layout", L["Layout"], "ActionHud")
+
+	LibStub("AceConfig-3.0"):RegisterOptionsTable("ActionHud_Accessibility", accessibilityOptions)
+	LibStub("AceConfigDialog-3.0"):AddToBlizOptions("ActionHud_Accessibility", L["Accessibility"], "ActionHud")
 
 	-- 3. Action Bars
 	LibStub("AceConfig-3.0"):RegisterOptionsTable("ActionHud_AB", abOptions)

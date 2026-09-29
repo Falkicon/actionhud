@@ -19,6 +19,9 @@ Core\Performance.lua
 ActionHud.lua
 Core\BlizzardBuffCatalog.lua
 Core\RecentPlayerBuffs.lua
+Core\BuffEvidence.lua
+Core\AuraSounds.lua
+Core\Presentation.lua
 Core\ConsumableItems.lua
 LayoutManager.lua
 ActionBars.lua
@@ -51,6 +54,8 @@ Settings\UnitFrames.lua
 Settings\Trinkets.lua
 Settings\Consumables.lua
 Settings\PlayerBuffPicker.lua
+Settings\PlayerBuffSetup.lua
+Settings\Accessibility.lua
 Settings\PlayerBuffs.lua
 Settings\Layout.lua
 Mechanic.lua

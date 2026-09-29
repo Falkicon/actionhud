@@ -65,7 +65,8 @@ Layout and secure-frame changes requested during combat wait until combat ends.
 | Unit Frames | Master and per-unit toggles, dimensions, text, status icons, and Blizzard-frame visibility |
 | Trinket Bar | Equipped trinket display, sizing, stack inclusion, and positioning |
 | Consumables | Carried-item picker, selected items, advanced IDs, enablement, sizing, stack inclusion, and positioning |
-| Player Buffs | Recent Buffs, Blizzard Catalog, selected buffs, preview, advanced IDs, enablement, icon sizing, columns, spacing, stack inclusion, and positioning |
+| Player Buffs | Recent Buffs, Blizzard Catalog, selected buffs with evidence, setup check, per-buff sounds, text/background/border styling, preview, advanced IDs, enablement, icon sizing, columns, spacing, stack inclusion, and positioning |
+| Accessibility | Large Text, High Contrast, and Compact style presets with a change list, sample preview, and undo |
 | Profiles | Create, switch, copy, delete, and reset profiles |
 
 Custom unit frames support value text and optional whole-number health/power percentages. Enable percentages under **Unit Frames → [frame] → Typography & Text → Health Percent / Power Percent**. They default to off and use Blizzard's native percentage calculations for protected values. Each text element has its own position and style controls.
@@ -73,6 +74,10 @@ Custom unit frames support value text and optional whole-number health/power per
 Class-resource rows show the player's secondary resource, such as combo points, Holy Power, shards, runes, Chi, Arcane Charges, or Essence. Availability follows class, specialization, and form. The HUD keeps empty segments visible at zero and uses the actual readable maximum; if that maximum is restricted, it displays a continuous bar. Destruction shards use native raw units for fractional progress. Essence includes readable partial progress and otherwise displays whole points. Rune bars show available count, without individual recharge animations. The custom player frame uses a continuous bar for its secondary resource.
 
 Player Buffs is disabled by default. Its picker opens on **Recent Buffs**, a searchable history of helpful buffs observed on your character, including buffs received from others. It remembers up to 100 unique buff IDs per character between sessions. Discovery runs only when aura access is unrestricted, so it can miss buffs that appear and expire during combat or restricted encounters. **Refresh** checks currently readable buffs; **Clear History** removes the discovery history without changing selected buffs.
+
+Each selected buff shows what ActionHud knows about its ID. Evidence describes public configuration and readable history, not live combat behavior, and an ID missing from history or the catalog is never treated as invalid. Use **Setup Check** to preview the look, then record whether the buff appeared or sounded; those answers are your own reports.
+
+Optional sounds use Blizzard's native aura-sound rules and are off until you enable them. Buff sounds play on application only. **Preview Sound** auditions the file and does not prove the live trigger works. The **Accessibility** tab's presets change only text, size, spacing, and slot styling; sounds, selections, and positions are never touched.
 
 Choose **Blizzard Catalog** to browse the game's known self-buffs before observing them. This list comes from Blizzard's Cooldown Viewer metadata and is not a complete list of every buff. Associated spell IDs are passed to the native renderer together, avoiding guesses about which linked ID is the active buff. Search by name or ID, press Enter, and click **Add**; hover for spell tooltips. **Advanced: Spell IDs** remains available for external buffs, procs, and missing entries. Existing Rallying Cry selections are still mapped to its buff. No additional addon or spell-list library is required.
 

@@ -61,6 +61,7 @@ read_globals = {
 	"C_Timer",
 	"C_UnitAuras",
 	"CLASS_ICON_TCOORDS",
+	"CreateFont",
 	"CreateFrame",
 	"CreateFromMixins",
 	"CreateSecondsFormatter",

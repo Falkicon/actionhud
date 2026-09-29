@@ -4,6 +4,27 @@ local L = LibStub("AceLocale-3.0"):GetLocale("ActionHud")
 function ns.Settings.BuildPlayerBuffPickerOptions(addon)
 	local recent = ns.RecentPlayerBuffs
 	local catalog = ns.BlizzardBuffCatalog
+	local evidence, sounds = ns.BuffEvidence, ns.AuraSounds
+	local SOUND_STATUS = {
+		muted = L["Sound muted for this buff."],
+		off = L["Sound is chosen but the master sound switch is off."],
+		unavailable = L["This client does not offer native aura sounds."],
+		ambiguous = L["No sound rule: Blizzard lists several related IDs for this buff. Add its own aura ID under Advanced: Spell IDs to use a sound."],
+		pending = L["Sound rule will be registered once combat ends and Player Buffs is active."],
+		active = L["Sound rule registered. Blizzard plays it when the buff is applied."],
+		failed = L["Blizzard refused this sound rule. Try another sound or a different aura ID."],
+	}
+	local function soundValues()
+		local values = sounds:GetChoices()
+		values.none = L["No sound"]
+		return values
+	end
+	local function soundOrder()
+		local _, order = sounds:GetChoices()
+		local list = { "none" }
+		for _, key in ipairs(order) do list[#list + 1] = key end
+		return list
+	end
 	local playerBuffs = addon:GetModule("PlayerBuffs")
 	local source, query, page = "recent", "", 1
 	local resultEntries, resultSource, resultQuery, resultCache
@@ -178,7 +199,7 @@ function ns.Settings.BuildPlayerBuffPickerOptions(addon)
 				elseif not catalog:IsAvailable() then
 					return L["Blizzard Catalog is unavailable. You can still add spell IDs under Advanced: Spell IDs."]
 				end
-				if #results() == 0 then return L["No matching buffs. Try another search or refresh the selected source."] end
+				if #results() == 0 then return L["No matching buffs. Try another search or refresh the selected source."] .. " " .. evidence:DiscoveryNote() end
 				local list = ids()
 				if not list then return L["Fix the saved spell ID list under Advanced: Spell IDs before editing selected buffs."] end
 				return string.format(L["%d matching buffs. %d of 12 buffs selected."], #results(), #list)
@@ -241,6 +262,57 @@ function ns.Settings.BuildPlayerBuffPickerOptions(addon)
 					desc = L["Move Down"], disabled = function() return not selected(index + 1) end, func = function() move(index, 1) end },
 				remove = { type = "execute", name = L["Remove"], order = 3, width = "relative", relWidth = 0.18,
 					func = function() local list = ids(); if list and list[index] then table.remove(list, index); save(list) end end },
+				evidence = { type = "description", order = 4, width = "full", fontSize = "medium",
+					name = function()
+						local id = selected(index)
+						if not id then return "" end
+						return string.format(L["Evidence: %s"], evidence:Describe(id)) .. "\n" .. evidence:Explain(id)
+					end },
+				sound = { type = "select", name = L["Sound"], order = 5, width = "relative", relWidth = 0.45,
+					desc = L["Play a sound when this buff is applied. Blizzard decides when the sound plays."],
+					values = function() return soundValues() end,
+					sorting = function() return soundOrder() end,
+					get = function()
+						local id = selected(index)
+						local rule = id and sounds:GetRule(id)
+						return rule and rule.sound or "none"
+					end,
+					set = function(_, value)
+						local id = selected(index)
+						if id then sounds:SetRule(id, { sound = value ~= "none" and value or false }) end
+					end },
+				soundPreview = { type = "execute", name = L["Preview Sound"], order = 6, width = "relative", relWidth = 0.28,
+					desc = L["Play the chosen sound once. This only auditions the file; it does not test the live trigger."],
+					disabled = function()
+						local id = selected(index)
+						local rule = id and sounds:GetRule(id)
+						return not (rule and rule.sound)
+					end,
+					func = function()
+						local id = selected(index)
+						local rule = id and sounds:GetRule(id)
+						if rule and rule.sound then sounds:Preview(rule.sound) end
+					end },
+				soundMute = { type = "toggle", name = L["Mute"], order = 7, width = "relative", relWidth = 0.2,
+					desc = L["Silence this buff's sound without forgetting the choice."],
+					get = function()
+						local id = selected(index)
+						local rule = id and sounds:GetRule(id)
+						return rule and rule.mute == true or false
+					end,
+					set = function(_, value)
+						local id = selected(index)
+						if id then sounds:SetRule(id, { mute = value == true }) end
+					end },
+				soundStatus = { type = "description", order = 8, width = "full",
+					hidden = function()
+						local id = selected(index)
+						return not id or sounds:GetStatus(id) == "none"
+					end,
+					name = function()
+						local id = selected(index)
+						return id and (SOUND_STATUS[sounds:GetStatus(id)] or "") or ""
+					end },
 			},
 		}
 	end
