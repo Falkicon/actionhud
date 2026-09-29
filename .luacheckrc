@@ -112,6 +112,7 @@ read_globals = {
 	"MAX_COMBO_POINTS",
 	"MAX_TOTEMS",
 	"Mixin",
+	"PlaySoundFile",
 	"PlayerFrame",
 	"PowerBarColor",
 	"RAID_CLASS_COLORS",
