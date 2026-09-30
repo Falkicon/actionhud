@@ -1,8 +1,8 @@
-## Interface: 120100, 16001
+## Interface: 120100, 120105, 16001
 ## Title: ActionHud
 ## Notes: Minimalist HUD mirroring Action Bars 1 & 2
 ## Author: Jason Falk
-## Version: 2.14.1
+## Version: 2.14.2
 ## X-License: GPL-3.0
 ## SavedVariables: ActionHudDB
 ## OptionalDeps: !Mechanic, FenCore
