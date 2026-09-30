@@ -8,6 +8,10 @@
 
 - Added Interface `120105` (Retail 12.1.5, scheduled for 2026-10-13) to the TOC alongside `120100` and Forever `16001`. No runtime changes; 12.1.5 has not been live-tested yet.
 
+### Removed
+
+- Unused `Utils` helpers (`FormatDurationSafe`, `WillSpellCooldownBeSecret`, `WillActionCooldownBeSecret`, `IsPowerTypeSafe`, `GetTotemDataForSpellID`). No behavior change.
+
 ## [2.14.1] - 2026-09-18
 
 ### Changed
