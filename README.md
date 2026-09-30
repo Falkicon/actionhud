@@ -3,7 +3,7 @@
 A compact action bar HUD for World of Warcraft Retail. It mirrors your primary action bars and combines cooldown feedback, resource bars, optional custom unit frames, equipped trinkets, selected consumables, and selected player buffs.
 
 ![WoW Version](https://img.shields.io/badge/WoW-12.1-blue)
-![Interface](https://img.shields.io/badge/Interface-120100-green)
+![Interface](https://img.shields.io/badge/Interface-120100%20%7C%20120105-green)
 [![GitHub](https://img.shields.io/badge/GitHub-Falkicon%2FActionHud-181717?logo=github)](https://github.com/Falkicon/ActionHud)
 [![Sponsor](https://img.shields.io/badge/Sponsor-pink?logo=githubsponsors)](https://github.com/sponsors/Falkicon)
 

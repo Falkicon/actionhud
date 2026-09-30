@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [2.14.2] - 2026-09-30
+
+### Changed
+
+- Added Interface `120105` (Retail 12.1.5, scheduled for 2026-10-13) to the TOC alongside `120100` and Forever `16001`. No runtime changes; 12.1.5 has not been live-tested yet.
+
 ## [2.14.1] - 2026-09-18
 
 ### Changed
