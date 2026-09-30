@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Removed
+
+- Unused `Utils` helpers (`FormatDurationSafe`, `WillSpellCooldownBeSecret`, `WillActionCooldownBeSecret`, `IsPowerTypeSafe`, `GetTotemDataForSpellID`). No behavior change.
+
 ## [2.14.1] - 2026-09-18
 
 ### Changed

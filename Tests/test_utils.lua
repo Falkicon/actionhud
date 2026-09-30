@@ -196,11 +196,6 @@ assertEqual(0, failedDuration, "Action cooldown error duration fallback failed")
 assertEqual(false, failedEnabled, "Action cooldown error enabled fallback failed")
 assertEqual(1, failedModRate, "Action cooldown error mod rate fallback failed")
 
-assertEqual("native:12.5", Utils.FormatDurationSafe(12.5), "Native seconds formatter was not used")
-assertEqual(1, formatterCreations, "Seconds formatter should be created once")
-assertEqual("native:5", Utils.FormatDurationSafe(5), "Cached seconds formatter failed")
-assertEqual(1, formatterCreations, "Seconds formatter was not cached")
-
 local normalValue = 100
 local secretValue = { isSecret = true }
 secretValues[secretValue] = true

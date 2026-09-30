@@ -98,32 +98,6 @@ function Utils.FormatTime(seconds)
 	return string.format("%.1f", seconds)
 end
 
--- 12.0.1: Use SecondsFormatter for native secret-safe duration text
-function Utils.FormatDurationSafe(seconds)
-	if F and F.FormatDuration then
-		local ok, result = pcall(F.FormatDuration, F, seconds, true)
-		if ok then
-			return result
-		end
-	end
-	local createFormatter = GetSecondsFormatterFactory()
-	if Utils.Cap.HasSecondsFormatter and type(createFormatter) == "function" then
-		if not Utils.secondsFormatter then
-			local ok, formatter = pcall(createFormatter)
-			if ok then
-				Utils.secondsFormatter = formatter
-			end
-		end
-		if Utils.secondsFormatter then
-			local ok, result = pcall(Utils.secondsFormatter.Format, Utils.secondsFormatter, seconds)
-			if ok then
-				return result
-			end
-		end
-	end
-	return Utils.FormatTime(seconds)
-end
-
 function Utils.GetTimerFont(size)
 	if F and F.GetTimerFont then
 		return F:GetTimerFont(size)
@@ -229,33 +203,6 @@ function Utils.MayHaveSecretValues()
 		end
 	end
 	return false
-end
-
--- 12.0.1: Proactive secrecy checks - know if data will be secret BEFORE calling API
-function Utils.WillSpellCooldownBeSecret(spellID)
-	if not Utils.IS_MIDNIGHT then
-		return false
-	end
-	if C_Secrets and C_Secrets.ShouldSpellCooldownBeSecret then
-		local ok, result = pcall(C_Secrets.ShouldSpellCooldownBeSecret, spellID)
-		if ok then
-			return result
-		end
-	end
-	return Utils.MayHaveSecretValues()
-end
-
-function Utils.WillActionCooldownBeSecret(actionID)
-	if not Utils.IS_MIDNIGHT then
-		return false
-	end
-	if C_Secrets and C_Secrets.ShouldActionCooldownBeSecret then
-		local ok, result = pcall(C_Secrets.ShouldActionCooldownBeSecret, actionID)
-		if ok then
-			return result
-		end
-	end
-	return Utils.MayHaveSecretValues()
 end
 
 function Utils.HideSafe(frame)
@@ -654,25 +601,6 @@ function Utils.GetUnitHealsSafe(unit, calculator)
 	return 0, 0, 0, 0, 0
 end
 
-function Utils.IsPowerTypeSafe(pType)
-	if not Utils.IS_MIDNIGHT then
-		return true
-	end
-	if not pType then
-		return false
-	end
-	local safeTypes = {
-		[Enum.PowerType.ComboPoints] = true,
-		[Enum.PowerType.Runes] = true,
-		[Enum.PowerType.SoulShards] = true,
-		[Enum.PowerType.HolyPower] = true,
-		[Enum.PowerType.Chi] = true,
-		[Enum.PowerType.ArcaneCharges] = true,
-		[Enum.PowerType.Essence] = true,
-	}
-	return safeTypes[pType] == true
-end
-
 function Utils.GetUnitColor(unit, barType, mult)
 	mult = mult or 1
 	if barType == "HEALTH" then
@@ -723,31 +651,6 @@ function Utils.GetUnitColor(unit, barType, mult)
 		return 0, 0, 0.8 * mult
 	end
 	return 1, 1, 1
-end
-
-local totemDataCache = { expirationTime = 0, duration = 0, modRate = 1, slot = 0 }
-function Utils.GetTotemDataForSpellID(spellID)
-	if not spellID then
-		return nil
-	end
-	local spellTexture = Utils.GetSpellTextureSafe(spellID)
-	if not spellTexture then
-		return nil
-	end
-
-	for slot = 1, MAX_TOTEMS or 4 do
-		local haveTotem, _, startTime, duration, icon = GetTotemInfo(slot)
-		if haveTotem and duration and duration > 0 then
-			if icon == spellTexture then
-				totemDataCache.expirationTime = startTime + duration
-				totemDataCache.duration = duration
-				totemDataCache.modRate = 1
-				totemDataCache.slot = slot
-				return totemDataCache
-			end
-		end
-	end
-	return nil
 end
 
 -- Cache management (ActionHud specific as it uses locals)
