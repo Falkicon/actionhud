@@ -6,7 +6,7 @@ For shared patterns, library references, and development guides, also read the s
 
 ## Project Intent
 
-ActionHud is a compact display overlay for Blizzard Action Bars 1 and 2, with resource bars, equipped trinkets, optional selected consumables, optional custom secure unit frames, and an optional native display for selected player buffs. The action and consumable icons do not handle clicks. The target interface is declared in [ActionHud.toc](ActionHud.toc): WoW Retail 12.1 (`120100`).
+ActionHud is a compact display overlay for Blizzard Action Bars 1 and 2, with resource bars, equipped trinkets, optional selected consumables, optional custom secure unit frames, and an optional native display for selected player buffs. The action and consumable icons do not handle clicks. The target interface is declared in [ActionHud.toc](ActionHud.toc): WoW Retail 12.1 (`120100`) and 12.1.5 (`120105`).
 
 - Edit Mode determines mirrored button counts and rows. This is not a fixed 6×4 grid.
 - Action Bar 2 uses action slots 61–72. Internal `bar6` identifiers refer to this bar; user-facing documentation should call it Action Bar 2.

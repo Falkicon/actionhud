@@ -2,7 +2,7 @@
 
 **Last updated:** 2026-09-18
 
-This page records implementation and validation for version 2.14.1. [ActionHud.toc](ActionHud.toc) declares Retail 12.1 (`120100`) and WoW: Forever 1.60.1 (`16001`, Retail API); release changes are listed in [CHANGELOG.md](CHANGELOG.md). Offline checks, the reported Warrior smoke tests, and Forever load testing passed. Broader class/spec and combat checks remain listed below.
+This page records implementation and validation for version 2.14.2. [ActionHud.toc](ActionHud.toc) declares Retail 12.1 (`120100`), Retail 12.1.5 (`120105`, PTR at the time of writing; not yet live-tested), and WoW: Forever 1.60.1 (`16001`, Retail API); release changes are listed in [CHANGELOG.md](CHANGELOG.md). Offline checks, the reported Warrior smoke tests, and Forever load testing passed. Broader class/spec and combat checks remain listed below.
 
 ## Active Runtime
 

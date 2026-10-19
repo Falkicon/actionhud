@@ -45,8 +45,8 @@ PINNED_LIBRARIES = {
     "Libs/LibDataBroker-1.1/LibDataBroker-1.1.lua": ("LibDataBroker-1.1", 4),
 }
 LIBRARY_MINOR_RE = r'"{name}"\s*,\s*(\d+)'
-# Retail 12.1 and WoW: Forever 1.60.1 (Retail API).
-SUPPORTED_INTERFACES = {"120100", "16001"}
+# Retail 12.1/12.1.5 and WoW: Forever 1.60.1 (Retail API).
+SUPPORTED_INTERFACES = {"120100", "120105", "16001"}
 WHITESPACE_CHECKED_SUFFIXES = {".lua", ".md", ".py", ".toc", ".xml", ".yml", ".json"}
 
 
