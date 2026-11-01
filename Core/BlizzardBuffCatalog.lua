@@ -143,6 +143,13 @@ end
 
 function Catalog:GetEntries()
 	if cacheValid or not CanRefresh() then return cachedEntries end
+	local perfStart = ns.RecordPerformance and debugprofilestop()
+	local entries = self:RebuildEntries()
+	if perfStart then ns.RecordPerformance("BuffCatalogRebuild", perfStart) end
+	return entries
+end
+
+function Catalog:RebuildEntries()
 	-- Consume this attempt even on failure. A data event or explicit Refresh
 	-- retries; repeated settings getters/native slots must not hammer the API.
 	cacheValid = true

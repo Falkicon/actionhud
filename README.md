@@ -24,7 +24,7 @@ Check out these complementary addons to round out your interface:
 - **Action feedback** — Cooldown sweeps and countdowns, display counts, yellow proc glows, blue Assisted Combat highlights, and usability/range tinting.
 - **Cooldown controls** — Under **Action Bars → Cooldowns**, choose whether to show the global cooldown sweep and when countdowns switch to tenths of a second. Decimals default to the final 3 seconds and also apply to trinkets and consumables; set the threshold to 0 for whole seconds.
 - **Resource bars** — Player and target health/power, plus player class resources. Individual bars can be toggled and sized independently.
-- **Custom unit frames** — Optional secure frames for Player, Target, Target of Target, and Focus. Configure dimensions, backgrounds, borders, text, and status icons; optionally hide the corresponding Blizzard frames.
+- **Custom unit frames** — Optional secure frames for Player, Target, Target of Target, and Focus. Configure dimensions, backgrounds, borders, text, and status icons; optionally hide the corresponding Blizzard frames. Player and Target can also show native debuff icons with cooldowns and stack counts.
 - **Trinket bar** — Tracks equipped on-use trinkets and their cooldowns.
 - **Consumables** — Optional display for up to 12 selected items, with carried counts (including charges) and cooldowns. Choose items from your bags or enter item IDs, then enable the module. Depleted items keep their slots. Quality variants use separate item IDs; the display does not automatically choose replacements or use items.
 - **Player Buffs** — Optional WoW 12.1 native display for up to 12 selected helpful player auras. Configured slots keep their footprint when an aura is inactive, so icons do not shift; the feature is disabled by default.
@@ -62,13 +62,15 @@ Layout and secure-frame changes requested during combat wait until combat ends.
 | Layout | Unlock positions, reorder the stack, and adjust gaps |
 | Action Bars | Enablement, icon sizing, glows, display counts, priority, and alignment |
 | Resource Bars | Health/power/class bar visibility, dimensions, prediction, and positioning |
-| Unit Frames | Master and per-unit toggles, dimensions, text, status icons, and Blizzard-frame visibility |
+| Unit Frames | Master and per-unit toggles, dimensions, text, status icons, player/target debuffs, and Blizzard-frame visibility |
 | Trinket Bar | Equipped trinket display, sizing, stack inclusion, and positioning |
 | Consumables | Carried-item picker, selected items, advanced IDs, enablement, sizing, stack inclusion, and positioning |
 | Player Buffs | Recent Buffs, Blizzard Catalog, selected buffs, preview, advanced IDs, enablement, icon sizing, columns, spacing, stack inclusion, and positioning |
 | Profiles | Create, switch, copy, delete, and reset profiles |
 
 Custom unit frames support value text and optional whole-number health/power percentages. Enable percentages under **Unit Frames → [frame] → Typography & Text → Health Percent / Power Percent**. They default to off and use Blizzard's native percentage calculations for protected values. Each text element has its own position and style controls.
+
+Enable debuffs independently under **Unit Frames → Player Frame / Target Frame → Debuffs → Show Debuffs**. Both toggles default to off and require the corresponding custom frame to be enabled. The display includes harmful auras from all sources, with Blizzard's unit-frame debuff ordering, cooldowns, and stack counts. Hover an icon to see its native aura tooltip. Set **Icon Size**, **Maximum Debuffs** (up to 24), **Spacing**, **Frame Gap**, and **Above Frame / Below Frame** placement. Icons wrap to the frame width and move with the frame. The default is up to 10 icons at 24 pixels, below the frame. Debuff activity does not resize the unit frame or the HUD stack. Target changes refresh immediately during combat; settings changes wait until combat ends. Countdown decimals use a fixed 3-second threshold. See the [API review and live-test checklist](docs/unit-frame-debuffs.md) for validation limits.
 
 Class-resource rows show the player's secondary resource, such as combo points, Holy Power, shards, runes, Chi, Arcane Charges, or Essence. Availability follows class, specialization, and form. The HUD keeps empty segments visible at zero and uses the actual readable maximum; if that maximum is restricted, it displays a continuous bar. Destruction shards use native raw units for fractional progress. Essence includes readable partial progress and otherwise displays whole points. Rune bars show available count, without individual recharge animations. The custom player frame uses a continuous bar for its secondary resource.
 

@@ -136,7 +136,65 @@ function ns.Settings.BuildUnitFramesOptions(self)
 		}
 	end
 
-	-- Helper to generate options for a single frame
+	-- Native harmful-aura controls are available on player and target only.
+	local function GetDebuffOptions(frameId)
+		if frameId ~= "player" and frameId ~= "target" then return nil end
+		local function GetConfig()
+			return self.db.profile.ufConfig[frameId].debuffs or self.db.defaults.profile.ufConfig[frameId].debuffs
+		end
+		local function SetValue(key, value)
+			local config = self.db.profile.ufConfig[frameId]
+			if not config.debuffs then
+				config.debuffs = ns.Utils.DeepCopy(self.db.defaults.profile.ufConfig[frameId].debuffs)
+			end
+			config.debuffs[key] = value
+			ActionHud:GetModule("UnitFrames"):UpdateLayout()
+		end
+		local function Range(key, name, minimum, maximum, order)
+			return {
+				name = name, type = "range", min = minimum, max = maximum, step = 1, order = order,
+				get = function() return GetConfig()[key] end,
+				set = function(_, value) SetValue(key, value) end,
+			}
+		end
+		return {
+			name = L["Debuffs"], type = "group", order = 55,
+			args = {
+				note = {
+					type = "description", order = 0,
+					name = function()
+						local module = ActionHud:GetModule("UnitFrames")
+						if not module:IsDebuffDisplayAvailable() then
+							return L["Native debuff displays are unavailable on this client."]
+						end
+						local frame = module.frames[frameId]
+						if frame and frame.debuffDisplay and frame.debuffDisplay.error then
+							return L["The debuff display could not initialize. Reload the UI to try again."]
+						end
+						return L["Show harmful auras on this frame. Icons wrap to fit the frame width. Changes made during combat apply after combat."]
+					end,
+				},
+				enabled = {
+					name = L["Show Debuffs"], type = "toggle", order = 1,
+					disabled = function() return not ActionHud:GetModule("UnitFrames"):IsDebuffDisplayAvailable() end,
+					get = function() return GetConfig().enabled end,
+					set = function(_, value) SetValue("enabled", value) end,
+				},
+				iconSize = Range("iconSize", L["Icon Size"], 16, 48, 2),
+				maxCount = Range("maxCount", L["Maximum Debuffs"], 1, 24, 3),
+				spacing = Range("spacing", L["Spacing"], 0, 12, 4),
+				gap = Range("gap", L["Frame Gap"], 0, 30, 5),
+				position = {
+					name = L["Position"], type = "select", order = 6,
+					values = { ABOVE = L["Above Frame"], BELOW = L["Below Frame"] },
+					get = function() return GetConfig().position end,
+					set = function(_, value) SetValue("position", value) end,
+				},
+			},
+		}
+	end
+
+	-- Helper to generate options for a single frame.
 	local function GetFrameOptions(frameId, frameName, order)
 		local function GetTextGroup(category, textType, textName, textOrder)
 			return {
@@ -401,10 +459,12 @@ function ns.Settings.BuildUnitFramesOptions(self)
 							type = "execute",
 							order = 4,
 							func = function()
-								local defaultConfig = self.db.defaults.profile.ufConfig[frameId]
-								self.db.profile.ufConfig[frameId].xOffset = defaultConfig.xOffset
-								self.db.profile.ufConfig[frameId].yOffset = defaultConfig.yOffset
-								ActionHud:GetModule("UnitFrames"):UpdateLayout()
+								local unitFrames = ActionHud:GetModule("UnitFrames")
+								local xKey, yKey = unitFrames:GetPositionKeys(frameId)
+								local defaults = self.db.defaults.profile
+								self.db.profile[xKey] = defaults[xKey]
+								self.db.profile[yKey] = defaults[yKey]
+								unitFrames:UpdateLayout()
 							end,
 						},
 					},
@@ -668,6 +728,7 @@ function ns.Settings.BuildUnitFramesOptions(self)
 						},
 					},
 				},
+				debuffs = GetDebuffOptions(frameId),
 			},
 		}
 	end

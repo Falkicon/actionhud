@@ -37,22 +37,6 @@ local RCFG = {
 	showTarget = true,
 }
 
-local ClassBarColors = {
-	[Enum.PowerType.ComboPoints] = { r = 0.9, g = 0.3, b = 0.3 }, -- Rogue/Feral Red
-	[Enum.PowerType.Chi] = { r = 0.6, g = 0.9, b = 0.8 }, -- Monk Seafoam
-	[Enum.PowerType.HolyPower] = { r = 0.9, g = 0.8, b = 0.3 }, -- Paladin Gold
-	[Enum.PowerType.SoulShards] = { r = 0.6, g = 0.45, b = 0.65 }, -- Warlock Purple
-	[Enum.PowerType.ArcaneCharges] = { r = 0.3, g = 0.5, b = 0.9 }, -- Mage Blue
-	[Enum.PowerType.Essence] = { r = 0.3, g = 0.7, b = 0.6 }, -- Evoker Teal
-	[Enum.PowerType.Runes] = { r = 0.77, g = 0.12, b = 0.23 }, -- Death Knight Red
-}
-
-local RuneSpecColors = {
-	[1] = { r = 0.77, g = 0.12, b = 0.23 }, -- Blood (Red)
-	[2] = { r = 0.1, g = 0.6, b = 0.8 }, -- Frost (Blue)
-	[3] = { r = 0.3, g = 0.7, b = 0.3 }, -- Unholy (Green)
-}
-
 local function UnitExistsSafe(unit)
 	local exists = UnitExists(unit)
 	if Utils.IsValueSecret(exists) then
@@ -151,13 +135,16 @@ local function GetClassPowerValue(pType, maxNum, max)
 	return cur, 1, max
 end
 
-local function PrepareClassPower(maxNum)
+local function SegmentWidth(width, count)
+	return math.max(1, (width - (count - 1)) / count)
+end
+
+local function PrepareClassPower(maxNum, width)
 	-- Only the layout scheduler creates and positions segments. An unknown
 	-- maximum cannot determine geometry and is displayed by the continuous bar.
 	local count = maxNum and Utils.SafeCompare(maxNum, math.floor(maxNum), "==") and maxNum or 0
-	local width = playerClassBar:GetWidth()
 	local height = playerClassBar:GetHeight()
-	local segWidth = count > 0 and math.max(1, (width - (count - 1)) / count) or 0
+	local segWidth = count > 0 and SegmentWidth(width, count) or 0
 	playerClassBar._segmentMax = count
 	for i = 1, count do
 		local seg = classSegments[i]
@@ -176,6 +163,59 @@ local function PrepareClassPower(maxNum)
 	for i = count + 1, #classSegments do
 		classSegments[i]:Hide()
 	end
+end
+
+-- Druids gain combo points when entering Cat Form, which can happen in combat
+-- while layout is deferred. Reserve their row whenever class resources are
+-- enabled so the bar always has geometry, and form changes never shift the stack.
+local function ShouldReserveClassRow()
+	if CanShowClassPower() then
+		return true
+	end
+	local _, class = UnitClass("player")
+	return not Utils.IsValueSecret(class) and class == "DRUID"
+end
+
+local function GetReservedClassMax()
+	local _, _, maxNum = CanShowClassPower()
+	if maxNum then
+		return maxNum
+	end
+	-- Outside Cat Form, size pips from the public combo-point capacity so the
+	-- first in-combat shift can use them without waiting for layout.
+	return SafeNumber(UnitPowerMax("player", Enum.PowerType.ComboPoints)) -- @scan-ignore: midnight-player-only
+end
+
+-- The target split only re-anchors plain frames inside the Resources container,
+-- so it runs directly on target changes (including combat) instead of waiting
+-- for a layout pass, which combat defers.
+local function ApplyTargetSplit()
+	if not container or not RCFG.enabled or not RCFG.hudWidth then
+		return
+	end
+	local useSplit = RCFG.showTarget and UnitExistsSafe("target")
+	local playerWidth = useSplit and (RCFG.hudWidth - RCFG.gap) / 2 or RCFG.hudWidth
+	playerGroup:ClearAllPoints()
+	targetGroup:ClearAllPoints()
+	playerGroup:SetWidth(playerWidth)
+	if useSplit then
+		targetGroup:SetWidth(playerWidth)
+		playerGroup:SetPoint("LEFT", container, "LEFT", 0, 0)
+		targetGroup:SetPoint("RIGHT", container, "RIGHT", 0, 0)
+		targetGroup:Show()
+	else
+		playerGroup:SetPoint("CENTER", container, "CENTER", 0, 0)
+		targetGroup:Hide()
+	end
+	-- Existing pips keep their count; only their width follows the group.
+	local count = playerClassBar._segmentMax or 0
+	if count > 0 and RCFG.playerWidth ~= playerWidth then
+		local segWidth = SegmentWidth(playerWidth, count)
+		for i = 1, count do
+			classSegments[i]:SetWidth(segWidth)
+		end
+	end
+	RCFG.playerWidth = playerWidth
 end
 
 local function UpdateClassPower()
@@ -198,10 +238,7 @@ local function UpdateClassPower()
 		return wasShown
 	end
 
-	local baseColor = ClassBarColors[pType]
-	if pType == Enum.PowerType.Runes then
-		baseColor = RuneSpecColors[Utils.GetSpecializationSafe()] or baseColor
-	end
+	local baseColor = Utils.GetClassPowerColor(pType)
 	local count = maxNum and Utils.SafeCompare(maxNum, math.floor(maxNum), "==") and maxNum or 0
 	local layoutChanged = playerClassBar._segmentMax ~= count
 	playerClassBar:Show()
@@ -603,7 +640,7 @@ function Resources:OnEvent(event, unit)
 		UpdateClassPower()
 		self:UpdateLayout()
 	elseif event == "PLAYER_TARGET_CHANGED" then
-		self:UpdateLayout()
+		ApplyTargetSplit()
 		UpdateBarColor(targetHealth, "target")
 		UpdateBarColor(targetPower, "target")
 		UpdateBarValue(targetHealth, "target")
@@ -667,17 +704,17 @@ function Resources:CalculateHeight()
 	local totalHeight = 0
 	local visibleBars = 0
 
-	if db.resHealthEnabled then
+	if db.resHealthEnabled ~= false then
 		totalHeight = totalHeight + healthHeight
 		visibleBars = visibleBars + 1
 	end
 
-	if db.resPowerEnabled then
+	if db.resPowerEnabled ~= false then
 		totalHeight = totalHeight + (visibleBars > 0 and spacing or 0) + powerHeight
 		visibleBars = visibleBars + 1
 	end
 
-	if db.resClassEnabled and CanShowClassPower() then
+	if db.resClassEnabled ~= false and ShouldReserveClassRow() then
 		totalHeight = totalHeight + (visibleBars > 0 and spacing or 0) + classHeight
 	end
 
@@ -783,8 +820,8 @@ function Resources:PrepareLayout()
 		return
 	end
 
-	local hasClassBar, _, maxClassPower = CanShowClassPower()
-	local showClass = RCFG.classEnabled and hasClassBar
+	local hasClassBar = CanShowClassPower()
+	local reserveClass = RCFG.classEnabled and ShouldReserveClassRow()
 
 	-- Calculate total height based on enabled bars
 	local totalHeight = self:CalculateHeight()
@@ -808,30 +845,14 @@ function Resources:PrepareLayout()
 
 	container:SetSize(hudWidth, totalHeight)
 
-	local useSplit = false
-	if RCFG.showTarget and UnitExistsSafe("target") then
-		useSplit = true
-	end
+	playerGroup:SetHeight(totalHeight)
+	targetGroup:SetHeight(totalHeight)
+	RCFG.hudWidth = hudWidth
+	RCFG.playerWidth = nil
+	ApplyTargetSplit()
 
-	playerGroup:ClearAllPoints()
-	targetGroup:ClearAllPoints()
-	playerGroup:SetHeight(container:GetHeight())
-	targetGroup:SetHeight(container:GetHeight())
-
-	if useSplit then
-		local halfWidth = (hudWidth - RCFG.gap) / 2
-		playerGroup:SetWidth(halfWidth)
-		targetGroup:SetWidth(halfWidth)
-		targetGroup:Show()
-		playerGroup:SetPoint("LEFT", container, "LEFT", 0, 0)
-		targetGroup:SetPoint("RIGHT", container, "RIGHT", 0, 0)
-	else
-		playerGroup:SetWidth(hudWidth)
-		targetGroup:Hide()
-		playerGroup:SetPoint("CENTER", container, "CENTER", 0, 0)
-	end
-
-	-- Positioning Bars
+	-- Positioning Bars. Target bars are always anchored in their group; the
+	-- split shows or hides the whole group when the target changes.
 	playerHealth:ClearAllPoints()
 	playerPower:ClearAllPoints()
 	playerClassBar:ClearAllPoints()
@@ -854,15 +875,11 @@ function Resources:PrepareLayout()
 		FillWidth(playerHealth, playerGroup)
 		lastPlayerBar = playerHealth
 
-		if useSplit then
-			targetHealth:Show()
-			targetHealth:SetHeight(RCFG.healthHeight)
-			targetHealth:SetPoint("TOP", targetGroup, "TOP", 0, 0)
-			FillWidth(targetHealth, targetGroup)
-			lastTargetBar = targetHealth
-		else
-			targetHealth:Hide()
-		end
+		targetHealth:Show()
+		targetHealth:SetHeight(RCFG.healthHeight)
+		targetHealth:SetPoint("TOP", targetGroup, "TOP", 0, 0)
+		FillWidth(targetHealth, targetGroup)
+		lastTargetBar = targetHealth
 	else
 		playerHealth:Hide()
 		targetHealth:Hide()
@@ -880,26 +897,22 @@ function Resources:PrepareLayout()
 		FillWidth(playerPower, playerGroup)
 		lastPlayerBar = playerPower
 
-		if useSplit then
-			targetPower:Show()
-			targetPower:SetHeight(RCFG.powerHeight)
-			if lastTargetBar then
-				targetPower:SetPoint("TOP", lastTargetBar, "BOTTOM", 0, -RCFG.spacing)
-			else
-				targetPower:SetPoint("TOP", targetGroup, "TOP", 0, 0)
-			end
-			FillWidth(targetPower, targetGroup)
+		targetPower:Show()
+		targetPower:SetHeight(RCFG.powerHeight)
+		if lastTargetBar then
+			targetPower:SetPoint("TOP", lastTargetBar, "BOTTOM", 0, -RCFG.spacing)
 		else
-			targetPower:Hide()
+			targetPower:SetPoint("TOP", targetGroup, "TOP", 0, 0)
 		end
+		FillWidth(targetPower, targetGroup)
 	else
 		playerPower:Hide()
 		targetPower:Hide()
 	end
 
-	-- Class
-	if showClass then
-		playerClassBar:Show()
+	-- Class. A reserved row stays anchored while hidden so an in-combat form
+	-- change can show it without a layout pass.
+	if reserveClass then
 		playerClassBar:SetHeight(RCFG.classHeight)
 		if lastPlayerBar then
 			playerClassBar:SetPoint("TOP", lastPlayerBar, "BOTTOM", 0, -RCFG.spacing)
@@ -907,7 +920,8 @@ function Resources:PrepareLayout()
 			playerClassBar:SetPoint("TOP", playerGroup, "TOP", 0, 0)
 		end
 		FillWidth(playerClassBar, playerGroup)
-		PrepareClassPower(maxClassPower)
+		PrepareClassPower(GetReservedClassMax(), RCFG.playerWidth)
+		playerClassBar:SetShown(hasClassBar)
 	else
 		playerClassBar:Hide()
 	end

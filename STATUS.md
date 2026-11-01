@@ -1,8 +1,8 @@
 # ActionHud Development Status
 
-**Last updated:** 2026-09-18
+**Last updated:** 2026-10-31
 
-This page records implementation and validation for version 2.14.2. [ActionHud.toc](ActionHud.toc) declares Retail 12.1 (`120100`), Retail 12.1.5 (`120105`, PTR at the time of writing; not yet live-tested), and WoW: Forever 1.60.1 (`16001`, Retail API); release changes are listed in [CHANGELOG.md](CHANGELOG.md). Offline checks, the reported Warrior smoke tests, and Forever load testing passed. Broader class/spec and combat checks remain listed below.
+This page records implementation and validation for version 2.15.0. [ActionHud.toc](ActionHud.toc) declares Retail 12.1 (`120100`), Retail 12.1.5 (`120105`, not yet live-tested), and WoW: Forever 1.60.1 (`16001`, Retail API); release changes are listed in [CHANGELOG.md](CHANGELOG.md). Offline checks, the reported Warrior smoke tests, and Forever load testing passed. Broader class/spec and combat checks remain listed below.
 
 ## Active Runtime
 
@@ -11,7 +11,7 @@ This page records implementation and validation for version 2.14.2. [ActionHud.t
 | ActionHud core | Initialization, profiles, slash commands, settings access, root positioning, and Addon Compartment entry |
 | ActionBars | Edit Mode mirroring of Bars 1 and 2, page changes, cooldowns, counts, usability, range, and proc/assist feedback |
 | Resources | Player/target health and power, plus player class resources |
-| UnitFrames | Optional custom secure frames for Player, Target, Target of Target, and Focus |
+| UnitFrames | Optional custom secure frames for Player, Target, Target of Target, and Focus; opt-in native Player/Target debuffs with native hover tooltips |
 | Trinkets | Equipped on-use trinket display and cooldowns |
 | Consumables | Optional fixed-slot item count/cooldown display with bag picker and manual IDs; disabled by default |
 | PlayerBuffs | Optional native helpful-aura display, with Recent Buffs discovery and Blizzard Catalog selection; display disabled by default |
@@ -29,21 +29,22 @@ Custom unit frames are disabled by default. They support value text and optional
 - Added opt-in profiling and lazy debug-log formatting. No in-game speedup is claimed without measurements.
 - Corrected protected resource ranges and native absorb prediction; added decimal countdown/GCD controls, optional native unit-frame percentages, and the optional native PlayerBuffs display. See the [API upgrade progress](docs/blizzard-api-review-2026-09.md#implementation-progress) for test notes.
 
-See the [quality review](docs/quality-review.md) for individual findings and [Performance profiling](docs/performance.md) for measurement guidance.
+See the [2026-09 review](docs/quality-review-2026-09.md) for open findings by phase, the [earlier quality review](docs/quality-review.md) for past fixes, and [Performance profiling](docs/performance.md) for measurement guidance.
 
 ## Offline Verification
 
-The implementation pass on 2026-09-06 completed:
+Release preparation on 2026-10-31 completed:
 
-- All 27 standalone Lua suites and seven Python validator tests passed with `lupa==2.8`.
+- All 32 standalone Lua suites and 13 Python validator tests passed with `lupa==2.8`.
 - First-party Lua compilation and TOC/XML, localization, and package checks passed.
-- Luacheck 1.2.0 reported zero warnings/errors across 30 active first-party Lua files.
+- Luacheck 1.2.0 reported zero warnings/errors across 31 active first-party Lua files.
 - Git whitespace checks passed.
 
-These are results for the development worktree, not certification of live-client behavior. The host does not model native taint, secret values, or rendering. Repeat the commands in [CONTRIBUTING.md](CONTRIBUTING.md#local-checks) after runtime changes.
+These are results for the development checkout, not certification of live-client behavior. The host models opaque combat values but does not reproduce native taint, the native secret-value implementation, or rendering. Repeat the commands in [CONTRIBUTING.md](CONTRIBUTING.md#local-checks) after runtime changes.
 
 ## Pending Validation and Follow-Up
 
+- Player/Target debuffs: the user confirmed the basic display works in-game (client/build and combat scenarios unspecified). Hover tooltips now use Blizzard's intrinsic aura-button handlers; this addition needs live verification. Native API source review covered current Retail and Forever snapshots; implementation and offline coverage are in [the debuff review](docs/unit-frame-debuffs.md). Both toggles default to off. Restricted player/friendly-target debuffs, combat target swaps, layout/scaling, and taint behavior still require broader live checks on both clients.
 - The user confirmed Consumables icons and carried counts appear and reported that the subsequent drag-overlay fix looks good. Item-use cooldown behavior remains pending live validation.
 - Consumables: after `/reload`, open **Consumables**, add a carried potion or healthstone from the bag picker, and enable the module. Verify count/charges and cooldown after using it through the normal game binding, including shared potion cooldowns and instanced combat. Depleted items should stay in place with zero count. Check reordering, resizing, dragging, stack inclusion, and profile switching; settings changes during combat must apply after combat. These scenarios still need live validation.
 - The user confirmed the corrected Blizzard Catalog is working well on Warrior after the filter fix was merged to local main (`d47915d`). The catalog uses tracked-aura categories and player-aura eligibility without requiring `hasAura = true`. This records a successful catalog smoke test; individual buff matching and other classes/specs still need confirmation.

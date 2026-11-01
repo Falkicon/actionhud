@@ -36,11 +36,11 @@ python -m venv _test_/venv
 .\_test_\venv\Scripts\python.exe Tests/run.py
 ```
 
-On other platforms, use the equivalent virtual-environment Python executable. If the environment is already active, `python Tests/run.py` is sufficient.
+On other platforms, use the equivalent virtual-environment Python executable. If the environment is already active, `python Tests/run.py` is sufficient. Keep the virtual environment at a short path on Windows: lupa's native module fails to load from long paths ("The filename or extension is too long").
 
-The runner validates the TOC/XML dependency graph, package exclusions, and literal localization keys; compiles first-party Lua with Lua 5.1; and runs Python validator tests plus Lua regression and integration suites.
+The runner validates the TOC/XML dependency graph, package exclusions, literal localization keys, and pinned library versions; compiles first-party Lua with Lua 5.1; and runs Python validator tests plus every Lua regression and integration suite, then prints a summary of failures. Pass name fragments to run only matching Lua suites, for example `python Tests/run.py restricted combat_safety`.
 
-The integration host loads every active TOC/XML script, including the real embedded AceAddon, AceDB, AceEvent, AceConfig, and FenUI libraries. It models timers, scoped events, and protected geometry. It does not reproduce native WoW taint, secret values, or visual rendering.
+The integration host (`Tests/support/wow.lua`) loads every active TOC/XML script, including the same embedded Ace3, LibSharedMedia, and FenUI libraries that ship in the package. It models timers, scoped events, protected geometry, and the 12.1 `C_ActionBar` table API (deprecated action globals are deliberately absent). `host:SetRestricted(true)` makes timing, counts, health, power, and prediction return secret tokens from `Tests/support/secret.lua`, which fail on Lua arithmetic, ordering, indexing, concatenation, or formatting. Lua 5.1 cannot detect `secret == value` or truthiness tests, and the host does not reproduce native taint or rendering, so combat testing in the client is still required.
 
 Install Luacheck **1.2.0** (the LuaRocks release is `1.2.0-1`) and run with your environment's Python:
 
@@ -59,6 +59,7 @@ Test the paths affected by your change after installing the development build an
 - **Action slots:** Druid forms, Rogue stealth, page changes, proc overrides, shared slots, empty cooldown/charge slots, range tint, and assist glows.
 - **Layout and lifecycle:** enable/disable persistence, stack inclusion, profile switch/copy/reset, independent dragging, UI scale changes, and entering combat mid-drag.
 - **Protected APIs and unit frames:** instanced combat, restricted health/prediction data, maximum-health changes, and deferred secure geometry after leaving combat.
+- **Unit-frame debuffs:** player and friendly/hostile target aura appearance, expiration, dispels, stack changes, target switches and clearing in combat, above/below wrapping and scaling, per-frame/master toggles, and profile switch/copy/reset. Verify configuration deferral and no taint errors on both Retail and Forever; see [the API review](docs/unit-frame-debuffs.md).
 - **Consumables:** bag discovery, exact-ID additions, quality variants, carried counts/charges, depleted slots, cooldown clearing, shared decimal thresholds, and drag-overlay visibility.
 - **Player Buffs:** Recent Buffs and Blizzard Catalog selection, native aura appearance/removal, fixed slots, stack inclusion, and combat-deferred configuration.
 

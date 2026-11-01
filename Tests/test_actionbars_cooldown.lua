@@ -316,6 +316,23 @@ do
 	}
 	ActionBars:UpdateCooldown(button)
 	AssertEqual(true, applied, "unrestricted cooldowns should keep using ActionButton_ApplyCooldown")
+	AssertEqual(nil, button.cd.durationObject, "an inactive lockout must not replace the sweep")
+
+	-- 12.1 ActionButton_ApplyCooldown clears both sweeps when a lockout replaces
+	-- them and only draws it on a dedicated frame; the lockout must still show.
+	local lockout = { kind = "lossOfControl" }
+	lossOfControlInfo.isActive, lossOfControlInfo.shouldReplaceNormalCooldown = true, true
+	C_ActionBar.GetActionLossOfControlCooldownDuration = function(actionID)
+		AssertEqual(42, actionID, "lockout duration must be read for the displayed action")
+		return lockout
+	end
+	ActionButton_ApplyCooldown = function(normalFrame, _, chargeFrame)
+		normalFrame:Clear()
+		chargeFrame:Clear()
+	end
+	ActionBars:UpdateCooldown(button)
+	AssertEqual(lockout, button.cd.durationObject, "a readable lockout must show on the primary sweep")
+	AssertEqual(true, button.cd.shown, "the lockout sweep must be visible")
 	ActionButton_ApplyCooldown = nil
 end
 
@@ -415,16 +432,16 @@ do
 
 	local button = {
 		icon = icon,
+		actionID = 5,
 		_isUsable = true,
 		_noMana = false,
-		_inRange = false,
-		_checksRange = false,
 	}
+	ActionBars:ACTION_RANGE_CHECK_UPDATE(nil, 5, false, false)
 	ActionBars:ApplyIconColor(button)
 	AssertEqual("ready", button._colorMode, "an invalid range result must not tint the icon")
 	AssertEqual(1, icon.color[1], "an invalid range result should retain the ready color")
 
-	button._checksRange = true
+	ActionBars:ACTION_RANGE_CHECK_UPDATE(nil, 5, false, true)
 	ActionBars:ApplyIconColor(button)
 	AssertEqual("readyRange", button._colorMode, "a valid out-of-range result should tint the icon")
 	AssertEqual(0.8, icon.color[1], "a valid out-of-range result should use the range color")

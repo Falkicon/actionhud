@@ -13,7 +13,28 @@ When Mechanic is installed, its ActionHud performance rows show average cost, wi
 
 `Core/Performance.lua` stores aggregate counters instead of individual samples. When disabled, `ns.RecordPerformance` is nil, so instrumented paths skip both timing calls and counter allocation. Report snapshots are copies and cannot change internal counters.
 
-Tracked operations include action-bar refreshes, action cooldown updates, resource events, trinket cooldown updates, unit-frame updates, and layout passes. These scopes can overlap: a layout pass includes module rendering. Do not sum all totals as if they were independent addon CPU time. The counters measure instrumented work, not all addon activity or allocations.
+Tracked operations:
+
+| Metric | Work measured |
+| --- | --- |
+| `ActionBarsUpdate` | Full action-bar refresh (startup, paging, layout) |
+| `ActionBarsSlotChanged` | `ACTIONBAR_SLOT_CHANGED` handling |
+| `ActionBarsIcon` | `SPELL_UPDATE_ICON` (spell overrides) |
+| `ActionBarsState` | `ACTIONBAR_UPDATE_STATE` refresh of count, usability and procs |
+| `ActionBarsUsable` | Full usability refresh (`ACTIONBAR_UPDATE_USABLE`) |
+| `ActionBarsCharges` | `SPELL_UPDATE_CHARGES` count and cooldown refresh |
+| `ActionBarsOverlay` | Proc glow show/hide events |
+| `CooldownsUpdate` | Action cooldowns on `SPELL_UPDATE_COOLDOWN` |
+| `ResourcesUpdate` | Resource bar events |
+| `TrinketsUpdate` | Trinket cooldowns |
+| `ConsumablesRefresh` | Consumable counts and cooldowns |
+| `PlayerBuffsConfigure` | Player Buffs slot filter configuration |
+| `RecentBuffsScan` | Recent Buffs aura scans (outside combat) |
+| `BuffCatalogRebuild` | Blizzard buff catalog rebuilds |
+| `UnitFramesUpdate` | Custom unit-frame updates |
+| `LayoutRecalc` | Full layout passes |
+
+These scopes can overlap: a layout pass includes module rendering. Do not sum all totals as if they were independent addon CPU time. The counters measure instrumented work, not all addon activity or allocations.
 
 For a comparison, reset and record the same scenario before and after a change: ordinary combat, repeated target changes, or Edit Mode changes. Compare both call counts and average/peak cost. Save the printed report before starting another run. Test the same character, settings, and encounter conditions; these counters do not establish performance gains on their own.
 

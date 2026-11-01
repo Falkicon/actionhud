@@ -3,7 +3,8 @@
 -- FenUI-specific formatting utilities (standalone, no external dependencies).
 --------------------------------------------------------------------------------
 
-local Utils = FenUI.Utils
+local _, ns = ...
+local Utils = ns.FenUI.Utils
 
 --- Formats a duration in seconds to "Xm Ys" or more robust formats.
 --- Uses WoW's SecondsFormatter when available.

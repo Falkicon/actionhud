@@ -85,6 +85,12 @@ function Recent:Clear()
 end
 
 function Recent:Scan()
+	local perfStart = ns.RecordPerformance and debugprofilestop()
+	self:ScanAuras()
+	if perfStart then ns.RecordPerformance("RecentBuffsScan", perfStart) end
+end
+
+function Recent:ScanAuras()
 	if not self._runtimeActive or AccessStatus() ~= "ready" then return end
 	local failedBefore = self._scanFailed
 	self._scanFailed = false

@@ -23,6 +23,33 @@ DEVELOPMENT_PACKAGE_EXCLUSIONS = (
 )
 
 
+# Embedded libraries ship exactly as committed (no .pkgmeta externals). Bump these
+# pins deliberately when updating a library so CI, the integration host, and the
+# released package always exercise the same library code.
+PINNED_LIBRARIES = {
+    "Libs/LibStub/LibStub.lua": ("LibStub", 2),
+    "Libs/CallbackHandler-1.0/CallbackHandler-1.0.lua": ("CallbackHandler-1.0", 8),
+    "Libs/AceAddon-3.0/AceAddon-3.0.lua": ("AceAddon-3.0", 13),
+    "Libs/AceConfig-3.0/AceConfig-3.0.lua": ("AceConfig-3.0", 3),
+    "Libs/AceConfig-3.0/AceConfigCmd-3.0/AceConfigCmd-3.0.lua": ("AceConfigCmd-3.0", 14),
+    "Libs/AceConfig-3.0/AceConfigDialog-3.0/AceConfigDialog-3.0.lua": ("AceConfigDialog-3.0", 93),
+    "Libs/AceConfig-3.0/AceConfigRegistry-3.0/AceConfigRegistry-3.0.lua": ("AceConfigRegistry-3.0", 22),
+    "Libs/AceConsole-3.0/AceConsole-3.0.lua": ("AceConsole-3.0", 7),
+    "Libs/AceDB-3.0/AceDB-3.0.lua": ("AceDB-3.0", 36),
+    "Libs/AceDBOptions-3.0/AceDBOptions-3.0.lua": ("AceDBOptions-3.0", 17),
+    "Libs/AceEvent-3.0/AceEvent-3.0.lua": ("AceEvent-3.0", 4),
+    "Libs/AceGUI-3.0/AceGUI-3.0.lua": ("AceGUI-3.0", 41),
+    "Libs/AceHook-3.0/AceHook-3.0.lua": ("AceHook-3.0", 9),
+    "Libs/AceLocale-3.0/AceLocale-3.0.lua": ("AceLocale-3.0", 6),
+    "Libs/LibSharedMedia-3.0/LibSharedMedia-3.0.lua": ("LibSharedMedia-3.0", 12000002),
+    "Libs/LibDataBroker-1.1/LibDataBroker-1.1.lua": ("LibDataBroker-1.1", 4),
+}
+LIBRARY_MINOR_RE = r'"{name}"\s*,\s*(\d+)'
+# Retail 12.1/12.1.5 and WoW: Forever 1.60.1 (Retail API).
+SUPPORTED_INTERFACES = {"120100", "120105", "16001"}
+WHITESPACE_CHECKED_SUFFIXES = {".lua", ".md", ".py", ".toc", ".xml", ".yml", ".json"}
+
+
 class QualityError(AssertionError):
     """Raised when the repository violates a checked invariant."""
 
@@ -154,7 +181,11 @@ def validate_localization(root: Path, manifest_files: set[Path]) -> None:
     if base_locale not in manifest_files:
         raise QualityError("Locales/enUS.lua is not loaded by ActionHud.toc")
 
-    defined = set(L_DEFINITION_RE.findall((root / base_locale).read_text(encoding="utf-8-sig")))
+    definitions = L_DEFINITION_RE.findall((root / base_locale).read_text(encoding="utf-8-sig"))
+    defined = set(definitions)
+    duplicates = sorted({key for key in definitions if definitions.count(key) > 1})
+    if duplicates:
+        raise QualityError("Duplicate enUS localization keys: " + ", ".join(repr(key) for key in duplicates))
 
     uses: dict[str, set[str]] = {}
     dynamic_lookups: list[str] = []
@@ -178,10 +209,70 @@ def validate_localization(root: Path, manifest_files: set[Path]) -> None:
         raise QualityError("Missing enUS localization keys: " + details)
 
 
+def validate_libraries(root: Path) -> None:
+    pkgmeta = root / ".pkgmeta"
+    if pkgmeta.exists() and re.search(r"^externals\s*:", pkgmeta.read_text(encoding="utf-8"), re.MULTILINE):
+        raise QualityError(".pkgmeta externals would replace the tested Libs/ with unpinned upstream code")
+    if not (root / "Libs").is_dir():
+        return
+    problems = []
+    for relative, (name, expected) in PINNED_LIBRARIES.items():
+        path = root / relative
+        if not path.exists():
+            problems.append(f"{relative}: missing")
+            continue
+        match = re.search(LIBRARY_MINOR_RE.format(name=re.escape(name)), path.read_text(encoding="utf-8", errors="replace"))
+        found = int(match.group(1)) if match else None
+        if found != expected:
+            problems.append(f"{relative}: {name} minor {found}, pinned {expected}")
+    if problems:
+        raise QualityError("Embedded library versions differ from Tests/quality.py pins: " + "; ".join(problems))
+
+
+def validate_toc_metadata(root: Path) -> None:
+    """Keep TOC interfaces supported and the version in step with the changelog."""
+    toc = (root / "ActionHud.toc").read_text(encoding="utf-8-sig")
+    interface = re.search(r"^## Interface:\s*(.+)$", toc, re.MULTILINE)
+    if interface:
+        values = [value.strip() for value in interface.group(1).split(",")]
+        unsupported = [value for value in values if value not in SUPPORTED_INTERFACES]
+        if unsupported:
+            raise QualityError("Unsupported TOC Interface values: " + ", ".join(unsupported))
+    version = re.search(r"^## Version:\s*(\S+)\s*$", toc, re.MULTILINE)
+    changelog = root / "CHANGELOG.md"
+    if version and changelog.exists():
+        release = re.search(r"^## \[(\d[^\]]*)\]", changelog.read_text(encoding="utf-8"), re.MULTILINE)
+        if not release or release.group(1) != version.group(1):
+            found = release.group(1) if release else "none"
+            raise QualityError(f"TOC version {version.group(1)} does not match latest CHANGELOG release {found}")
+
+
+def validate_whitespace(root: Path) -> None:
+    """Reject trailing whitespace in first-party text files (vendored Libs are exempt)."""
+    offenders = []
+    for path in sorted(root.rglob("*")):
+        relative = path.relative_to(root)
+        if (
+            not path.is_file()
+            or path.suffix.lower() not in WHITESPACE_CHECKED_SUFFIXES
+            or relative.parts[0] in {"Libs", "_test_"}
+            or any(part.startswith(".") for part in relative.parts[:-1])
+        ):
+            continue
+        for number, line in enumerate(path.read_text(encoding="utf-8-sig", errors="replace").splitlines(), 1):
+            if line != line.rstrip(" \t"):
+                offenders.append(f"{relative.as_posix()}:{number}")
+    if offenders:
+        raise QualityError("Trailing whitespace: " + ", ".join(offenders[:20]))
+
+
 def validate_repository(root: Path) -> None:
     manifest_files = collect_manifest_files(root)
     validate_localization(root, manifest_files)
     validate_package_closure(root, manifest_files)
+    validate_libraries(root)
+    validate_toc_metadata(root)
+    validate_whitespace(root)
 
 
 def active_first_party_lua(manifest_files: set[Path]) -> list[Path]:
@@ -226,7 +317,7 @@ def main() -> None:
     validate_repository(args.root)
     if args.lint:
         run_luacheck(args.root, args.luacheck)
-    result = "SUCCESS: manifest, localization, and package closure verified"
+    result = "SUCCESS: manifest, localization, package closure, library pins, TOC metadata, and whitespace verified"
     if args.lint:
         result += "; active first-party Lua lint passed"
     print(result)

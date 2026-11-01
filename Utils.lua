@@ -6,7 +6,7 @@ local Utils = ns.Utils
 -- Delegation chain: FenCore.Secrets > FenUI.Utils > built-in fallback
 local Secrets = FenCore and FenCore.Secrets
 local Environment = FenCore and FenCore.Environment
-local F = FenUI and FenUI.Utils
+local F = ns.FenUI and ns.FenUI.Utils
 
 -- Local upvalues for performance
 local pcall = pcall
@@ -98,11 +98,16 @@ function Utils.FormatTime(seconds)
 	return string.format("%.1f", seconds)
 end
 
+-- Countdown font objects for the Small/Medium/Large/Huge timer size settings.
+local TIMER_FONTS = {
+	small = "GameFontHighlightSmallOutline",
+	medium = "GameFontHighlightOutline",
+	large = "GameFontNormalLargeOutline",
+	huge = "GameFontHighlightHugeOutline",
+}
+
 function Utils.GetTimerFont(size)
-	if F and F.GetTimerFont then
-		return F:GetTimerFont(size)
-	end
-	return "GameFontHighlightOutline"
+	return TIMER_FONTS[size] or TIMER_FONTS.medium
 end
 
 --------------------------------------------------------------------------------
@@ -114,7 +119,7 @@ function Utils.IsValueSecret(value)
 	if issecretvalue then
 		return issecretvalue(value) == true
 	end
-	
+
 	-- FenCore.Secrets fallback
 	if Secrets then
 		return Secrets.IsSecret(value)
@@ -481,6 +486,39 @@ end
 
 -- Resolve the player's secondary resource from public class/spec/form identity.
 -- Current power is deliberately not used to decide whether the resource exists.
+local classPowerColors
+local RUNE_SPEC_COLORS = {
+	[1] = { r = 0.77, g = 0.12, b = 0.23 }, -- Blood
+	[2] = { r = 0.1, g = 0.6, b = 0.8 }, -- Frost
+	[3] = { r = 0.3, g = 0.7, b = 0.3 }, -- Unholy
+}
+local DEFAULT_CLASS_POWER_COLOR = { r = 0.5, g = 0.5, b = 0.5 }
+
+-- Shared class-resource colours, keyed by power type. Blizzard's numeric
+-- PowerBarColor fallbacks are wrong for these pools (index 4 is Chi's colour,
+-- and Chi, Arcane Charges and Essence have no numeric entry).
+function Utils.GetClassPowerColor(pType)
+	if not classPowerColors then
+		local powers = Enum.PowerType
+		classPowerColors = {
+			[powers.ComboPoints] = { r = 0.9, g = 0.3, b = 0.3 },
+			[powers.Chi] = { r = 0.6, g = 0.9, b = 0.8 },
+			[powers.HolyPower] = { r = 0.9, g = 0.8, b = 0.3 },
+			[powers.SoulShards] = { r = 0.6, g = 0.45, b = 0.65 },
+			[powers.ArcaneCharges] = { r = 0.3, g = 0.5, b = 0.9 },
+			[powers.Essence] = { r = 0.3, g = 0.7, b = 0.6 },
+			[powers.Runes] = { r = 0.77, g = 0.12, b = 0.23 },
+		}
+	end
+	if pType == Enum.PowerType.Runes then
+		local spec = Utils.GetSpecializationSafe()
+		if not Utils.IsValueSecret(spec) and RUNE_SPEC_COLORS[spec] then
+			return RUNE_SPEC_COLORS[spec]
+		end
+	end
+	return classPowerColors[pType] or DEFAULT_CLASS_POWER_COLOR
+end
+
 function Utils.GetPlayerClassPowerTypeSafe()
 	local _, class = UnitClass("player")
 	if Utils.IsValueSecret(class) or type(class) ~= "string" then return nil, false end

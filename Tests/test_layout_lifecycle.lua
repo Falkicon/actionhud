@@ -22,7 +22,8 @@ LibStub = function(name)
 	end
 end
 local secretMax = {}
-local ns = { Utils = { IsValueSecret = function(value) return rawequal(value, secretMax) end } }
+local ns = { Utils = { IsValueSecret = function(value) return rawequal(value, secretMax) end,
+	GetPlayerClassPowerTypeSafe = function() return nil, true end } }
 local maximumHealth = secretMax
 UnitExists = function() return true end
 UnitHealth = function() return 80 end
@@ -143,6 +144,10 @@ assert(main.moving and addon.pendingEvent, "combat drag stops must be deferred")
 combat = false
 addon[addon.pendingEvent[2]](addon)
 assert(not main.moving and not addon.pendingEvent, "root dragging must stop after combat")
+scripts.OnDragStart(main)
+assert(main.moving and addon.pendingEvent[1] == "PLAYER_REGEN_DISABLED", "an active root drag must watch for combat")
+addon[addon.pendingEvent[2]](addon)
+assert(not main.moving and not addon.pendingEvent, "combat starting mid-drag must drop the HUD before lockdown")
 
 assert(loadfile("Core/DraggableContainer.lua"))("ActionHud", ns)
 profile.layoutUnlocked = true

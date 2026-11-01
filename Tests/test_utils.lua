@@ -82,12 +82,14 @@ PowerBarColor = { MANA = { r = 0, g = 0, b = 1 } }
 
 print("Loading embedded FenUI utilities...")
 FenCore = nil
-FenUI = {}
-loadFromRoot("Libs/FenUI/Utils/Utils.lua")
-loadFromRoot("Libs/FenUI/Utils/Formatting.lua")
-loadFromRoot("Libs/FenUI/Utils/SafeAPI.lua")
+FenUI = nil
+local ns = { FenUI = {} }
+loadFromRoot("Libs/FenUI/Utils/Utils.lua", "ActionHud", ns)
+loadFromRoot("Libs/FenUI/Utils/Formatting.lua", "ActionHud", ns)
+loadFromRoot("Libs/FenUI/Utils/SafeAPI.lua", "ActionHud", ns)
+assertTrue(FenUI == nil, "Embedded FenUI must not create a global namespace")
 
-local FenUtils = FenUI.Utils
+local FenUtils = ns.FenUI.Utils
 assertTrue(FenUtils.IS_MIDNIGHT, "Embedded FenUI did not initialize Midnight state")
 assertTrue(type(FenUtils.Cap) == "table", "Embedded FenUI did not initialize its capability table")
 assertTrue(FenUtils.Cap.HasSecondsFormatter, "CreateSecondsFormatter capability was not detected")
@@ -155,11 +157,15 @@ IsActionInRange = nil
 GetInventoryItemCooldown = nil
 
 print("Loading ActionHud Utils.lua...")
-local ns = {}
 loadFromRoot("Utils.lua", "ActionHud", ns)
 local Utils = ns.Utils
 
 print("Running Utils tests...")
+assertEqual("GameFontHighlightSmallOutline", Utils.GetTimerFont("small"), "small timer font")
+assertEqual("GameFontHighlightOutline", Utils.GetTimerFont("medium"), "medium timer font")
+assertEqual("GameFontNormalLargeOutline", Utils.GetTimerFont("large"), "large timer font")
+assertEqual("GameFontHighlightHugeOutline", Utils.GetTimerFont("huge"), "huge timer font")
+assertEqual("GameFontHighlightOutline", Utils.GetTimerFont(nil), "unset timer size falls back to medium")
 assertTrue(Utils.IS_MIDNIGHT, "ActionHud did not inherit Midnight state")
 assertTrue(Utils.Cap.HasSecondsFormatter, "ActionHud did not inherit formatter capability")
 

@@ -33,6 +33,10 @@ UnitPowerMax = function(_, pType)
 end
 UnitPowerDisplayMod = function() return displayMod end
 UnitPartialPower = function() return partial end
+-- Resources caches UnitExists at load, so target presence is controlled here.
+local hasTarget = true
+local hostUnitExists = UnitExists
+UnitExists = function(unit) if unit == "target" then return hasTarget end return hostUnitExists(unit) end
 local addon = boot(host)
 local resources = addon:GetModule("Resources")
 local row
@@ -163,6 +167,50 @@ maximum = 0
 assertHidden()
 maximum = nil
 assertHidden()
+
+-- A Druid who enters Cat Form in combat must see combo points immediately:
+-- the row is reserved and anchored out of combat, so no layout pass is needed.
+class, spec, primary, available, maximum, current = "DRUID", 2, Enum.PowerType.Mana, true, 5, 2
+update("PLAYER_SPECIALIZATION_CHANGED")
+assert(not row:IsShown(), "caster form hides the combo-point row")
+assert(row.point, "the reserved Druid row keeps its anchor while hidden")
+local druidHeight = resources:CalculateHeight()
+primary = Enum.PowerType.Energy
+update("UPDATE_SHAPESHIFT_FORM")
+assert(resources:CalculateHeight() == druidHeight, "form changes must not resize the reserved row")
+primary = Enum.PowerType.Mana
+update("UPDATE_SHAPESHIFT_FORM")
+host:SetCombat(true)
+primary = Enum.PowerType.Energy
+update("UPDATE_SHAPESHIFT_FORM")
+update("UNIT_DISPLAYPOWER")
+assert(row.point, "combo points shown in combat must already be anchored")
+assertPips(5, current, 1)
+host:SetCombat(false)
+
+-- The target split re-anchors plain frames directly, so acquiring or clearing
+-- a target in combat updates the resource halves without a layout pass.
+local container = resources:GetContainer()
+local playerGroup, targetGroup = row.parent, nil
+for _, child in ipairs(container.children) do
+	if child ~= playerGroup and child.children[1] and child.children[1].kind == "StatusBar" then targetGroup = child end
+end
+assert(targetGroup, "target resource group must be constructed")
+hasTarget = false
+update("PLAYER_TARGET_CHANGED")
+assert(not targetGroup:IsShown(), "no target: only player resources are shown")
+local fullWidth = playerGroup:GetWidth()
+host:SetCombat(true)
+hasTarget = true
+update("PLAYER_TARGET_CHANGED")
+assert(targetGroup:IsShown(), "a target acquired in combat must show its resources")
+assert(playerGroup:GetWidth() < fullWidth, "player resources must split for the target")
+assert(#segments() == 5 and segments()[1].width < fullWidth / 5, "pips must follow the narrower player group")
+hasTarget = false
+update("PLAYER_TARGET_CHANGED")
+assert(not targetGroup:IsShown() and playerGroup:GetWidth() == fullWidth, "clearing the target in combat restores full width")
+host:SetCombat(false)
+
 assert(secretOperations == 0, "no protected arithmetic may be attempted, even inside pcall")
 host:AssertNoErrors()
 print("SUCCESS: class resource eligibility, capacities, depletion, native units, and opaque passthrough")

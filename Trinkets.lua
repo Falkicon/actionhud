@@ -164,21 +164,13 @@ function Trinkets:UpdateCooldowns()
 		if f:IsShown() then
 			local startTime, duration, enabled = Utils.GetInventoryItemCooldownSafe("player", f.slot)
 
-			-- In Midnight, if enabled is a secret value, assume it's true to show the swipe.
-			local isEnabled = enabled
-			if Utils.IsValueSecret(enabled) then
-				isEnabled = true
-			end
-
-			-- Handle secret duration or normal comparison
-			local showSwipe = false
-			if isEnabled then
-				if Utils.IsValueSecret(duration) then
-					showSwipe = true
-				elseif duration ~= nil then
-					showSwipe = Utils.SafeCompare(duration, 0, ">")
-				end
-			end
+			-- Cooldown:SetCooldown rejects secret arguments from addon code, so only
+			-- validated public values reach it (as in Consumables). Unreadable
+			-- results clear the sweep rather than guessing.
+			local readable = not Utils.IsValueSecret(startTime) and not Utils.IsValueSecret(duration)
+				and not Utils.IsValueSecret(enabled)
+				and type(startTime) == "number" and type(duration) == "number"
+			local showSwipe = readable and enabled ~= false and enabled ~= 0 and duration > 0
 
 			if showSwipe then
 				f.cooldown:SetCooldown(startTime, duration)

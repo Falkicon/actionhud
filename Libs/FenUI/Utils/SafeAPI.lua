@@ -3,13 +3,13 @@
 -- pcall-wrapped WoW API calls for Midnight and legacy compatibility.
 --------------------------------------------------------------------------------
 
-local Utils = FenUI.Utils
+local _, ns = ...
+local Utils = ns.FenUI.Utils
 
 -- Internal cache for performance
 local cooldownCache = {}
 local chargesCache = {}
 local textureCache = {}
-local overlayCache = {}
 local cacheTime = 0
 local CACHE_DURATION = 0.016 -- ~1 frame
 
@@ -18,7 +18,6 @@ local function InvalidateCache()
 	if now - cacheTime > CACHE_DURATION then
 		_G.wipe(cooldownCache)
 		_G.wipe(chargesCache)
-		_G.wipe(overlayCache)
 		cacheTime = now
 	end
 end
@@ -327,29 +326,19 @@ function Utils:GetInventoryItemCooldownSafe(unit, slot)
 end
 
 --- Safe wrapper for C_SpellActivationOverlay.IsSpellOverlayed.
+--- Not cached: glow show/hide events can arrive in the same frame as an earlier
+--- state refresh, and a per-frame cache would return the pre-proc value.
 function Utils:IsSpellOverlayedSafe(spellID)
 	if not spellID then
 		return false
 	end
-	InvalidateCache()
-	if overlayCache[spellID] ~= nil then
-		return overlayCache[spellID]
-	end
-	if _G.C_SpellActivationOverlay and _G.C_SpellActivationOverlay.IsSpellOverlayed then
-		local ok, result = pcall(_G.C_SpellActivationOverlay.IsSpellOverlayed, spellID)
+	local query = (_G.C_SpellActivationOverlay and _G.C_SpellActivationOverlay.IsSpellOverlayed) or _G.IsSpellOverlayed
+	if query then
+		local ok, result = pcall(query, spellID)
 		if ok then
-			overlayCache[spellID] = result or false
-			return result
+			return result == true
 		end
 	end
-	if _G.IsSpellOverlayed then
-		local ok, result = pcall(_G.IsSpellOverlayed, spellID)
-		if ok then
-			overlayCache[spellID] = result or false
-			return result
-		end
-	end
-	overlayCache[spellID] = false
 	return false
 end
 

@@ -1,5 +1,7 @@
 # Repository quality review — 2026-09-05
 
+> Superseded for open work by the [2026-09-23 quality and performance review](quality-review-2026-09.md), which tracks findings by phase.
+
 The main problems were inconsistent module lifecycle handling, duplicated positioning logic, stale layout caches, and settings that no longer matched the runtime. Focused fixes preserve the current module architecture and dormant cooldown-viewer boundary.
 
 ## Fixed findings

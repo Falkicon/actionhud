@@ -219,6 +219,14 @@ assert(not drag.moving, "deferred drag must finish after combat")
 assert(addon.db.profile.actionBarsXOffset == 50 and addon.db.profile.actionBarsYOffset == 50,
 	"action bars must save offsets in the child frame's coordinate scale")
 assert(drag.point[4] == 50 and drag.point[5] == 50, "drag stop must restore the parent-relative anchor")
+drag.cx, drag.cy = 260, 470
+drag.scripts.OnDragStart(drag)
+assert(drag.moving and drag.events.PLAYER_REGEN_DISABLED, "an active drag must watch for combat")
+drag.scripts.OnEvent(drag, "PLAYER_REGEN_DISABLED")
+assert(not drag.moving, "combat starting mid-drag must stop following the cursor")
+assert(not drag.events.PLAYER_REGEN_DISABLED, "a finished drag stops watching for combat")
+assert(addon.db.profile.actionBarsXOffset == 60 and addon.db.profile.actionBarsYOffset == 70,
+	"combat starting mid-drag must save the dropped position")
 ns.DraggableContainer:ResetPosition(ns.DraggableContainer:GetContainer("actionBars"))
 assert(drag.point[4] == 0 and drag.point[5] == 0, "registered action bars must reset without a layout refresh")
 print("SUCCESS: runtime lifecycle and mirrored action-slot events verified")

@@ -27,6 +27,16 @@ Each pass runs these phases for stack and independent modules:
 UnitFrames participates as an auxiliary module outside the stack. Its secure
 geometry changes use the same combat deferral as the main HUD.
 
+Player and Target debuffs are optional native `HARMFUL` groups, configured in
+UnitFrames' `PrepareLayout()` and enabled in `RenderLayout()`. Their public
+wrappers reserve settings-based dimensions and move with the secure frame.
+Native groups own their internal size, ordering, and visibility; addon code
+never measures them. Ordinary scaled parents resize initialized and future
+icons without accessing restricted children. `PLAYER_TARGET_CHANGED` calls
+the applied target container's inbound `UpdateAllAuras()` even during combat.
+Aura events do not request layout. Settings, profile changes, and enable/disable
+reconciliation still wait for the shared pass after combat.
+
 Consumables reserves a fixed footprint for its configured item IDs, including
 items with zero carried count. It is disabled by default and independently
 positioned at `(100, -60)`, with optional HUD stack inclusion. Bag and cooldown
@@ -63,6 +73,7 @@ The TOC loads the files in this order:
 | `UnitFrames/UnitFrames.lua` | Creates the Ace module and defines lifecycle, scoped event routing, and layout requests. |
 | `UnitFrames/Layout.lua` | Constructs frames and applies configured styling and geometry. Creation and style helpers stay local here. |
 | `UnitFrames/Rendering.lua` | Updates values, prediction, text, and icons, then implements the final render phase. |
+| `UnitFrames/Auras.lua` | Configures native player/target debuff groups during prepare, enables them during render, and refreshes the target container on target changes. |
 
 The latter files retrieve the existing Ace module. Identity helpers retain their
 existing `ns.UnitFrameIdentitySafety` namespace; no additional global helper API

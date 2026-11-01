@@ -2,6 +2,36 @@
 
 ## [Unreleased]
 
+## [2.15.0] - 2026-10-31
+
+### Added
+
+- Hovering player and target debuff icons shows Blizzard's native aura tooltip.
+- Optional native debuffs on the custom Player and Target frames. Enable each under **Unit Frames → [frame] → Debuffs → Show Debuffs**; both default to off. Includes cooldowns, stack counts, icon size, up to 24 icons, spacing, frame gap, and above/below placement. Target swaps refresh during combat; configuration changes defer until combat ends. Retail/Forever source APIs were reviewed; live combat validation remains pending.
+
+### Fixed
+
+- Acquiring or clearing a target during combat now shows or hides the target half of the resource bar immediately instead of after combat.
+- Druids who shift into Cat Form during combat now see combo points. Druids keep a reserved class-resource row, so form changes no longer shift the HUD stack.
+- Custom unit-frame class bars use the correct colours: combo points no longer use Chi's colour, and Chi, Arcane Charges and Essence are no longer grey.
+- Macros now show proc glows. Retail macros report their spell directly; it was previously looked up as a macro index.
+- Proc glows no longer miss or linger when the proc event arrives in the same frame as an earlier refresh.
+- The out-of-range tint now survives layout refreshes, Edit Mode changes, bar paging, and spell overrides. Range state is kept per action, and newly shown actions start with their current range.
+- Interrupt lockouts show a cooldown sweep outside restricted content, matching instanced behaviour.
+- Unit frame **Reset Position** now resets the position the frame actually uses.
+- Each unit-frame text element's **Font** setting now applies; the frame-level default no longer overrides it.
+- Trinkets **Timer Font Size** now changes the countdown font. Consumables and Player Buffs countdowns use their intended medium and small fonts.
+- Entering combat while dragging the HUD or a module now drops it where it is instead of leaving it attached to the cursor for the fight.
+- Toggling **Hide Blizzard Frames** or **Unlock Module Positions** during combat no longer touches protected frames; the change applies when combat ends.
+- **Hide Blizzard Frames** now hides each Blizzard frame only while its matching custom frame is enabled (for example, Blizzard's Focus frame stays visible while the custom Focus frame is off), and ActionHud no longer resets Blizzard frames it never hid.
+- Trinket cooldowns clear instead of passing restricted values to the cooldown sweep.
+
+### Changed
+
+- Embedded libraries now ship exactly as committed. The release package previously replaced them with the latest Ace3/LibStub/LibSharedMedia trunk at packaging time, so released builds ran different library code than development and CI. The committed copies now match the libraries shipped in 2.14.1, and a repository check pins their versions.
+- Replaced the modified AceEvent-3.0 (minor 9) with the unmodified upstream release. The modified copy never shipped, but on development clients it replaced AceEvent for every installed addon.
+- The embedded FenUI utilities now load into ActionHud's private namespace instead of a shared `FenUI` global that other addons (such as Mechanic) could overwrite.
+
 ## [2.14.2] - 2026-09-30
 
 ### Changed
@@ -252,7 +282,7 @@ All notable changes to this project will be documented in this file.
 - **In-Game Help**: Added a new **Help & Slash Commands** section to the main settings page.
 
 ### Changed
-- **Slash Commands**: 
+- **Slash Commands**:
     - `/ah debug` now immediately toggles debug recording on/off with chat confirmation.
     - `/ah log` has been removed (logs are now integrated into the main settings).
     - `/ah clear` remains for clearing the buffer.
@@ -305,7 +335,7 @@ All notable changes to this project will be documented in this file.
     - Stack count automatically repositions to bottom-right when enabled.
 
 ### Changed
-- **Layout Manager Refinement**: 
+- **Layout Manager Refinement**:
     - Disabled modules are now hidden from the "HUD Stack Order" settings list.
     - Gaps between modules now automatically close when an intervening module is disabled.
 - **TrackedBuffs/TrackedBars Style-Only**: Simplified to style-only approach for Midnight (12.0) compatibility.

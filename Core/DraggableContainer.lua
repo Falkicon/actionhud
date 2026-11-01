@@ -52,7 +52,7 @@ local activeContainers = {}
 
 --[[
 	Create a draggable container for a module
-	
+
 	@param opts table
 		- moduleId: string (e.g., "resources", "cooldowns")
 		- parent: Frame (usually ActionHudFrame)
@@ -64,7 +64,7 @@ local activeContainers = {}
 		- size: table { width, height } (optional, default 40x40)
 		- frame: existing container frame to initialize (optional)
 		- overlayLevelOffset: number (optional, default 10; clears the known three-level addon widget nesting)
-		
+
 	@return Frame container
 ]]
 function DraggableContainer:Create(opts)
@@ -93,6 +93,10 @@ function DraggableContainer:Create(opts)
 	container:SetScript("OnDragStart", function(self)
 		if not InCombatLockdown() and DraggableContainer:IsUnlocked(db) then
 			self:StartMoving()
+			-- PLAYER_REGEN_DISABLED fires before lockdown begins, so a drag that
+			-- is still active when combat starts can finish (and save) normally
+			-- instead of following the cursor for the whole fight.
+			self:RegisterEvent("PLAYER_REGEN_DISABLED")
 		end
 	end)
 
@@ -101,6 +105,7 @@ function DraggableContainer:Create(opts)
 			self:RegisterEvent("PLAYER_REGEN_ENABLED")
 			return
 		end
+		self:UnregisterEvent("PLAYER_REGEN_DISABLED")
 		self:UnregisterEvent("PLAYER_REGEN_ENABLED")
 		self:StopMovingOrSizing()
 
@@ -123,7 +128,7 @@ function DraggableContainer:Create(opts)
 	end
 	container:SetScript("OnDragStop", StopDrag)
 	container:SetScript("OnEvent", function(self, event)
-		if event == "PLAYER_REGEN_ENABLED" then
+		if event == "PLAYER_REGEN_ENABLED" or event == "PLAYER_REGEN_DISABLED" then
 			StopDrag(self)
 		end
 	end)
@@ -191,6 +196,10 @@ function DraggableContainer:UpdateOverlay(container)
 	if not container then
 		return
 	end
+	if InCombatLockdown() then
+		DraggableContainer:UpdateAllOverlays()
+		return
+	end
 
 	local isUnlocked = DraggableContainer:IsUnlocked(container._db)
 	container.overlayFrame:SetFrameLevel((container:GetFrameLevel() or 0) + container._overlayLevelOffset)
@@ -228,8 +237,22 @@ function DraggableContainer:ResetPosition(container)
 	end
 end
 
--- Update all container overlays (called when lock state changes)
+-- Update all container overlays (called when lock state changes). Containers
+-- that hold secure unit frames are protected, so overlay changes made during
+-- combat apply once it ends; dragging is unavailable in combat anyway.
+local overlayDeferFrame
 function DraggableContainer:UpdateAllOverlays()
+	if InCombatLockdown() then
+		if not overlayDeferFrame then
+			overlayDeferFrame = CreateFrame("Frame")
+			overlayDeferFrame:SetScript("OnEvent", function(frame)
+				frame:UnregisterEvent("PLAYER_REGEN_ENABLED")
+				DraggableContainer:UpdateAllOverlays()
+			end)
+		end
+		overlayDeferFrame:RegisterEvent("PLAYER_REGEN_ENABLED")
+		return
+	end
 	for _, container in pairs(activeContainers) do
 		DraggableContainer:UpdateOverlay(container)
 	end

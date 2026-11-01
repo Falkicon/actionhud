@@ -2,11 +2,9 @@
 Label Widget
 Displays text and optionally an icon.
 -------------------------------------------------------------------------------]]
-local Type, Version = "Label", 28
+local Type, Version = "Label", 29
 local AceGUI = LibStub and LibStub("AceGUI-3.0", true)
-if not AceGUI or (AceGUI:GetWidgetVersion(Type) or 0) >= Version then
-	return
-end
+if not AceGUI or (AceGUI:GetWidgetVersion(Type) or 0) >= Version then return end
 
 -- Lua APIs
 local max, select, pairs = math.max, select, pairs
@@ -19,9 +17,7 @@ Support functions
 -------------------------------------------------------------------------------]]
 
 local function UpdateImageAnchor(self)
-	if self.resizing then
-		return
-	end
+	if self.resizing then return end
 	local frame = self.frame
 	local width = frame.width or frame:GetWidth() or 0
 	local image = self.image
@@ -128,6 +124,13 @@ local methods = {
 		UpdateImageAnchor(self)
 	end,
 
+	["SetImageByAtlas"] = function(self, atlasString)
+		self.imageshown = true
+		local image = self.image
+		image:SetAtlas(atlasString)
+		UpdateImageAnchor(self)
+	end,
+
 	["SetFont"] = function(self, font, height, flags)
 		if not self.fontObject then
 			self.fontObject = CreateFont("AceGUI30LabelFont" .. AceGUI:GetNextWidgetNum(Type))
@@ -171,7 +174,7 @@ local function Constructor()
 		label = label,
 		image = image,
 		frame = frame,
-		type = Type,
+		type  = Type
 	}
 	for method, func in pairs(methods) do
 		widget[method] = func

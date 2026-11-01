@@ -3,7 +3,8 @@
 -- UI helpers, frame resolution, and visibility guards.
 --------------------------------------------------------------------------------
 
-local Utils = FenUI.Utils
+local _, ns = ...
+local Utils = ns.FenUI.Utils
 
 --- Returns the current mouse focus frame.
 ---@return Frame|nil focus

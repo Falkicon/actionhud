@@ -112,9 +112,9 @@ Test Druid forms, Rogue stealth, page changes, spell overrides, shared slots, ra
 
 `Utils.GetPlayerClassPowerTypeSafe()` is the shared secondary-resource selector for Resources and the custom player frame. It uses public class/spec/form identity and optional `UnitHasPowerType` availability. Never substitute the primary `UnitPowerType` for the secondary pool. HUD segments receive the same native current value with public per-segment ranges; an opaque maximum uses a continuous native bar. Keep current and maximum in matching native units, and create/position segments only during the shared layout pass. Depletion does not remove the row.
 
-The active implementation creates `SecureUnitButtonTemplate` frames for Player, Target, Target of Target, and Focus. Frame creation is deferred until enabled and outside combat; frames are reused across enable cycles. Corresponding Blizzard frames can optionally be hidden and restored.
+The active implementation creates `SecureUnitButtonTemplate` frames for Player, Target, Target of Target, and Focus. Frame creation is deferred until enabled and outside combat; frames are reused across enable cycles. With **Hide Blizzard Frames**, each Blizzard frame (Player, Target, Target of Target, Focus and its target) is hidden only while its matching custom frame is enabled. Changes apply outside combat, and only frames ActionHud hid are restored, so other addons' visibility choices stand.
 
-The current controls are **Enable Custom Unit Frames**, **Hide Blizzard Frames**, and per-frame dimensions, background/border, bars, text, and status icons. Positioning uses **Layout → Unlock Module Positions**. Settings changes request the shared layout pass and defer protected geometry during combat.
+The current controls are **Enable Custom Unit Frames**, **Hide Blizzard Frames**, and per-frame dimensions, background/border, bars, text, and status icons. Positioning uses **Layout → Unlock Module Positions**. Settings changes request the shared layout pass and defer protected geometry during combat. `Tests/test_combat_safety.lua` calls every settings control in combat; keep new controls combat-safe.
 
 Value text and optional health/power percentage text are supported. Percentages default to off and use native percentage APIs with a display-scaling curve, passing results directly to native formatted text. Do not calculate percentages from restricted current/maximum values in Lua. Historical notes about reskinning Blizzard frames, removing portraits, hover-only text, or requiring reload after every setting do not describe this implementation.
 
@@ -153,6 +153,8 @@ The active `PlayerBuffs.lua` route uses the native aura container and does not r
 
 Ace3 and required support libraries are embedded. FenCore and !Mechanic are optional dependencies. `Utils.lua` can delegate environment, secret, and table helpers to FenCore, with minimal embedded FenUI utilities or local fallbacks. Preserve these fallbacks.
 
+Embedded libraries ship exactly as committed: `.pkgmeta` has no `externals`, so CI, the integration host, and the release package run the same code. To update a library, replace its folder with an unmodified upstream copy and bump its entry in `PINNED_LIBRARIES` in `Tests/quality.py`. Do not fork shared libraries such as AceEvent; LibStub loads the highest minor version for every addon on the client. The embedded FenUI utilities load into the private `ns.FenUI` namespace; do not reintroduce a `FenUI` global, which other addons bundling FenUI would overwrite.
+
 [Aura API testing](docs/aura-api-testing.md) and [Skinning patterns](docs/skinning-patterns.md) describe historical experiments. Revalidate their observations before applying them to the current target build.
 
 ## Validation and Localization
@@ -168,12 +170,12 @@ python Tests/quality.py --lint
 The lint command requires Luacheck **1.2.0** (`1.2.0-1` in LuaRocks); use `--luacheck /path/to/luacheck` if it is not on PATH. See [CONTRIBUTING.md](CONTRIBUTING.md) for setup. CI runs the same checks on pull requests and pushes to main.
 
 - `Tests/run.py` validates TOC/XML, localization, and packaging; compiles first-party Lua with Lua 5.1 via pinned Lupa; and runs Python and Lua tests.
-- The integration host loads the full active TOC/XML graph with real embedded libraries. Its fake native API models timers, scoped events, and protected geometry, not native taint, secret values, or rendering.
+- The integration host loads the full active TOC/XML graph with real embedded libraries. Its fake native API models timers, scoped events, protected geometry, the 12.1 `C_ActionBar` table API, and secret combat values (`host:SetRestricted`, `Tests/support/secret.lua`); it does not model native taint or rendering. Use the shared secret factory for new secret-value tests instead of ad-hoc mocks.
 - Test protected API and secure-frame changes in-game after the automated checks. Follow the shared Mechanic workflow when collecting live output.
 - Add runtime files to the TOC/XML graph and keep package exclusions consistent. Do not suppress unknown globals merely to satisfy lint.
 - All UI strings must use literal `L["KEY"]` lookups and be defined in `Locales/enUS.lua` through AceLocale-3.0. Keep runtime and settings strings localized.
 
-See [STATUS.md](STATUS.md) and the [quality review](docs/quality-review.md) for current offline results and pending in-game checks.
+See [STATUS.md](STATUS.md) and the [2026-09 review](docs/quality-review-2026-09.md) for current findings, offline results, and pending in-game checks.
 
 ## CurseForge
 

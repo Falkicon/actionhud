@@ -3,10 +3,17 @@ local addonName, ns = ...
 local ActionHud = LibStub("AceAddon-3.0"):GetAddon("ActionHud")
 local UnitFrames = ActionHud:NewModule("UnitFrames", "AceEvent-3.0")
 
+-- Frame positions are stored in top-level profile keys such as ufPlayerXOffset.
+function UnitFrames:GetPositionKeys(frameId)
+	local prefix = "uf" .. frameId:sub(1, 1):upper() .. frameId:sub(2)
+	return prefix .. "XOffset", prefix .. "YOffset"
+end
+
 function UnitFrames:OnInitialize()
 	self.db = ActionHud.db
 	self.frames = {}
 	self.framesByUnit = {}
+	self._blizzardHidden = {}
 end
 
 function UnitFrames:OnEnable()
@@ -18,7 +25,7 @@ function UnitFrames:OnDisable()
 end
 
 function UnitFrames:RegisterRuntimeEvents()
-	self:RegisterEvent("PLAYER_TARGET_CHANGED", "UpdateAll")
+	self:RegisterEvent("PLAYER_TARGET_CHANGED", "OnTargetChanged")
 	self:RegisterEvent("PLAYER_FOCUS_CHANGED", "UpdateAll")
 	self:RegisterEvent("RUNE_POWER_UPDATE", "UpdatePlayerClassPower")
 	for _, event in ipairs({ "PLAYER_SPECIALIZATION_CHANGED", "PLAYER_TALENT_UPDATE", "UPDATE_SHAPESHIFT_FORM" }) do
@@ -68,6 +75,7 @@ function UnitFrames:HideFrames()
 		return
 	end
 	for frameId, f in pairs(self.frames) do
+		self:SetFrameDebuffsEnabled(f, false)
 		if frameId ~= "player" then
 			UnregisterUnitWatch(f)
 		end
@@ -109,42 +117,39 @@ function UnitFrames:ApplyEnabledState()
 	if self:IsEnabled() and self._desiredEnabled then self:StartRuntime() else self:StopRuntime() end
 end
 
+-- Each Blizzard frame is hidden only while its matching custom frame is enabled.
+local BLIZZARD_FRAMES = {
+	{ name = "PlayerFrame", frameId = "player" },
+	{ name = "TargetFrame", frameId = "target" },
+	{ name = "TargetFrameToT", frameId = "targettarget" },
+	{ name = "FocusFrame", frameId = "focus" },
+	{ name = "FocusFrameToT", frameId = "focus" },
+}
+
 function UnitFrames:ApplyBlizzardFrameVisibility()
-	local hide = self._runtimeActive and self.db.profile.ufEnabled and self.db.profile.ufHideBlizzard
-	if hide then
-		if PlayerFrame then
-			PlayerFrame:SetAlpha(0)
-			PlayerFrame:EnableMouse(false)
-		end
-		if TargetFrame then
-			TargetFrame:SetAlpha(0)
-			TargetFrame:EnableMouse(false)
-		end
-		if FocusFrame then
-			FocusFrame:SetAlpha(0)
-			FocusFrame:EnableMouse(false)
-		end
-		-- Hide Blizzard's Target of Target frame
-		if TargetFrameToT then
-			TargetFrameToT:SetAlpha(0)
-			TargetFrameToT:EnableMouse(false)
-		end
-	else
-		if PlayerFrame then
-			PlayerFrame:SetAlpha(1)
-			PlayerFrame:EnableMouse(true)
-		end
-		if TargetFrame then
-			TargetFrame:SetAlpha(1)
-			TargetFrame:EnableMouse(true)
-		end
-		if FocusFrame then
-			FocusFrame:SetAlpha(1)
-			FocusFrame:EnableMouse(true)
-		end
-		if TargetFrameToT then
-			TargetFrameToT:SetAlpha(1)
-			TargetFrameToT:EnableMouse(true)
+	if InCombatLockdown() then
+		-- Blizzard's unit frames are protected. RenderLayout reapplies the
+		-- current setting in the first layout pass after combat.
+		self:UpdateLayout()
+		return
+	end
+	local profile = self.db.profile
+	local active = self._runtimeActive and profile.ufEnabled and profile.ufHideBlizzard
+	local hidden = self._blizzardHidden
+	for _, entry in ipairs(BLIZZARD_FRAMES) do
+		local frame = _G[entry.name]
+		local config = profile.ufConfig[entry.frameId]
+		if frame then
+			if active and config and config.enabled then
+				frame:SetAlpha(0)
+				frame:EnableMouse(false)
+				hidden[entry.name] = true
+			elseif hidden[entry.name] then
+				-- Restore only frames ActionHud hid, leaving other addons' choices.
+				frame:SetAlpha(1)
+				frame:EnableMouse(true)
+				hidden[entry.name] = nil
+			end
 		end
 	end
 end
