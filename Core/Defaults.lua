@@ -126,6 +126,7 @@ ns.defaults = {
 		ufConfig = {
 			player = {
 				enabled = true,
+				debuffs = { enabled = false, iconSize = 24, maxCount = 10, spacing = 2, gap = 4, position = "BELOW" },
 				width = 150,
 				height = 50,
 				font = "Arial Narrow", -- Top-level font for all text elements
@@ -222,6 +223,7 @@ ns.defaults = {
 			},
 			target = {
 				enabled = true,
+				debuffs = { enabled = false, iconSize = 24, maxCount = 10, spacing = 2, gap = 4, position = "BELOW" },
 				width = 150,
 				height = 50,
 				font = "Arial Narrow", -- Top-level font for all text elements

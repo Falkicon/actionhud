@@ -332,5 +332,6 @@ end
 
 function UnitFrames:RenderLayout()
 	self:UpdateAll()
+	self:RenderDebuffs()
 	self:ApplyBlizzardFrameVisibility()
 end

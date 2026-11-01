@@ -25,7 +25,7 @@ function UnitFrames:OnDisable()
 end
 
 function UnitFrames:RegisterRuntimeEvents()
-	self:RegisterEvent("PLAYER_TARGET_CHANGED", "UpdateAll")
+	self:RegisterEvent("PLAYER_TARGET_CHANGED", "OnTargetChanged")
 	self:RegisterEvent("PLAYER_FOCUS_CHANGED", "UpdateAll")
 	self:RegisterEvent("RUNE_POWER_UPDATE", "UpdatePlayerClassPower")
 	for _, event in ipairs({ "PLAYER_SPECIALIZATION_CHANGED", "PLAYER_TALENT_UPDATE", "UPDATE_SHAPESHIFT_FORM" }) do
@@ -75,6 +75,7 @@ function UnitFrames:HideFrames()
 		return
 	end
 	for frameId, f in pairs(self.frames) do
+		self:SetFrameDebuffsEnabled(f, false)
 		if frameId ~= "player" then
 			UnregisterUnitWatch(f)
 		end

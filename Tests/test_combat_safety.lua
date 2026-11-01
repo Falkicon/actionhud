@@ -2,6 +2,7 @@
 -- without mutating protected frames, and Blizzard unit frames are only
 -- changed when ActionHud hides them.
 local host = assert(loadfile("Tests/support/wow.lua"))()
+local native = assert(loadfile("Tests/support/aura_container.lua"))()(host)
 local boot = assert(loadfile("Tests/support/load_addon.lua"))()
 
 -- Blizzard's unit frames are secure; record every visibility change.
@@ -41,6 +42,7 @@ end
 
 local profile = addon.db.profile
 profile.ufEnabled, profile.ufHideBlizzard = true, true
+profile.ufConfig.player.debuffs.enabled, profile.ufConfig.target.debuffs.enabled = true, true
 profile.consumablesEnabled, profile.playerBuffsEnabled, profile.trinketsEnabled = true, true, true
 addon:OnProfileChanged()
 host:Flush()
@@ -74,10 +76,12 @@ local apps = { "ActionHud", "ActionHud_Layout", "ActionHud_AB", "ActionHud_Res",
 local failures, calls = {}, 0
 local function call(path, fn, ...)
 	calls = calls + 1
+	local nativeWrites = native.writes
 	host.combat = true
 	local ok, err = pcall(fn, ...)
 	host.combat = false
 	if not ok then failures[#failures + 1] = path .. ": " .. tostring(err) end
+	if native.writes ~= nativeWrites then failures[#failures + 1] = path .. ": native aura write in combat" end
 	for _, message in ipairs(host.errors) do failures[#failures + 1] = path .. ": " .. message end
 	host.errors = {}
 end

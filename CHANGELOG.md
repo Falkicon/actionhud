@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+## [2.15.0] - 2026-10-31
+
+### Added
+
+- Hovering player and target debuff icons shows Blizzard's native aura tooltip.
+- Optional native debuffs on the custom Player and Target frames. Enable each under **Unit Frames → [frame] → Debuffs → Show Debuffs**; both default to off. Includes cooldowns, stack counts, icon size, up to 24 icons, spacing, frame gap, and above/below placement. Target swaps refresh during combat; configuration changes defer until combat ends. Retail/Forever source APIs were reviewed; live combat validation remains pending.
+
 ### Fixed
 
 - Acquiring or clearing a target during combat now shows or hides the target half of the resource bar immediately instead of after combat.

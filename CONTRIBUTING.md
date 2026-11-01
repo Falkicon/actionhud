@@ -59,6 +59,7 @@ Test the paths affected by your change after installing the development build an
 - **Action slots:** Druid forms, Rogue stealth, page changes, proc overrides, shared slots, empty cooldown/charge slots, range tint, and assist glows.
 - **Layout and lifecycle:** enable/disable persistence, stack inclusion, profile switch/copy/reset, independent dragging, UI scale changes, and entering combat mid-drag.
 - **Protected APIs and unit frames:** instanced combat, restricted health/prediction data, maximum-health changes, and deferred secure geometry after leaving combat.
+- **Unit-frame debuffs:** player and friendly/hostile target aura appearance, expiration, dispels, stack changes, target switches and clearing in combat, above/below wrapping and scaling, per-frame/master toggles, and profile switch/copy/reset. Verify configuration deferral and no taint errors on both Retail and Forever; see [the API review](docs/unit-frame-debuffs.md).
 - **Consumables:** bag discovery, exact-ID additions, quality variants, carried counts/charges, depleted slots, cooldown clearing, shared decimal thresholds, and drag-overlay visibility.
 - **Player Buffs:** Recent Buffs and Blizzard Catalog selection, native aura appearance/removal, fixed slots, stack inclusion, and combat-deferred configuration.
 

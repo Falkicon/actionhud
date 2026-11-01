@@ -96,6 +96,7 @@ function methods:GetSize() return self:GetWidth(), self:GetHeight() end
 function methods:GetCenter() return 500, 300 end
 function methods:GetEffectiveScale() return 1 end
 function methods:GetScale() return 1 end
+function methods:SetScale(value) protect(self); self.scale = value end
 function methods:GetParent() return self.parent end
 function methods:SetParent(parent) protect(self); self.parent = parent end
 function methods:Show() protect(self); self.shown = true end
@@ -141,7 +142,13 @@ function methods:CreateFontString(name)
 	self.regions[#self.regions + 1] = region
 	return region
 end
-function methods:EnableMouse(value) protect(self); self.mouseEnabled = value end
+function methods:EnableMouse(value)
+	protect(self)
+	self.mouseEnabled, self.mouseMotionEnabled, self.mouseClicksEnabled = value, value, value
+end
+-- Match WoW's frame API names; there are no EnableMouseMotion/Clicks aliases.
+function methods:SetMouseMotionEnabled(value) protect(self); self.mouseMotionEnabled = value end
+function methods:SetMouseClickEnabled(value) protect(self); self.mouseClicksEnabled = value end
 function methods:IsMouseEnabled() return self.mouseEnabled end
 function methods:StartMoving() protect(self); self.moving = true end
 function methods:StopMovingOrSizing() protect(self); self.moving = false end
